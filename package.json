@@ -1,0 +1,92 @@
+{
+	"name": "form-graph",
+	"version": "0.0.1",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build && npm run prepack",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"prepack": "svelte-kit sync && svelte-package && publint",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit -p tsconfig.lib.json"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*",
+		"!dist/**/*.spec.*",
+		"!dist/__tests__",
+		"!dist/__bench__",
+		"!dist/__stress__",
+		"!dist/**/__tests__"
+	],
+	"sideEffects": [
+		"**/*.css"
+	],
+	"svelte": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./svelte": {
+			"types": "./dist/svelte/index.d.ts",
+			"svelte": "./dist/svelte/index.js",
+			"import": "./dist/svelte/index.js"
+		},
+		"./react": {
+			"types": "./dist/react/index.d.ts",
+			"import": "./dist/react/index.js"
+		},
+		"./kits": {
+			"types": "./dist/codecs/index.d.ts",
+			"import": "./dist/codecs/index.js"
+		}
+	},
+	"peerDependencies": {
+		"react": "^18.0.0 || ^19.0.0",
+		"svelte": "^5.0.0",
+		"zod": "^3.25.0 || ^4.0.0"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^7.0.1",
+		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/package": "^2.5.8",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@tailwindcss/typography": "^0.5.20",
+		"@tailwindcss/vite": "^4.3.3",
+		"@testing-library/react": "^16.3.2",
+		"@types/react": "^18.3.31",
+		"@types/react-dom": "^18.3.7",
+		"@vitejs/plugin-react": "^6.1.0",
+		"happy-dom": "^20.11.7",
+		"publint": "^0.3.21",
+		"react": "^19.2.8",
+		"react-dom": "^19.2.8",
+		"svelte": "^5.56.1",
+		"svelte-check": "^4.6.0",
+		"tailwindcss": "^4.3.3",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.16",
+		"vitest": "^4.1.11",
+		"zod": "^4.4.3"
+	},
+	"keywords": [
+		"svelte"
+	],
+	"peerDependenciesMeta": {
+		"svelte": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		},
+		"zod": {
+			"optional": true
+		}
+	}
+}
