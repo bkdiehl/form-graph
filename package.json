@@ -84,7 +84,15 @@
 		"zod": "^4.4.3"
 	},
 	"keywords": [
-		"svelte"
+		"forms",
+		"form",
+		"state",
+		"zod",
+		"discriminated-union",
+		"svelte",
+		"react",
+		"validation",
+		"isomorphic"
 	],
 	"peerDependenciesMeta": {
 		"svelte": {
@@ -96,5 +104,6 @@
 		"zod": {
 			"optional": true
 		}
-	}
+	},
+	"description": "Branch-routed forms with one definition, both sides: a contract engine for forms whose shape depends on their own values."
 }
