@@ -5,7 +5,7 @@ svelte-package), and src/routes is the demo app — the generation form driven
 client-side through the Svelte binding, submitting to a form action that parses
 with the SAME definition server-side.
 
-Moved here 2026-08-26 from the civitai worktree prototype
+Moved here 2026-08-26 from the original upstream worktree prototype
 (worktrees/form-graph/prototypes/form-graph — now superseded; the parity
 harness in that worktree imports from THIS repo). New since the move:
 
@@ -45,8 +45,8 @@ From the deep review's inconsistency list, all addressed pre-publish:
   web-storage adapter: JSON backend, debounced writes, pagehide/visibility
   flush, SSR-safe (returns undefined without window), dispose() for early
   teardown. Replaces ~20 lines of boilerplate per consumer.
-- **Packaging**: the npm tarball now excludes `dist/civitai`, `dist/generation`,
-  fixtures/bench/stress — civitai-specific content stays in the repo as demo/
+- **Packaging**: the npm tarball now excludes `dist/generation`,
+  fixtures/bench/stress — upstream-specific content stays local as demo/
   parity material but does not ship. The package ships the framework-free core
   plus the React and Svelte component bindings.
 
@@ -59,7 +59,7 @@ value interface instead of the anonymous zod shape, (b) an `M` with no carrier
 on the codec (meta supplied per-pass at the call site — TS has no partial
 inference, so this forces annotating T too), or (c) a deliberate widening,
 which the factory then checks the schemas against. The demo forms practice
-this; the civitai ports keep annotations where cases (a)/(b) apply.
+this; the v1 ports keep annotations where cases (a)/(b) apply.
 
 ## Correction became a statement (2026-08-27)
 
@@ -84,9 +84,9 @@ through the rewrite.
 
 ## The real graphs, ported and proven (2026-08-26)
 
-The two most complex civitai generation data-graphs — **ltx-graph.ts** (621 lines: 3 version subgraphs, distilled-model field visibility, resolution-driven tables) and **wan-graph.ts** (653 lines: 5 version subgraphs, flag-driven 2.2 modes, workflow/resolution ecosystem sync) — are reproduced at full fidelity in `src/lib/civitai/` (constants derived from the real config, codecs mirroring v1 common.ts exactly, family resolvers + a video hub slice).
+The two most complex upstream generation data-graphs — **ltx-graph.ts** (621 lines: 3 version subgraphs, distilled-model field visibility, resolution-driven tables) and **wan-graph.ts** (653 lines: 5 version subgraphs, flag-driven 2.2 modes, workflow/resolution ecosystem sync) — are reproduced at full fidelity in `src/v1/ports/` (local-only) (constants derived from the real config, codecs mirroring v1 common.ts exactly, family resolvers + a video hub slice).
 
-**The verbatim v1 code is vendored** into `src/v1/civitai/` (engine + all graphs + real basemodel/generation constants; `~/`-imports resolved by a vitest alias, checked by `pnpm run typecheck:v1`). That makes the differential harness self-contained: `src/v1/__tests__/` runs the SAME inputs through the real `generationGraph.safeParse` and `videoForm.parse`:
+**The verbatim v1 code is vendored** into `src/v1/vendor/` (local-only) (engine + all graphs + real basemodel/generation constants; `~/`-imports resolved by a vitest alias, checked by `pnpm run typecheck:v1`). That makes the differential harness self-contained: `src/v1/__tests__/` runs the SAME inputs through the real `generationGraph.safeParse` and `videoForm.parse`:
 
 - **19 branch parity cases** (values + key SETS, per branch) — pass with ZERO documented deltas.
 - **13 table pins** — the port constants deep-equal the vendored tables, so duplication cannot drift.

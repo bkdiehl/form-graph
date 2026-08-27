@@ -20,13 +20,13 @@
     ],
     "paths": {
       "~/*": [
-        "./src/v1/civitai/*"
+        "./src/v1/vendor/*"
       ]
     }
   },
   "include": [
     "src/lib",
     "src/v1/__tests__",
-    "src/v1/civitai/globals.d.ts"
+    "src/v1/vendor/globals.d.ts"
   ]
 }

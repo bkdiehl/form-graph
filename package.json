@@ -24,7 +24,6 @@
 		"!dist/__bench__",
 		"!dist/__stress__",
 		"!dist/__fixtures__",
-		"!dist/civitai",
 		"!dist/generation"
 	],
 	"sideEffects": [

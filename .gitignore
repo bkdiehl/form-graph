@@ -23,9 +23,9 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Vendored civitai v1 code + its differential-parity apparatus — local-only,
-# used to prove the src/lib/civitai ports against the verbatim originals.
-# Never committed: the civitai repo is the home of that code.
+# Local-only differential-parity apparatus: vendored upstream v1 code plus
+# the ports proven against it. Never committed — the upstream repo is the
+# home of that code.
 /src/v1
 /tsconfig.v1.json
 /scripts/extract-v1-tables.mjs

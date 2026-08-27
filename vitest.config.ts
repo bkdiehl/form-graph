@@ -12,15 +12,15 @@ export default defineConfig({
   // reactivity test silently sees zero runs.
   resolve: {
     conditions: ['browser'],
-    // The vendored v1 data-graph tree keeps its civitai-repo '~/' imports verbatim.
+    // The vendored v1 data-graph tree keeps its upstream '~/' imports verbatim.
     alias: [
       // NodeNext (the root tsconfig) requires extensions even through path
       // aliases, so test imports write '~/x.js'; map them back to the .ts source.
       {
         find: /^~\/(.+)\.js$/,
-        replacement: path.resolve(import.meta.dirname, 'src/v1/civitai') + '/$1.ts',
+        replacement: path.resolve(import.meta.dirname, 'src/v1/vendor') + '/$1.ts',
       },
-      { find: /^~\//, replacement: path.resolve(import.meta.dirname, 'src/v1/civitai') + '/' },
+      { find: /^~\//, replacement: path.resolve(import.meta.dirname, 'src/v1/vendor') + '/' },
     ],
   },
   plugins: [svelte(), react()],
