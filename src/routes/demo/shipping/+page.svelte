@@ -3,6 +3,8 @@
   import { formState, typedFields } from '$lib/svelte/index.js';
   import Slider from '../Slider.svelte';
   import { shippingForm } from './shipping-form.js';
+  import SourceCode from '../SourceCode.svelte';
+  import formSource from './shipping-form.ts?shiki';
 
   // sessionStorage this time: a quote is tab-scoped work-in-progress, not a
   // durable preference — close the tab and it's gone, reload and it's back.
@@ -53,7 +55,9 @@
     dimensional weight → billable weight → price — and the two different reactions to a bad
     combination: switching a freight-ocean quote to parcel silently
     <em class="text-ink">projects</em> the service (with a note), while explosives on an air
-    service <em class="text-ink">refuses</em> at submit. Persisted to
+    service <em class="text-ink">refuses</em> at submit. Hazmat demands an emergency contact
+    (validated at output), and an international quote over $5000 flips insurance on
+    <em>for</em> you — which is the only way the signature question ever appears. Persisted to
     <strong class="text-ink">sessionStorage</strong>: reload keeps the quote, closing the tab
     discards it.
   </p>
@@ -71,6 +75,22 @@
     {/if}
     {#if f.destination.current?.meta}
       {@render enumButtons('destination', f.destination.current.value, f.destination.current.meta.options)}
+    {/if}
+
+    {#if f.emergencyContact.current}
+      <label class="flex items-center gap-3 py-1.5">
+        <span class="w-32 font-mono text-sm text-muted">emergencyContact</span>
+        <input
+          type="tel"
+          class="max-w-64 flex-1 rounded border border-line bg-surface px-2 py-1 text-sm"
+          placeholder="+1 555 0100"
+          value={f.emergencyContact.current.value}
+          oninput={(e) => store.set({ emergencyContact: e.currentTarget.value })}
+        />
+        {#if f.emergencyContact.current.error}
+          <span class="text-xs text-problem">{f.emergencyContact.current.error.message}</span>
+        {/if}
+      </label>
     {/if}
 
     {#if f.hazmatClass.current?.meta}
@@ -119,6 +139,30 @@
       />
       {#if f.incoterms.current?.meta}
         {@render enumButtons('incoterms', f.incoterms.current.value, f.incoterms.current.meta.options)}
+      {/if}
+      {#if f.insurance.current}
+        <label class="flex items-center gap-3 py-1.5">
+          <span class="w-32 font-mono text-sm text-muted">insurance</span>
+          <input
+            type="checkbox"
+            class="accent-accent"
+            checked={f.insurance.current.value}
+            onchange={(e) => store.set({ insurance: e.currentTarget.checked })}
+          />
+          <span class="text-xs text-faint">forced on at $5000+ declared value</span>
+        </label>
+      {/if}
+      {#if f.signatureRequired.current}
+        <label class="flex items-center gap-3 py-1.5">
+          <span class="w-32 font-mono text-sm text-muted">signatureRequired</span>
+          <input
+            type="checkbox"
+            class="accent-accent"
+            checked={f.signatureRequired.current.value}
+            onchange={(e) => store.set({ signatureRequired: e.currentTarget.checked })}
+          />
+          <span class="text-xs text-faint">only asked once insured</span>
+        </label>
       {/if}
     {/if}
   </section>
@@ -171,9 +215,11 @@
     Request quote (strict validate)
   </button>
   <span class="ml-3 text-xs text-faint">
-    Try: freight + ocean, then switch to parcel. Or hazmat + air + Class 1.4, then submit.
+    Try: freight + ocean, then switch to parcel. Hazmat + air + Class 1.4, then submit. Or
+    international with declaredValue at $5000.
   </span>
   {#if submitted}
     <pre class="mt-4">{submitted}</pre>
   {/if}
+  <SourceCode code={formSource} filename="shipping-form.ts" />
 </main>

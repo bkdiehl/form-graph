@@ -1,3 +1,7 @@
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
 <h1>Svelte binding</h1>
 
 <p>
@@ -86,7 +90,7 @@ f.steps.current
   {/snippet}
 </Field>`}</pre>
 
-<p>The <a href="/demo">demos</a> are built entirely this way.</p>
+<p>The <a href="{base}/demo">demos</a> are built entirely this way.</p>
 
 <h2>Testing gotcha</h2>
 <p>

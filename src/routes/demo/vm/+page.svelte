@@ -3,6 +3,8 @@
   import { formState, typedFields } from '$lib/svelte/index.js';
   import Slider from '../Slider.svelte';
   import { vmForm } from './vm-form.js';
+  import SourceCode from '../SourceCode.svelte';
+  import formSource from './vm-form.ts?shiki';
 
   // localStorage again — a machine spec is a durable preference. The scoped
   // intent is visible IN the stored record: keys like `instanceType@gpu` and
@@ -48,7 +50,8 @@
     <em class="text-ink">per workload preset</em> — configure a GPU box, detour through Compute,
     come back, and your A100 is still there. Changing region projects an unavailable type;
     lowering vCPUs drags an already-chosen RAM value down through its computed ceiling; spot
-    removes the SLA field entirely. The stored-intent panel at the bottom shows the scoped
+    removes the SLA field entirely — and if backups are on, corrects an hourly frequency to
+    daily with an inline note. The stored-intent panel at the bottom shows the scoped
     buckets in <strong class="text-ink">localStorage</strong>, live.
   </p>
 
@@ -102,6 +105,28 @@
     {#if f.sla.current?.meta}
       {@render enumButtons('sla', f.sla.current.value, f.sla.current.meta.options)}
     {/if}
+
+    {#if f.backups.current}
+      <label class="flex items-center gap-3 py-1.5">
+        <span class="w-32 font-mono text-sm text-muted">backups</span>
+        <input
+          type="checkbox"
+          class="accent-accent"
+          checked={f.backups.current.value}
+          onchange={(e) => store.set({ backups: e.currentTarget.checked })}
+        />
+        <span class="text-xs text-faint">unlocks the frequency choice</span>
+      </label>
+    {/if}
+    {#if f.backupFrequency.current?.meta}
+      {@render enumButtons('backupFrequency', f.backupFrequency.current.value, f.backupFrequency.current.meta.options)}
+      {#if f.backupFrequency.current.note}
+        <p class="ml-35 text-xs text-accent">
+          hourly backups of an interruptible machine snapshot nothing — corrected to
+          {f.backupFrequency.current.value}
+        </p>
+      {/if}
+    {/if}
   </section>
 
   <section class="my-6 rounded-lg border border-line bg-surface p-4">
@@ -146,6 +171,8 @@
 
   <span class="text-xs text-faint">
     Try: pick gpu.a100, switch preset to Compute and back. Move region to ap-south with c2.metal
-    selected. Drop vCPUs to 2 with RAM maxed. Then reload the page.
+    selected. Drop vCPUs to 2 with RAM maxed. Turn on backups, pick hourly, then flip spot on.
+    Then reload the page.
   </span>
+  <SourceCode code={formSource} filename="vm-form.ts" />
 </main>

@@ -81,6 +81,15 @@ const SLA = enumCodec({
   default: '99.9',
 });
 
+const BACKUP_FREQ = enumCodec({
+  options: [
+    { value: 'hourly', label: 'Hourly' },
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+  ],
+  default: 'daily',
+});
+
 const BOOL = codec({
   input: z.boolean().optional(),
   output: z.boolean(),
@@ -99,6 +108,8 @@ export const vmForm = defineForm()({
     windowsLicense: LICENSE,
     spot: BOOL,
     sla: SLA,
+    backups: BOOL,
+    backupFrequency: BACKUP_FREQ,
   },
   resolve: (f: Fields) => {
     const preset = f.field('preset', PRESET);
@@ -137,11 +148,26 @@ export const vmForm = defineForm()({
     const os = f.field('os', OS);
     const spot = f.field('spot', BOOL);
 
+    const backups = f.field('backups', BOOL);
+    const backupBranch = backups
+      ? (() => {
+          let backupFrequency = f.field('backupFrequency', BACKUP_FREQ);
+          // A spot instance can vanish mid-hour, so hourly backups would
+          // mostly snapshot a machine that no longer exists — corrected, with
+          // a note the page surfaces inline.
+          if (spot && backupFrequency === 'hourly') {
+            backupFrequency = f.correct('backupFrequency', 'daily', 'spot_hourly_pointless', {});
+          }
+          return { backupFrequency };
+        })()
+      : {};
+
     const branch = {
       ...(preset === 'gpu' ? { gpuCount: f.field('gpuCount', GPUS) } : {}),
       ...(os === 'windows' ? { windowsLicense: f.field('windowsLicense', LICENSE) } : {}),
       // Spot capacity can be reclaimed at any time — no SLA to offer.
       ...(spot ? {} : { sla: f.field('sla', SLA) }),
+      ...backupBranch,
     };
 
     const gpuCount = 'gpuCount' in branch ? (branch.gpuCount ?? 0) : 0;
@@ -153,7 +179,15 @@ export const vmForm = defineForm()({
       (os === 'windows' && ('windowsLicense' in branch ? branch.windowsLicense : '') === 'included'
         ? vcpus * 0.01
         : 0);
-    const hourly = Math.round(hourlyRaw * (spot ? 0.35 : 1) * 1000) / 1000;
+    const backupHourly = backups
+      ? (ramGb * 0.0002 + vcpus * 0.001) *
+        ('backupFrequency' in branch && branch.backupFrequency === 'hourly'
+          ? 3
+          : 'backupFrequency' in branch && branch.backupFrequency === 'weekly'
+            ? 0.4
+            : 1)
+      : 0;
+    const hourly = Math.round((hourlyRaw + backupHourly) * (spot ? 0.35 : 1) * 1000) / 1000;
     const bandwidth = vcpus >= 32 ? '25 Gbps' : vcpus >= 16 ? '10 Gbps' : '5 Gbps';
 
     return {
@@ -164,6 +198,7 @@ export const vmForm = defineForm()({
       ramGb,
       os,
       spot,
+      backups,
       ...branch,
       maxRam: f.computed('maxRam', maxRam),
       hourly: f.computed('hourly', hourly),

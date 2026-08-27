@@ -29,3 +29,4 @@ vite.config.ts.timestamp-*
 /src/v1
 /tsconfig.v1.json
 /scripts/extract-v1-tables.mjs
+/build

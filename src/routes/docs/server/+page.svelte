@@ -1,3 +1,7 @@
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
 <h1>Server parsing</h1>
 
 <p>
@@ -32,7 +36,7 @@ export const actions = {
   },
 };`}</pre>
 
-<p>This exact pattern runs the <a href="/demo">live demo</a>.</p>
+<p>This exact pattern runs the <a href="{base}/demo">live demo</a>.</p>
 
 <h2>Substitution notes</h2>
 <p>

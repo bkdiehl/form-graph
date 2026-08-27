@@ -2,6 +2,8 @@
   import { persistedStorage } from '$lib/index.js';
   import { Field, formState } from '$lib/svelte/index.js';
   import { pizzaForm, SIZES, TOPPINGS } from './pizza-form.js';
+  import SourceCode from '../SourceCode.svelte';
+  import formSource from './pizza-form.ts?shiki';
 
   // persistedStorage: JSON localStorage backend, debounced writes, and a
   // synchronous flush on pagehide — the whole persistence story in one line.
@@ -51,7 +53,10 @@
 <main>
   <h1 class="font-display text-3xl font-bold tracking-tight">Pizza builder</h1>
   <p class="mt-4 max-w-[65ch] leading-relaxed text-muted">
-    Rung one of the ladder: a form anyone can read, using every core mechanism. The crust's
+    Rung one of the ladder: a form anyone can read, using every core mechanism. Style drives
+    half the form — deep dish forbids thin crust and unlocks extra sauce; calzone removes the
+    crust choice <em>and</em> half-and-half entirely (the page has no conditionals for that:
+    every control is a flat <code>&lt;Field&gt;</code>, and the form decides). The crust's
     <em>options</em> depend on size and gluten-free (with your pick remembered per size); the
     topping list is projected into a per-size coverage budget with an
     <code>oven_physics</code> note when something gets dropped; calories, bake time, and price
@@ -63,6 +68,28 @@
        The form decides which of these exist; a <Field> whose key is inactive
        renders nothing. -->
   <section class="my-6 flex flex-col">
+    <Field {store} name="style">
+      {#snippet children(snap, setValue)}
+        <div class="flex items-center gap-3 py-1.5">
+          <span class="w-28 font-mono text-sm text-muted">style</span>
+          <span class="flex gap-1.5">
+            {#each snap.meta?.options ?? [] as option (option.value)}
+              <button
+                type="button"
+                class="cursor-pointer rounded border px-3 py-1 text-sm transition-colors {snap.value ===
+                option.value
+                  ? 'border-accent bg-accent font-medium text-ground'
+                  : 'border-line bg-surface text-muted hover:text-ink'}"
+                onclick={() => setValue(option.value)}
+              >
+                {option.label}
+              </button>
+            {/each}
+          </span>
+        </div>
+      {/snippet}
+    </Field>
+
     <Field {store} name="size">
       {#snippet children(snap, setValue)}
         <div class="flex items-center gap-3 py-1.5">
@@ -118,6 +145,21 @@
             {/each}
           </span>
         </div>
+      {/snippet}
+    </Field>
+
+    <Field {store} name="extraSauce">
+      {#snippet children(snap, setValue)}
+        <label class="flex items-center gap-3 py-1.5">
+          <span class="w-28 font-mono text-sm text-muted">extraSauce</span>
+          <input
+            type="checkbox"
+            class="accent-accent"
+            checked={snap.value}
+            onchange={(e) => setValue(e.currentTarget.checked)}
+          />
+          <span class="text-xs text-faint">deep dish only</span>
+        </label>
       {/snippet}
     </Field>
 
@@ -210,4 +252,5 @@
       reload the page.
     </span>
   </div>
+  <SourceCode code={formSource} filename="pizza-form.ts" />
 </main>

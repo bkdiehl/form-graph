@@ -2,6 +2,8 @@
   import { formState, typedFields } from '$lib/svelte/index.js';
   import { demoForm } from './demo-form.js';
   import Slider from './Slider.svelte';
+  import SourceCode from './SourceCode.svelte';
+  import formSource from './demo-form.ts?shiki';
 
   const store = demoForm.createStore();
 
@@ -119,4 +121,5 @@
   {#if submitted}
     <pre class="mt-4">{submitted}</pre>
   {/if}
+  <SourceCode code={formSource} filename="demo-form.ts" />
 </main>

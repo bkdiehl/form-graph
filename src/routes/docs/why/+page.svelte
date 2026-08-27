@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   const hero: { code: string; note?: string }[] = [
     { code: 'resolve: (f, ext) => {' },
     { code: "  const workflow = f.field('workflow', WORKFLOW);", note: 'every conditional’s one home' },
@@ -159,7 +160,7 @@
       through the UI, it doesn’t.
     </p>
     <p class="mt-4 text-sm">
-      <a href="/docs" class="text-accent">Getting started →</a>
+      <a href="{base}/docs" class="text-accent">Getting started →</a>
     </p>
   </section>
 </div>

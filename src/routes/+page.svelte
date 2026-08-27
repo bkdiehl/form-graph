@@ -1,3 +1,7 @@
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
 <main>
   <h1 class="font-display text-4xl font-bold tracking-tight text-balance">
     Branch-routed forms with one definition, both sides
@@ -69,9 +73,9 @@ const result = form.parse(rawBody, { maxSteps: 50 });`}</pre>
   </ul>
 
   <p class="mt-10 leading-relaxed text-muted">
-    <a href="/docs/why" class="text-accent">Why this exists</a>,
-    <a href="/docs" class="text-accent">the docs</a>, or
-    <a href="/demo" class="text-accent">the live demo</a> — a real generation-form port with 7
+    <a href="{base}/docs/why" class="text-accent">Why this exists</a>,
+    <a href="{base}/docs" class="text-accent">the docs</a>, or
+    <a href="{base}/demo" class="text-accent">the live demo</a> — a real generation-form port with 7
     workflows and 8 ecosystems, parsed server-side by a SvelteKit form action.
   </p>
 </main>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { base } from '$app/paths';
   import type { Snippet } from 'svelte';
 
   const { children }: { children: Snippet } = $props();
@@ -12,6 +13,13 @@
     { href: '/docs/svelte', label: 'Svelte binding' },
     { href: '/docs/react', label: 'React binding' },
   ];
+
+  // trailingSlash 'always' (GitHub Pages) means pathnames end in '/'.
+  const path = $derived(
+    page.url.pathname.length > 1 && page.url.pathname.endsWith('/')
+      ? page.url.pathname.slice(0, -1)
+      : page.url.pathname
+  );
 </script>
 
 <div class="flex flex-col items-start gap-10 sm:flex-row">
@@ -20,8 +28,8 @@
   >
     {#each pages as { href, label } (href)}
       <a
-        {href}
-        class="no-underline transition-colors {page.url.pathname === href
+        href="{base}{href}"
+        class="no-underline transition-colors {path === base + href
           ? 'font-semibold text-accent'
           : 'text-muted hover:text-ink'}"
       >

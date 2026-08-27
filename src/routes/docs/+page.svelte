@@ -1,3 +1,7 @@
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
 <h1>Getting started</h1>
 
 <p>
@@ -89,7 +93,7 @@ store.output();                    // strict-validated data — THROWS if invali
 store.validate();                  // the checked sibling: { success, data | errors }`}</pre>
 
 <p>
-  Bindings for <a href="/docs/svelte">Svelte</a> and <a href="/docs/react">React</a> wrap those
+  Bindings for <a href="{base}/docs/svelte">Svelte</a> and <a href="{base}/docs/react">React</a> wrap those
   three calls into idiomatic reactivity — nothing else lives in them.
 </p>
 
@@ -101,6 +105,6 @@ if (result.success) {
 }`}</pre>
 
 <p>
-  See <a href="/docs/server">Server parsing</a> for errors, substitution notes, and
+  See <a href="{base}/docs/server">Server parsing</a> for errors, substitution notes, and
   <code>computedKeys</code>.
 </p>

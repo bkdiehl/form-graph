@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { base } from '$app/paths';
   import type { Snippet } from 'svelte';
 
   const { children }: { children: Snippet } = $props();
@@ -10,15 +11,21 @@
     { href: '/demo/pizza', label: 'Pizza builder' },
     { href: '/demo/shipping', label: 'Shipping quote' },
     { href: '/demo/vm', label: 'VM configurator' },
-    { href: '/demo/video', label: 'LTX + Wan (real)' },
   ];
+
+  // trailingSlash 'always' (GitHub Pages) means pathnames end in '/'.
+  const path = $derived(
+    page.url.pathname.length > 1 && page.url.pathname.endsWith('/')
+      ? page.url.pathname.slice(0, -1)
+      : page.url.pathname
+  );
 </script>
 
 <nav class="mb-6 flex gap-4 text-sm">
   {#each tabs as { href, label } (href)}
     <a
-      {href}
-      class="border-b-2 pb-1 no-underline transition-colors {page.url.pathname === href
+      href="{base}{href}"
+      class="border-b-2 pb-1 no-underline transition-colors {path === base + href
         ? 'border-accent font-semibold text-ink'
         : 'border-transparent text-muted hover:text-ink'}"
     >

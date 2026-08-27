@@ -80,6 +80,14 @@ const BOOL = codec({
   default: false,
 });
 
+const EMERGENCY_CONTACT = codec({
+  input: z.string().optional(),
+  output: z
+    .string()
+    .regex(/^\+?[\d\s()-]{7,}$/, 'Hazmat requires a 24h emergency phone number'),
+  default: '',
+});
+
 export const shippingForm = defineForm()({
   codecs: {
     shipmentType: TYPE,
@@ -94,6 +102,9 @@ export const shippingForm = defineForm()({
     residential: BOOL,
     contents: CONTENTS,
     declaredValue: DECLARED_VALUE,
+    insurance: BOOL,
+    signatureRequired: BOOL,
+    emergencyContact: EMERGENCY_CONTACT,
   },
   resolve: (f: Fields) => {
     const shipmentType = f.field('shipmentType', TYPE);
@@ -119,9 +130,35 @@ export const shippingForm = defineForm()({
 
     const base = { shipmentType, service, destination, lengthCm, widthCm, heightCm, actualKg };
 
+    const international =
+      destination === 'international'
+        ? (() => {
+            const contents = f.field('contents', CONTENTS);
+            const declaredValue = f.field('declaredValue', DECLARED_VALUE);
+            // High-value shipments MUST be insured. The system knows better
+            // than to offer the checkbox as a choice, so it corrects — the
+            // note tells the page why the box flipped on by itself.
+            let insurance = f.field('insurance', BOOL);
+            if (declaredValue >= 5000 && !insurance) {
+              insurance = f.correct('insurance', true, 'high_value_requires_insurance', {
+                declaredValue,
+              });
+            }
+            return {
+              contents,
+              declaredValue,
+              incoterms: f.field('incoterms', INCOTERMS),
+              insurance,
+              // Signature is only a question once the shipment is insured.
+              ...(insurance ? { signatureRequired: f.field('signatureRequired', BOOL) } : {}),
+            };
+          })()
+        : null;
+
     const branch = {
       ...(shipmentType === 'hazmat'
         ? {
+            emergencyContact: f.field('emergencyContact', EMERGENCY_CONTACT),
             hazmatClass: f.field('hazmatClass', HAZMAT_CLASS, {
               // Explosives exist as a legal choice — but not on a plane. This
               // REFUSES (live error + failed submit) rather than silently
@@ -139,19 +176,15 @@ export const shippingForm = defineForm()({
       ...(shipmentType === 'freight' && service === 'ground'
         ? { residential: f.field('residential', BOOL) }
         : {}),
-      ...(destination === 'international'
-        ? {
-            contents: f.field('contents', CONTENTS),
-            declaredValue: f.field('declaredValue', DECLARED_VALUE),
-            incoterms: f.field('incoterms', INCOTERMS),
-          }
-        : {}),
+      ...(international ?? {}),
     };
 
     const surcharges =
       (shipmentType === 'hazmat' ? 45 : 0) +
       ('residential' in branch && branch.residential ? 28 : 0) +
-      (destination === 'international' ? 15 : 0);
+      (destination === 'international' ? 15 : 0) +
+      (international?.insurance ? Math.max(5, Math.round(international.declaredValue * 0.01)) : 0) +
+      (international?.signatureRequired ? 6 : 0);
     const price = Math.round((billableKg * RATE[service] + surcharges) * 100) / 100;
     const transitDays =
       service === 'air' ? (destination === 'international' ? 3 : 1) : service === 'ocean' ? 28 : 5;
