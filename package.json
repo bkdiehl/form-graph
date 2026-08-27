@@ -1,6 +1,6 @@
 {
 	"name": "form-graph",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build && npm run prepack",
@@ -12,7 +12,8 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit -p tsconfig.lib.json",
-		"typecheck:v1": "tsc --noEmit -p tsconfig.v1.json"
+		"typecheck:v1": "tsc --noEmit -p tsconfig.v1.json",
+		"prepublishOnly": "pnpm run typecheck && pnpm run check && vitest run"
 	},
 	"files": [
 		"dist",
@@ -105,5 +106,18 @@
 			"optional": true
 		}
 	},
-	"description": "Branch-routed forms with one definition, both sides: a contract engine for forms whose shape depends on their own values."
+	"description": "Branch-routed forms with one definition, both sides: a contract engine for forms whose shape depends on their own values.",
+	"license": "MIT",
+	"author": "Briant Diehl (https://github.com/bkdiehl)",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bkdiehl/form-graph.git"
+	},
+	"homepage": "https://github.com/bkdiehl/form-graph#readme",
+	"bugs": {
+		"url": "https://github.com/bkdiehl/form-graph/issues"
+	},
+	"engines": {
+		"node": ">=20"
+	}
 }
