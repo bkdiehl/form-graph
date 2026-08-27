@@ -30,14 +30,14 @@ f.field('images', IMAGES, { scope: workflow });`}</pre>
 
 <h2>Correction and refinement</h2>
 <p>
-  Two distinct reactions to an out-of-range value, chosen per field:
+  Two distinct reactions to an out-of-range value — logic is code, contracts are declarations:
 </p>
 <ul>
   <li>
-    <code>correct</code> silently replaces during resolution (clamp a quantity to the user's
-    limit, substitute a retired model). Return the value, or
-    <code>corrected(newValue, reason)</code> — the reason rides to the server as an audit note
-    and onto the field's snapshot for inline display. For mismatches the SYSTEM caused.
+    <code>f.correct(key, value, reason)</code> silently replaces during resolution — a
+    <em>statement</em> in the resolver, right after the field it fixes: clamp a quantity to the
+    user's limit, substitute a retired model. The reason rides to the server as an audit note and
+    onto the field's snapshot for inline display. For mismatches the SYSTEM caused.
   </li>
   <li>
     <code>refine</code> narrows the codec's output schema under this pass's conditions, in zod's

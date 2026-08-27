@@ -17,12 +17,30 @@
 <pre>{`import { z } from 'zod';
 import { codec } from 'form-graph';
 
-const STEPS = codec<number, { min: number; max: number }>({
+// Types are INFERRED from the schemas — no annotations needed:
+// this codec's value type is number, its meta type { min: number; max: number }.
+const STEPS = codec({
   input: z.coerce.number().optional(),
   output: z.number().int().min(1).max(50),
   default: 25,
   meta: { min: 1, max: 50 },
 });`}</pre>
+
+<p>Annotate the generics (<code>codec&lt;T, M&gt;</code>) only in three cases:</p>
+<ul>
+  <li>
+    you want the value typed as a <em>named</em> interface (<code>ResourceData</code>) instead of
+    the anonymous zod-inferred shape — better tooltips and error messages for big objects;
+  </li>
+  <li>
+    the meta type has no carrier on the codec (the meta is supplied per-pass at the
+    <code>f.field</code> call site), so <code>M</code> must be declared;
+  </li>
+  <li>
+    you deliberately want a wider type than the schema infers (<code>string</code> instead of a
+    literal union) — the factory then checks the schemas against your assertion.
+  </li>
+</ul>
 
 <h2>2. Write the resolver</h2>
 <p>

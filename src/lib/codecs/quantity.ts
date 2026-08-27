@@ -36,8 +36,15 @@ export const createQuantityKit = defineFieldKit<
     const min = args.min ?? step;
     return {
       default: min,
-      correct: (value) => snap(value, step, min, args.max),
       meta: { min, max: args.max, step },
     };
+  },
+  correct: (value, config, args) => {
+    const step = config.step ?? 1;
+    const min = args.min ?? step;
+    const snapped = snap(value, step, min, args.max);
+    return snapped === value
+      ? undefined
+      : { value: snapped, reason: 'out_of_range', detail: { min, max: args.max, step } };
   },
 });

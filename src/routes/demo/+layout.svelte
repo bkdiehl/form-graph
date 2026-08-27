@@ -10,6 +10,7 @@
     { href: '/demo/pizza', label: 'Pizza builder' },
     { href: '/demo/shipping', label: 'Shipping quote' },
     { href: '/demo/vm', label: 'VM configurator' },
+    { href: '/demo/video', label: 'LTX + Wan (real)' },
   ];
 </script>
 

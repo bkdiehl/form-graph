@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, corrected, defineForm, type Fields } from '$lib/index.js';
+import { codec, defineForm, type Fields } from '$lib/index.js';
 import { enumCodec, sliderCodec } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 3: the hardest mechanisms together. Scoped memory (the
@@ -81,7 +81,7 @@ const SLA = enumCodec({
   default: '99.9',
 });
 
-const BOOL = codec<boolean>({
+const BOOL = codec({
   input: z.boolean().optional(),
   output: z.boolean(),
   default: false,
@@ -106,30 +106,33 @@ export const vmForm = defineForm()({
 
     const forPreset = INSTANCE_TYPES.filter((t) => t.preset === preset);
     const available = forPreset.filter((t) => t.regions.includes(region));
-    const instanceType = f.field('instanceType', TYPE, {
+    let instanceType = f.field('instanceType', TYPE, {
       // Remembered per preset: your GPU pick survives a detour through compute.
       scope: preset,
       // A region can offer NOTHING for a preset (compute in ap-south) — fall
       // back to the preset's first type so the form stays resolvable.
       default: () => (available[0] ?? forPreset[0])!.id,
-      correct: (id) =>
-        available.some((t) => t.id === id)
-          ? id
-          : corrected((available[0] ?? forPreset[0])!.id, 'region_unavailable', { region }),
       meta: { options: available.map((t) => ({ value: t.id, label: t.id })) },
     });
+    if (!available.some((t) => t.id === instanceType)) {
+      instanceType = f.correct(
+        'instanceType',
+        (available[0] ?? forPreset[0])!.id,
+        'region_unavailable',
+        { region }
+      );
+    }
     const typeConfig = INSTANCE_TYPES.find((t) => t.id === instanceType) ?? forPreset[0]!;
 
     const vcpus = f.field('vcpus', VCPUS, { scope: preset });
     // The ceiling: RAM can't exceed 4 GB per vCPU. Lowering vCPUs projects an
     // already-chosen RAM value DOWN — one field's projection driven by another.
     const maxRam = vcpus * 4;
-    const ramGb = f.field('ramGb', RAM, {
+    let ramGb = f.field('ramGb', RAM, {
       scope: preset,
-      correct: (value) =>
-        value <= maxRam ? value : corrected(maxRam, 'ram_ceiling', { maxRam, vcpus }),
       meta: { min: 4, max: Math.min(256, maxRam), step: 4 },
     });
+    if (ramGb > maxRam) ramGb = f.correct('ramGb', maxRam, 'ram_ceiling', { maxRam, vcpus });
 
     const os = f.field('os', OS);
     const spot = f.field('spot', BOOL);

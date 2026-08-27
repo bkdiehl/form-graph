@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { codec, corrected, defineForm, type Fields } from '../index.js';
+import { codec, defineForm, type Fields } from '../index.js';
 
 const STEPS = codec<number>({
   input: z.coerce.number().optional(),
@@ -8,17 +8,18 @@ const STEPS = codec<number>({
   default: 25,
 });
 
-describe('correct: per-pass replacement with an audit note', () => {
+describe('f.correct: correction as a resolver STATEMENT', () => {
   const form = defineForm<{ max: number }>()({
-    resolve: (f: Fields, ext) => ({
-      steps: f.field('steps', STEPS, {
-        correct: (value) =>
-          value <= ext.max ? value : corrected(ext.max, 'over_ceiling', { max: ext.max }),
-      }),
-    }),
+    resolve: (f: Fields, ext) => {
+      let steps = f.field('steps', STEPS, {
+        meta: (value) => ({ max: ext.max, current: value }),
+      });
+      if (steps > ext.max) steps = f.correct('steps', ext.max, 'over_ceiling', { max: ext.max });
+      return { steps };
+    },
   });
 
-  it('state can never hold a value correct would replace', () => {
+  it('state can never hold a value the correction statement would replace', () => {
     const store = form.createStore({ ext: { max: 30 } });
     store.set({ steps: 50 });
     expect(store.getField('steps')?.value).toBe(30);
@@ -30,6 +31,12 @@ describe('correct: per-pass replacement with an audit note', () => {
     expect(store.getField('steps')?.note?.kind).toBe('over_ceiling');
   });
 
+  it('value-derived meta is recomputed from the corrected value', () => {
+    const store = form.createStore({ ext: { max: 30 } });
+    store.set({ steps: 50 });
+    expect(store.getField('steps')?.meta).toEqual({ max: 30, current: 30 });
+  });
+
   it('intent keeps the original: relax the ceiling and the value returns', () => {
     const store = form.createStore({ ext: { max: 30 } });
     store.set({ steps: 50 });
@@ -38,11 +45,30 @@ describe('correct: per-pass replacement with an audit note', () => {
     expect(store.getNotes()).toEqual([]);
   });
 
-  it('a plain return records nothing', () => {
+  it('no correction call records nothing', () => {
     const store = form.createStore({ ext: { max: 30 } });
     store.set({ steps: 10 });
     expect(store.getNotes()).toEqual([]);
     expect(store.getField('steps')?.note).toBeUndefined();
+  });
+
+  it('correcting an undeclared or computed key throws', () => {
+    const bad = defineForm()({
+      resolve: (f: Fields) => {
+        f.correct('ghost', 1, 'nope');
+        return {};
+      },
+    });
+    expect(() => bad.parse({}, undefined)).toThrowError(/no field/);
+
+    const badComputed = defineForm()({
+      resolve: (f: Fields) => {
+        const total = f.computed('total', 5);
+        f.correct('total', 1, 'nope');
+        return { total };
+      },
+    });
+    expect(() => badComputed.parse({}, undefined)).toThrowError(/computed/);
   });
 });
 

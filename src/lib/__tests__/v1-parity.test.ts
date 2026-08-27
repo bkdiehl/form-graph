@@ -195,10 +195,12 @@ describe('v1 parity: external-context deps (data-graph.test.ts)', () => {
     const form = defineForm<Ext>()({
       resolve: (f: Fields, ext: Ext) => {
         counter.runs++;
-        const resources = f.field('resources', resourcesCodec, {
+        let resources = f.field('resources', resourcesCodec, {
           meta: { limit: ext.limits.maxResources },
-          correct: (value) => value.slice(0, ext.limits.maxResources),
         });
+        if (resources.length > ext.limits.maxResources) {
+          resources = f.correct('resources', resources.slice(0, ext.limits.maxResources), 'over_limit');
+        }
         return { resources };
       },
     });

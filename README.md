@@ -25,6 +25,50 @@ Commands: `pnpm test` (vitest, all 215), `pnpm check` (svelte-check),
 `pnpm typecheck` (tsc over src/lib), `pnpm build` (app + package + publint),
 `pnpm dev` (demo).
 
+## Codec types are inferred (2026-08-27)
+
+`codec({ output: z.number().min(1), default: 25 })` infers its value type from
+the schemas — verified for primitives, literal unions, and optional objects.
+House style: infer by default; annotate `codec<T, M>` only for (a) a NAMED
+value interface instead of the anonymous zod shape, (b) an `M` with no carrier
+on the codec (meta supplied per-pass at the call site — TS has no partial
+inference, so this forces annotating T too), or (c) a deliberate widening,
+which the factory then checks the schemas against. The demo forms practice
+this; the civitai ports keep annotations where cases (a)/(b) apply.
+
+## Correction became a statement (2026-08-27)
+
+The `correct` FIELD OPTION and the `corrected()` wrapper are gone. Correction
+is now `f.correct(key, value, reason, detail?)` — an imperative statement in
+the resolver, written right after the field it fixes:
+
+    let ramGb = f.field('ramGb', RAM, { scope: preset });
+    if (ramGb > maxRam) ramGb = f.correct('ramGb', maxRam, 'ram_ceiling');
+
+Rationale: the library's thesis is that form logic is plain control flow in the
+resolver — existence is an `if`, branching is a `switch` — and the correct
+option was the one place logic hid in a callback with an invisible execution
+point. Now field OPTIONS are purely declarative (codec, scope, default, meta,
+refine) and everything computational is code. The engine updates the record
+(value, value-derived meta, refinement re-judge), auto-fills the note's
+key/from/to, and returns the new value for reassignment. Kits package it via a
+`correct` slot on the kit SPEC, applied by the generated field(). Rule: call
+f.correct immediately after the field it corrects, before any dependent field
+reads the stale value. All 19 v1 differential parity cases passed unchanged
+through the rewrite.
+
+## The real graphs, ported and proven (2026-08-26)
+
+The two most complex civitai generation data-graphs — **ltx-graph.ts** (621 lines: 3 version subgraphs, distilled-model field visibility, resolution-driven tables) and **wan-graph.ts** (653 lines: 5 version subgraphs, flag-driven 2.2 modes, workflow/resolution ecosystem sync) — are reproduced at full fidelity in `src/lib/civitai/` (constants derived from the real config, codecs mirroring v1 common.ts exactly, family resolvers + a video hub slice).
+
+**The verbatim v1 code is vendored** into `src/v1/civitai/` (engine + all graphs + real basemodel/generation constants; `~/`-imports resolved by a vitest alias, checked by `pnpm run typecheck:v1`). That makes the differential harness self-contained: `src/v1/__tests__/` runs the SAME inputs through the real `generationGraph.safeParse` and `videoForm.parse`:
+
+- **19 branch parity cases** (values + key SETS, per branch) — pass with ZERO documented deltas.
+- **13 table pins** — the port constants deep-equal the vendored tables, so duplication cannot drift.
+- **Compile-time type parity** — port field types checked against v1 InferDataGraph unions; this caught two real port bugs (un-narrowed branch discriminants; a string-widened enum).
+
+Two v1 behaviours the port deliberately mirrors: parse does NOT correct a workflow-incompatible ecosystem (that is an effect/rule, set()-time only), and `vid2vid:edit` is not currently configured for LTX despite ltx-graph supporting it. Demo: /demo/video.
+
 Everything below is the prototype's living record, still accurate for the
 library itself.
 

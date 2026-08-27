@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, corrected, defineForm, type Fields } from '$lib/index.js';
+import { codec, defineForm, type Fields } from '$lib/index.js';
 import { enumCodec, sliderCodec } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 2: a real-world shape. Chained computed fields
@@ -66,7 +66,7 @@ const WIDTH = CM(200, 30);
 const HEIGHT = CM(200, 20);
 const WEIGHT_KG = sliderCodec({ min: 1, max: 500, default: 10 });
 
-const CONTENTS = codec<string>({
+const CONTENTS = codec({
   input: z.string().optional(),
   output: z.string().min(1, 'Customs needs a contents description'),
   default: '',
@@ -74,7 +74,7 @@ const CONTENTS = codec<string>({
 
 const DECLARED_VALUE = sliderCodec({ min: 0, max: 10000, step: 50, default: 100 });
 
-const BOOL = codec<boolean>({
+const BOOL = codec({
   input: z.boolean().optional(),
   output: z.boolean(),
   default: false,
@@ -98,15 +98,14 @@ export const shippingForm = defineForm()({
   resolve: (f: Fields) => {
     const shipmentType = f.field('shipmentType', TYPE);
     const available = SERVICES_BY_TYPE[shipmentType];
-    const service = f.field('service', SERVICE, {
-      // Ocean freight downgraded to parcel? The service silently corrects —
-      // the SYSTEM invalidated the choice, so don't punish the user for it.
-      correct: (value) =>
-        available.includes(value)
-          ? value
-          : corrected(available[0]!, 'service_unavailable_for_type', { shipmentType }),
-      meta: { options: available },
-    });
+    // Ocean freight downgraded to parcel? The service silently corrects —
+    // the SYSTEM invalidated the choice, so don't punish the user for it.
+    let service = f.field('service', SERVICE, { meta: { options: available } });
+    if (!available.includes(service)) {
+      service = f.correct('service', available[0]!, 'service_unavailable_for_type', {
+        shipmentType,
+      });
+    }
     const destination = f.field('destination', DESTINATION);
 
     const lengthCm = f.field('lengthCm', LENGTH);

@@ -31,14 +31,14 @@ function resolveHeavy(f: Fields, ext: HeavyExt) {
   for (let i = 0; i < 20; i++) f.field(`slider${i}`, num(i));
   for (let i = 0; i < 5; i++) f.field(`text${i}`, text(`v${i}`));
 
-  const resources = f.field(
+  let resources = f.field(
     'resources',
     codec<string[], { limit: number }>({ output: z.array(z.string()), default: [] }),
-    {
-      meta: { limit: ext.limits.maxResources },
-      correct: (v) => v.slice(0, ext.limits.maxResources),
-    }
+    { meta: { limit: ext.limits.maxResources } }
   );
+  if (resources.length > ext.limits.maxResources) {
+    resources = f.correct('resources', resources.slice(0, ext.limits.maxResources), 'over_limit');
+  }
   f.computed('resourceCount', resources.length);
 
   if (mode === 'a') {
@@ -69,10 +69,12 @@ function resolveHoisted(f: Fields, ext: HeavyExt) {
   for (let i = 0; i < 20; i++) f.field(`slider${i}`, HOISTED_SLIDERS[i]!);
   for (let i = 0; i < 5; i++) f.field(`text${i}`, HOISTED_TEXTS[i]!);
 
-  const resources = f.field('resources', HOISTED_RESOURCES, {
+  let resources = f.field('resources', HOISTED_RESOURCES, {
     meta: { limit: ext.limits.maxResources },
-    correct: (v) => v.slice(0, ext.limits.maxResources),
   });
+  if (resources.length > ext.limits.maxResources) {
+    resources = f.correct('resources', resources.slice(0, ext.limits.maxResources), 'over_limit');
+  }
   f.computed('resourceCount', resources.length);
 
   if (mode === 'a') {

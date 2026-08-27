@@ -169,11 +169,16 @@ export function ltxResolver(
     ...base,
     resolution,
     aspectRatio: f.field('aspectRatio', LTX_AR[resolution], { scope: [scope, resolution] }),
-    duration: f.field('duration', DURATION, {
-      scope: [scope, resolution],
-      correct: (v) => Math.min(v, maxDuration),
-      meta: { min: 2, max: maxDuration, step: 1 },
-    }),
+    duration: (() => {
+      let duration = f.field('duration', DURATION, {
+        scope: [scope, resolution],
+        meta: { min: 2, max: maxDuration, step: 1 },
+      });
+      if (duration > maxDuration) {
+        duration = f.correct('duration', maxDuration, 'exceeds_resolution_max', { maxDuration });
+      }
+      return duration;
+    })(),
     ...(ctx.workflow === 'img2vid'
       ? { images: firstLastFrame.field(f, { scope: ctx.workflow }) }
       : ctx.workflow === 'img2vid:ref2vid'
@@ -226,10 +231,13 @@ export function wanResolver(
   return {
     ecosystem: ctx.ecosystem as 'WanV21_480p' | 'WanV21_720p',
     model,
-    resolution: f.field('resolution', WAN_RESOLUTION, {
+    resolution: (() => {
       // The ecosystem is authoritative; the picker's value always reflects it.
-      correct: () => impliedResolution,
-    }),
+      const resolution = f.field('resolution', WAN_RESOLUTION);
+      return resolution === impliedResolution
+        ? resolution
+        : f.correct('resolution', impliedResolution, 'ecosystem_implies_resolution');
+    })(),
     ...textSection(f, { promptRequired: true, negativePrompt: true }),
     duration: f.field('duration', WAN_DURATION, { scope: 'wan' }),
     seed: f.field('seed', SEED),

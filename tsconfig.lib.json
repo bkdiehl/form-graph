@@ -1,17 +1,32 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "strict": true,
-    "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "paths": {
+      "~/*": [
+        "./src/v1/civitai/*"
+      ]
+    }
   },
-  "include": ["src/lib"]
+  "include": [
+    "src/lib",
+    "src/v1/__tests__",
+    "src/v1/civitai/globals.d.ts"
+  ]
 }

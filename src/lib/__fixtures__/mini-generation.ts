@@ -158,10 +158,14 @@ function ecosystemSection(f: Fields, ext: MiniExt, workflow: Workflow) {
         ...fluxBase,
         fluxMode: 'standard' as const,
         steps: f.field('steps', FLUX_STEPS),
-        resources: f.field('resources', resourcesCodec, {
-          meta: { limit: ext.limits.maxResources },
-          correct: (value) => value.slice(0, ext.limits.maxResources),
-        }),
+        resources: (() => {
+          const value = f.field('resources', resourcesCodec, {
+            meta: { limit: ext.limits.maxResources },
+          });
+          return value.length > ext.limits.maxResources
+            ? f.correct('resources', value.slice(0, ext.limits.maxResources), 'over_limit')
+            : value;
+        })(),
       };
     }
 

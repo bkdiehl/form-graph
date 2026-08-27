@@ -111,6 +111,8 @@ export interface FieldRecord<T = unknown, M = unknown> {
   address: string;
   value: T;
   meta: M | undefined;
+  /** The value-derived meta function, kept so f.correct can recompute meta. */
+  metaFn: ((value: unknown) => unknown) | undefined;
   codec: Codec<T, M> | undefined;
   isComputed: boolean;
   /** Set when a boundary value failed its input schema and the default was used instead. */

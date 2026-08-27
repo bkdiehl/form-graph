@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   codec,
-  corrected,
   defineFieldKit,
   type FieldOptions,
   type Rule,
@@ -22,10 +21,10 @@ import {
  * Port of createCheckpointGraph — v1's hardest node, restated in the resolver
  * model:
  *
- * - the locked-model substitution (observe-only, issue #3520) becomes
- *   `noteOnProject` — a resolution note replaces the mutable collector on ext
- * - the "model belongs to another ecosystem -> reset to default" transform and
- *   the workflow-version equivalence transform become `project`
+ * - the locked-model substitution (observe-only, issue #3520), the "model
+ *   belongs to another ecosystem -> reset to default" transform, and the
+ *   workflow-version equivalence transform become one CORRECTION applied via
+ *   `f.correct` — a resolution note replaces the mutable collector on ext
  * - the three model-driven effects become reconciler rules
  *   (`checkpointReconciler`) — patch-aware, so the who-initiated ambiguity the
  *   v1 comments wrestle with does not exist
@@ -134,14 +133,20 @@ export const createCheckpointKit = defineFieldKit<
       ...args,
       defaultModelId: args.defaultModelId ?? config.defaultModelId,
     }),
+  correct: (value, config, args) =>
+    checkpointCorrection(value, {
+      ...config,
+      ...args,
+      defaultModelId: args.defaultModelId ?? config.defaultModelId,
+    }),
   scope: (config) => config.appliesTo,
   rules: (config) => ({
     model: checkpointModelRule(config.catalog, config.workflowVersions),
   }),
 });
 
-/** Per-pass options — createCheckpointGraph's node factory, minus the plumbing. */
-function checkpointOptions(args: CheckpointArgs): FieldOptions<ResourceValue | undefined, CheckpointMeta> {
+/** Per-pass derivations shared by the options and the correction. */
+function checkpointDerived(args: CheckpointArgs) {
   const { ctx, catalog } = args;
 
   const workflowConfig = findWorkflowConfig(args.workflowVersions, ctx.workflow);
@@ -184,35 +189,14 @@ function checkpointOptions(args: CheckpointArgs): FieldOptions<ResourceValue | u
     return undefined;
   };
 
+  return { classify, defaultModelId, modelLocked, visibleVersions, mappings };
+}
+
+function checkpointOptions(args: CheckpointArgs): FieldOptions<ResourceValue | undefined, CheckpointMeta> {
+  const { defaultModelId, modelLocked, visibleVersions } = checkpointDerived(args);
   return {
     scope: args.scope,
     default: defaultModelId !== undefined ? asCheckpoint(defaultModelId) : undefined,
-    // v1 records the locked substitution through ext.modelSubstitutions
-    // (observe-only, must not change behaviour). `corrected` carries the same
-    // record — WHICH substitute and WHY decided in one place.
-    correct: (model) => {
-      const context = { ecosystem: ctx.ecosystem, workflow: ctx.workflow, requested: model?.id };
-      switch (classify(model)) {
-        case 'locked_default':
-        case 'ecosystem_mismatch':
-          return defaultModelId !== undefined
-            ? corrected(asCheckpoint(defaultModelId), classify(model)!, context)
-            : model;
-        case 'workflow_version_swap': {
-          const workflowKey = getWorkflowKey(args.workflowVersions, ctx.workflow);
-          const equivalent = mappings!.get(model!.id!)?.[workflowKey];
-          return equivalent
-            ? corrected(
-                asCheckpoint(equivalent.id, equivalent.baseModel),
-                'workflow_version_swap',
-                context
-              )
-            : model;
-        }
-        default:
-          return model;
-      }
-    },
     meta: (value): CheckpointMeta => ({
       options: { canGenerate: true, excludeIds: value ? [value.id] : [] },
       modelLocked,
@@ -220,6 +204,40 @@ function checkpointOptions(args: CheckpointArgs): FieldOptions<ResourceValue | u
       defaultModelId,
     }),
   };
+}
+
+/**
+ * v1 records the locked substitution through ext.modelSubstitutions
+ * (observe-only, must not change behaviour). The kit applies this via
+ * `f.correct` — WHICH substitute and WHY decided in one place.
+ */
+function checkpointCorrection(
+  model: ResourceValue | undefined,
+  args: CheckpointArgs
+): { value: ResourceValue | undefined; reason: string; detail?: Record<string, unknown> } | undefined {
+  const { classify, defaultModelId, mappings } = checkpointDerived(args);
+  const { ctx } = args;
+  const detail = { ecosystem: ctx.ecosystem, workflow: ctx.workflow, requested: model?.id };
+  switch (classify(model)) {
+    case 'locked_default':
+    case 'ecosystem_mismatch':
+      return defaultModelId !== undefined
+        ? { value: asCheckpoint(defaultModelId), reason: classify(model)!, detail }
+        : undefined;
+    case 'workflow_version_swap': {
+      const workflowKey = getWorkflowKey(args.workflowVersions, ctx.workflow);
+      const equivalent = mappings!.get(model!.id!)?.[workflowKey];
+      return equivalent
+        ? {
+            value: asCheckpoint(equivalent.id, equivalent.baseModel),
+            reason: 'workflow_version_swap',
+            detail,
+          }
+        : undefined;
+    }
+    default:
+      return undefined;
+  }
 }
 
 /**

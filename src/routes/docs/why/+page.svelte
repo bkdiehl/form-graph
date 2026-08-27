@@ -54,7 +54,7 @@
       problem:
         'Real forms correct user values: clamp a quantity to the account’s limit, substitute a retired checkpoint, force the locked model for a draft workflow. Do it silently and the server can’t tell a correction from a tampered request; error instead and you punish users for config changes they never saw.',
       mechanism:
-        'Two first-class reactions, split by whose problem it is. <code>correct</code> replaces the value — <code>corrected(newValue, reason)</code> — with a machine-readable reason (<code>locked_default</code>, <code>ecosystem_mismatch</code>, …) riding on every parse result, failures included. <code>refine</code> narrows the output schema in zod’s own vocabulary and refuses, with a live error. The server doesn’t diff blindly; it reads why a value moved.',
+        'Two first-class reactions, split by whose problem it is. <code>f.correct(key, value, reason)</code> replaces the value — a visible statement in the resolver, with a machine-readable reason (<code>locked_default</code>, <code>ecosystem_mismatch</code>, …) riding on every parse result, failures included. <code>refine</code> narrows the output schema in zod’s own vocabulary and refuses, with a live error. The server doesn’t diff blindly; it reads why a value moved.',
     },
     {
       title: 'Couplings become effect soup',

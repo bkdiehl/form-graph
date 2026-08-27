@@ -175,7 +175,6 @@ export const createScaleFactorKit = defineFieldKit<
 
     return {
       default: firstValid,
-      correct: (value) => (fits(value) ? value : firstValid),
       meta: {
         options,
         canUpscale: !maxDimension || maxDimension * Math.min(...multipliers) <= maxOutputResolution,
@@ -183,6 +182,21 @@ export const createScaleFactorKit = defineFieldKit<
         sourceHeight: args.sourceHeight,
         maxOutputResolution,
       },
+    };
+  },
+  correct: (value, config, args) => {
+    const maxDimension =
+      args.sourceWidth && args.sourceHeight
+        ? Math.max(args.sourceWidth, args.sourceHeight)
+        : undefined;
+    if (!maxDimension || value * maxDimension <= config.maxOutputResolution) return undefined;
+    const firstValid =
+      config.multipliers.find((m) => m * maxDimension <= config.maxOutputResolution) ??
+      config.multipliers[0]!;
+    return {
+      value: firstValid,
+      reason: 'exceeds_max_resolution',
+      detail: { maxOutputResolution: config.maxOutputResolution },
     };
   },
 });

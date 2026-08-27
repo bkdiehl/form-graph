@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, corrected, defineForm, type Fields } from '../core/index.js';
+import { codec, defineForm, type Fields } from '../core/index.js';
 
 /**
  * A fixture shaped after the graphs v1's tests actually exercise, so the parity
@@ -90,12 +90,13 @@ function resolveParity(f: Fields, ext: ParityExt) {
   // The clamp: a checkpoint from another workflow can never survive into this
   // one. v1 does this in a node transform and reports it through a collector
   // hung on ext; here the adjustment is reported as a resolution note.
-  const model = f.field('model', modelCodec, {
+  let model = f.field('model', modelCodec, {
     default: fallback,
     meta: { options },
-    correct: (value) =>
-      options.includes(value) ? value : corrected(fallback, 'workflow-incompatible', { workflow }),
   });
+  if (!options.includes(model)) {
+    model = f.correct('model', fallback, 'workflow-incompatible', { workflow });
+  }
 
   const turbo = TURBO_IDS.has(model);
   f.computed('isTurbo', turbo);
@@ -104,16 +105,16 @@ function resolveParity(f: Fields, ext: ParityExt) {
   // rather than kept (v1: mage-flow turbo slider ranges).
   const stepsMax = turbo ? 12 : 50;
   const cfgMax = turbo ? 2 : 10;
-  f.field('steps', stepsCodec, {
+  const steps = f.field('steps', stepsCodec, {
     default: turbo ? 8 : 25,
     meta: { min: 1, max: stepsMax },
-    correct: (value) => Math.min(value, stepsMax),
   });
-  f.field('cfgScale', cfgCodec, {
+  if (steps > stepsMax) f.correct('steps', stepsMax, 'turbo_cap');
+  const cfgScale = f.field('cfgScale', cfgCodec, {
     default: turbo ? 1 : 4,
     meta: { min: 1, max: cfgMax },
-    correct: (value) => Math.min(value, cfgMax),
   });
+  if (cfgScale > cfgMax) f.correct('cfgScale', cfgMax, 'turbo_cap');
 
   // The toggle simply does not exist for versions that cannot do it, so a stale
   // stored '4K' cannot leak into the dimensions below.

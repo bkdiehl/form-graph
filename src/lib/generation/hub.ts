@@ -169,10 +169,9 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
     .map(([key, r]) => ({ key, state: r.state as GateItemState['state'], message: r.message }));
   const experimental = experimentalTargets(ext.gateRules ?? []).ecosystems;
 
-  const ecosystem = f.field('ecosystem', ECOSYSTEM, {
+  let ecosystem = f.field('ecosystem', ECOSYSTEM, {
     scope: workflow,
     default: () => getDefaultEcosystemForWorkflow(workflow) ?? 'Flux1',
-    correct: (key) => (available.includes(key as (typeof available)[number]) ? key : available[0]!),
     refine: (s) =>
       s.refine((key) => !ecoGates.has(key), {
         message: 'Ecosystem is currently unavailable',
@@ -193,6 +192,9 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
         })),
     },
   });
+  if (!available.includes(ecosystem as (typeof available)[number])) {
+    ecosystem = f.correct('ecosystem', available[0]!, 'not_available_for_workflow', { workflow });
+  }
 
   const quantityField = quantity.field(f, {
     max: output === 'video' ? ext.limits.vidQuantity : ext.limits.maxQuantity,

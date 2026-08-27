@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, corrected, defineForm, type Fields } from '$lib/index.js';
+import { codec, defineForm, type Fields } from '$lib/index.js';
 import { enumCodec } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 1: every core mechanism on a form anyone can read.
@@ -35,7 +35,7 @@ const SIZE = enumCodec({
   default: 'medium',
 });
 
-const BOOL = codec<boolean>({
+const BOOL = codec({
   input: z.boolean().optional(),
   output: z.boolean(),
   default: false,
@@ -56,23 +56,19 @@ const PICK = codec<string[], { budget: number }>({
 
 /** Keep toppings inside the size's coverage budget: trim from the end. */
 function toppingField(f: Fields, key: string, budget: number) {
-  return f.field(key, PICK, {
-    correct: (picked) => {
-      const kept: string[] = [];
-      let used = 0;
-      for (const id of picked) {
-        const weight = byId.get(id)?.weight ?? 0;
-        if (used + weight > budget) continue;
-        kept.push(id);
-        used += weight;
-      }
-      if (kept.length === picked.length) return picked;
-      return corrected(kept, 'oven_physics', {
-        dropped: picked.filter((id) => !kept.includes(id)),
-        budget,
-      });
-    },
-    meta: { budget },
+  const picked = f.field(key, PICK, { meta: { budget } });
+  const kept: string[] = [];
+  let used = 0;
+  for (const id of picked) {
+    const weight = byId.get(id)?.weight ?? 0;
+    if (used + weight > budget) continue;
+    kept.push(id);
+    used += weight;
+  }
+  if (kept.length === picked.length) return picked;
+  return f.correct(key, kept, 'oven_physics', {
+    dropped: picked.filter((id) => !kept.includes(id)),
+    budget,
   });
 }
 
@@ -96,19 +92,16 @@ export const pizzaForm = defineForm()({
       : size === 'small'
         ? ['thin', 'hand-tossed']
         : ['thin', 'hand-tossed', 'stuffed'];
-    const crust = f.field('crust', CRUST, {
-      // Remembered per size: your large stuffed pick survives trying a small.
-      scope: size,
-      correct: (value) =>
-        crustOptions.includes(value)
-          ? value
-          : corrected(
-              crustOptions[0]!,
-              glutenFree ? 'gluten_free_forces_thin' : 'not_available_for_size',
-              { size }
-            ),
-      meta: { options: crustOptions },
-    });
+    // Remembered per size: your large stuffed pick survives trying a small.
+    let crust = f.field('crust', CRUST, { scope: size, meta: { options: crustOptions } });
+    if (!crustOptions.includes(crust)) {
+      crust = f.correct(
+        'crust',
+        crustOptions[0]!,
+        glutenFree ? 'gluten_free_forces_thin' : 'not_available_for_size',
+        { size }
+      );
+    }
 
     const halfAndHalf = f.field('halfAndHalf', BOOL);
     const base = { size, glutenFree, crust };

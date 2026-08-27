@@ -8,20 +8,17 @@ import type { Codec, FieldRecord, Refinable, ResolutionNote, SchemaLike } from '
  * The per-field pipeline, in the order it runs on EVERY pass:
  *
  *   stored intent → input schema (boundary values only) → `default` (if empty)
- *   → `correct` → the value the resolver receives → `refine` judges it
+ *   → the value the resolver receives → `refine` judges it
  *
  * The strict output schema (refined, if `refine` is set) then runs only on
  * demand: submit, `output()`, server `parse()`.
  *
- * Two reactions to a value the current conditions don't allow — schemas judge,
- * functions transform:
- * - `correct` REPLACES it, silently and per pass, with an audit note. For
- *   mismatches the SYSTEM caused: a stored value whose option was retired, a
- *   ceiling another field lowered. State can never hold a value `correct`
- *   would reject.
- * - `refine` REFUSES it: the value stays, the field carries a live error, and
- *   submit fails. For mismatches the USER must resolve: a gated option, a
- *   forbidden combination.
+ * Options are purely DECLARATIVE — schemas and config. Logic lives in the
+ * resolver as code, including correction: `f.correct(key, value, reason)` is
+ * a statement right after the field it fixes (see {@link Fields.correct}).
+ * The remaining declarative reaction to a bad value is `refine`: it REFUSES —
+ * the value stays, the field carries a live error, and submit fails. For
+ * mismatches the USER must resolve: a gated option, a forbidden combination.
  */
 export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
   /**
@@ -40,15 +37,6 @@ export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
    */
   meta?: M | ((value: T) => M);
   /**
-   * Per-pass correction: return the value unchanged, or
-   * `corrected(newValue, reason)` to replace it and record why. Runs after the
-   * default resolves, so everything downstream — the resolver's variable, other
-   * fields' options, computed fields, state, output — sees the corrected value.
-   * The original stays in intent, so a correction is never destructive: restore
-   * the conditions and the user's value returns.
-   */
-  correct?: (value: T) => T | Corrected<T>;
-  /**
    * Narrows the codec's OUTPUT schema under this pass's conditions, in the
    * schema library's own vocabulary: `(s) => s.refine(...)` for zod. A failing
    * value keeps its place, carries a live `error` on the snapshot, and fails
@@ -62,34 +50,6 @@ export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
    * Omitted deps mean a stale refinement: list everything the refine reads.
    */
   refineDeps?: readonly unknown[];
-}
-
-/** The marker `correct` returns to replace a value AND record why. */
-export interface Corrected<T> {
-  readonly [CORRECTED]: true;
-  readonly value: T;
-  readonly reason: string;
-  readonly detail?: Record<string, unknown>;
-}
-
-const CORRECTED = Symbol.for('form-graph.corrected');
-
-/**
- * Wraps a replacement value with its machine-readable reason (and optional
- * extra detail). The engine unwraps it: state gets `value`, and a note
- * `{ key, kind: reason, detail: { from, to, ...detail } }` is recorded —
- * `key`/`from`/`to` are filled in automatically.
- */
-export function corrected<T>(
-  value: T,
-  reason: string,
-  detail?: Record<string, unknown>
-): Corrected<T> {
-  return { [CORRECTED]: true, value, reason, detail };
-}
-
-function isCorrected<T>(result: T | Corrected<T>): result is Corrected<T> {
-  return typeof result === 'object' && result !== null && CORRECTED in result;
 }
 
 /** Persistent cache of built refinements, keyed by field key. Held by the store across passes. */
@@ -111,6 +71,22 @@ export interface Fields {
     opts?: FieldOptions<T, M, O>
   ): T;
   computed<T>(key: string, value: T): T;
+  /**
+   * Replaces an already-declared field's value and records why — correction
+   * as a visible STATEMENT in the resolver, not a hidden pipeline step:
+   *
+   *   let ramGb = f.field('ramGb', RAM, { scope: preset });
+   *   if (ramGb > maxRam) ramGb = f.correct('ramGb', maxRam, 'ram_ceiling');
+   *
+   * Updates the field's state/output/snapshot value (and its meta, when the
+   * meta is value-derived), re-judges any refinement, and emits a note
+   * { key, kind: reason, detail: { from, to, ...detail } }. Returns the new
+   * value — reassign it so everything downstream reads the corrected value.
+   * Call it immediately after the field it corrects, before any dependent
+   * field reads the stale value. The original stays in intent, so a
+   * correction is never destructive.
+   */
+  correct<T>(key: string, value: T, reason: string, detail?: Record<string, unknown>): T;
   note(note: ResolutionNote): void;
 }
 
@@ -172,23 +148,6 @@ class Collector implements Fields {
     if (value === undefined) {
       value = resolveDefault(opts?.default) ?? resolveDefault(codec.default);
     }
-    let note: ResolutionNote | undefined;
-    if (opts?.correct) {
-      const before = value as T;
-      const result = opts.correct(before);
-      if (isCorrected(result)) {
-        value = result.value;
-        note = {
-          key,
-          kind: result.reason,
-          detail: { from: before, to: result.value, ...result.detail },
-        };
-        this.note(note);
-      } else {
-        value = result;
-      }
-    }
-
     // Refinement: build (or reuse) the narrowed output schema and judge the
     // value now, so the error is live on the snapshot rather than appearing at
     // submit. Construction is deps-cached; per-pass cost is one safeParse.
@@ -208,19 +167,21 @@ class Collector implements Fields {
     }
 
     const rawMeta = opts && 'meta' in opts ? opts.meta : codec.meta;
-    const meta = typeof rawMeta === 'function' ? (rawMeta as (v: T) => M)(value as T) : rawMeta;
+    const metaFn = typeof rawMeta === 'function' ? (rawMeta as (v: T) => M) : undefined;
+    const meta = metaFn ? metaFn(value as T) : (rawMeta as M | undefined);
 
     this.record({
       key,
       address,
       value: value as T,
       meta,
+      metaFn: metaFn as ((value: unknown) => unknown) | undefined,
       codec: codec as Codec<unknown, unknown>,
       isComputed: false,
       boundaryError: parsed?.error,
       refined,
       refineError,
-      note,
+      note: undefined,
     });
 
     return value as T;
@@ -233,6 +194,7 @@ class Collector implements Fields {
       address: key,
       value,
       meta: undefined,
+      metaFn: undefined,
       codec: undefined,
       isComputed: true,
       boundaryError: undefined,
@@ -240,6 +202,27 @@ class Collector implements Fields {
       refineError: undefined,
       note: undefined,
     });
+    return value;
+  }
+
+  correct<T>(key: string, value: T, reason: string, detail?: Record<string, unknown>): T {
+    const record = this.records.get(key);
+    if (!record) {
+      throw new Error(`Cannot correct "${key}": no field with that key has been declared yet.`);
+    }
+    if (record.isComputed) {
+      throw new Error(`Cannot correct "${key}": it is a computed value — compute it correctly instead.`);
+    }
+    const from = record.value;
+    record.value = value;
+    if (record.metaFn) record.meta = record.metaFn(value);
+    if (record.refined) {
+      const judged = runSchema(record.refined, value);
+      record.refineError = judged.success ? undefined : toFieldError(judged.error.issues);
+    }
+    const note: ResolutionNote = { key, kind: reason, detail: { from, to: value, ...detail } };
+    record.note = note;
+    this.notes.push(note);
     return value;
   }
 

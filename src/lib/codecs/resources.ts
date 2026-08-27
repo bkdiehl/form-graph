@@ -72,11 +72,21 @@ export const createResourcesKit = defineFieldKit<
   codec: RESOURCES,
   options: (config, args) => ({
     scope: args.scope ?? args.ecosystem,
-    correct: (value) =>
-      value.filter((resource) => config.isCompatible(args.ecosystem, resource)).slice(0, args.limit),
     meta: (value) => ({
       options: { canGenerate: true, excludeIds: value.map((r) => r.id) },
       limit: args.limit,
     }),
   }),
+  correct: (value, config, args) => {
+    const kept = value
+      .filter((resource) => config.isCompatible(args.ecosystem, resource))
+      .slice(0, args.limit);
+    return kept.length === value.length
+      ? undefined
+      : {
+          value: kept,
+          reason: 'resources_trimmed',
+          detail: { limit: args.limit, ecosystem: args.ecosystem },
+        };
+  },
 });

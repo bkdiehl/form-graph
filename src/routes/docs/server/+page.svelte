@@ -36,7 +36,7 @@ export const actions = {
 
 <h2>Substitution notes</h2>
 <p>
-  When <code>correct</code> silently replaces a value — a retired model swapped for the default, a quantity
+  When an <code>f.correct</code> statement replaces a value — a retired model swapped for the default, a quantity
   clamped to a limit — the field can attach a note with a machine-readable reason. Notes ride on
   the parse result (on failures too), so the server can log, bill, or refuse based on <em>why</em>
   a value changed rather than diffing blindly.

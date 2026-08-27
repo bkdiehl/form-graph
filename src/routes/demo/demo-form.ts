@@ -14,7 +14,7 @@ const MODE = enumCodec({
   default: 'create',
 });
 
-const PROMPT = codec<string>({
+const PROMPT = codec({
   input: z.string().optional(),
   output: z.string().min(1, 'Prompt is required'),
   default: '',

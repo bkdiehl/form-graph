@@ -55,6 +55,17 @@ export interface FieldKitSpec<Config, Args, T, M, State, Ext> {
   /** Per-pass options, computed from bound config + the resolver's args. */
   options?: (config: Config, args: Args) => FieldOptions<T, M>;
   /**
+   * Per-pass correction, applied by the generated `field()` via `f.correct`
+   * right after the field resolves — the kit-level packaging of the resolver
+   * statement. Return undefined to leave the value alone, or the replacement
+   * with its reason.
+   */
+  correct?: (
+    value: T,
+    config: Config,
+    args: Args
+  ) => { value: T; reason: string; detail?: Record<string, unknown> } | undefined;
+  /**
    * Patch rules that belong to this field — same record shape as
    * `defineRules`: trigger field -> rule (usually just this field's own key).
    */
@@ -86,7 +97,13 @@ export function defineFieldKit<Config, Args, T, M = undefined, State = unknown, 
     return {
       key: spec.key,
       codec,
-      field: (f, args) => f.field(spec.key, codec, spec.options?.(config, args)),
+      field: (f, args) => {
+        const value = f.field(spec.key, codec, spec.options?.(config, args));
+        const correction = spec.correct?.(value, config, args);
+        return correction
+          ? f.correct(spec.key, correction.value, correction.reason, correction.detail)
+          : value;
+      },
       reconciler: spec.rules
         ? compileRules(spec.rules(config), spec.scope?.(config))
         : identityRule<State, Ext>(),

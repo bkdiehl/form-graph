@@ -40,11 +40,13 @@ const scopedForm = defineForm<Ext>()({
   resolve: (f: Fields, _ext: Ext) => {
     const prompt = f.field('prompt', promptCodec);
     const ecosystem = f.field('ecosystem', ecosystemCodec);
-    const model = f.field('model', modelCodec, {
+    let model = f.field('model', modelCodec, {
       default: MODELS[ecosystem]![0]!.id,
       scope: ecosystem,
-      correct: (id) => (MODELS[ecosystem]!.some((m) => m.id === id) ? id : MODELS[ecosystem]![0]!.id),
     });
+    if (!MODELS[ecosystem]!.some((m) => m.id === model)) {
+      model = f.correct('model', MODELS[ecosystem]![0]!.id, 'ecosystem_mismatch');
+    }
     const turbo = MODELS[ecosystem]!.find((m) => m.id === model)?.turbo ?? false;
 
     const steps = f.field('steps', stepsCodec, {

@@ -44,8 +44,7 @@ export {
   type BranchDescription,
   type Pins,
 } from './introspect.js';
-export { corrected } from './resolve.js';
-export type { Corrected, Fields, FieldOptions, Resolver, Resolution } from './resolve.js';
+export type { Fields, FieldOptions, Resolver, Resolution } from './resolve.js';
 export type { FormStore, StorageAdapter, StoreOptions } from './store.js';
 export {
   defineRules,

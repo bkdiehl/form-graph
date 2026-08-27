@@ -11,7 +11,8 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"typecheck": "tsc --noEmit -p tsconfig.lib.json"
+		"typecheck": "tsc --noEmit -p tsconfig.lib.json",
+		"typecheck:v1": "tsc --noEmit -p tsconfig.v1.json"
 	},
 	"files": [
 		"dist",
@@ -60,10 +61,13 @@
 		"@tailwindcss/typography": "^0.5.20",
 		"@tailwindcss/vite": "^4.3.3",
 		"@testing-library/react": "^16.3.2",
+		"@types/lodash-es": "^4.17.12",
+		"@types/node": "^26.4.0",
 		"@types/react": "^18.3.31",
 		"@types/react-dom": "^18.3.7",
 		"@vitejs/plugin-react": "^6.1.0",
 		"happy-dom": "^20.11.7",
+		"lodash-es": "^4.18.1",
 		"publint": "^0.3.21",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
@@ -72,6 +76,7 @@
 		"tailwindcss": "^4.3.3",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16",
+		"vite-node": "^6.0.0",
 		"vitest": "^4.1.11",
 		"zod": "^4.4.3"
 	},

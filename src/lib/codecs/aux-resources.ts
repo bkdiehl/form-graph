@@ -32,13 +32,15 @@ export const createVaeKit = defineFieldKit<
 >({
   key: 'vae',
   codec: VAE,
-  options: (config, args) => ({
-    correct: (vae) =>
-      vae && vae.baseModel && !config.isCompatible(args.ecosystem, vae) ? undefined : vae,
+  options: () => ({
     meta: (value) => ({
       options: { canGenerate: true, excludeIds: value ? [value.id] : [] },
     }),
   }),
+  correct: (vae, config, args) =>
+    vae && vae.baseModel && !config.isCompatible(args.ecosystem, vae)
+      ? { value: undefined, reason: 'ecosystem_incompatible', detail: { ecosystem: args.ecosystem } }
+      : undefined,
 });
 
 export const createUpscalerKit = defineFieldKit<
