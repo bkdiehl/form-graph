@@ -69,7 +69,7 @@ const store = form.createStore({ ext });
 const f = typedFields(store);
 
 f.steps.current
-// FieldSnapshot<number, SliderMeta> | null — inferred, no annotation`}</pre>
+// FieldSnapshot<number, NumberMeta> | null — inferred, no annotation`}</pre>
 
 <h2>&lt;Field&gt; — the form drives visibility</h2>
 <p>

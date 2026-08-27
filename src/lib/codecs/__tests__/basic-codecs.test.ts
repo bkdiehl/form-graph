@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { defineForm, type Fields } from '../../core/index.js';
-import { aspectRatioCodec } from '../aspect-ratio.js';
-import { enumCodec, seedCodec, sliderCodec } from '../basic.js';
+import { aspectRatioCodec } from '../../generation/codecs/aspect-ratio.js';
+import { enumCodec, numberCodec } from '../basic.js';
+import { seedCodec } from '../../generation/codecs/seed.js';
 
 /** Ports of common.ts's simple node builders — same leniency, same strictness. */
 
@@ -12,7 +13,7 @@ const AR = aspectRatioCodec({
     { label: 'Portrait', value: '9:16', width: 720, height: 1280 },
   ],
 });
-const STEPS = sliderCodec({ min: 1, max: 50, step: 5, default: 25 });
+const STEPS = numberCodec({ min: 1, max: 50, step: 5, default: 25 });
 const SEED = seedCodec();
 const PRIORITY = enumCodec({
   options: [
@@ -67,7 +68,7 @@ describe('aspectRatioCodec (aspectRatioNode port)', () => {
   });
 });
 
-describe('sliderCodec (sliderNode port)', () => {
+describe('numberCodec (sliderNode port)', () => {
   it('snaps boundary values to the step grid', () => {
     expect(parse({ steps: '13' }).steps).toBe(11); // snapped to min+step grid (1, 6, 11, ...)
   });

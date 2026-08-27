@@ -94,7 +94,7 @@ export interface Codec<T = unknown, M = unknown> {
  * Something the resolver decided that the caller may want to observe — a value
  * corrected into range, a stored choice that no longer applies.
  *
- * v1 carries this as a mutable collector hung on the external context, which has
+ * An alternative is a mutable collector hung on the external context, which has
  * to be freshly built per request or it leaks between them. Here it is part of
  * the resolution's return value: deterministic, per-call, and impossible to
  * share by accident.
@@ -149,7 +149,7 @@ export type ValidationResult<Data, State> =
       state: State;
       notes?: readonly ResolutionNote[];
       /**
-       * Keys whose values are DERIVED (computed), not user input — v1's
+       * Keys whose values are DERIVED (computed), not user input —
        * `result.nodes` partition. The server strips these from persisted
        * params so remix never replays derived values as if typed.
        */

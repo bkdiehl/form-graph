@@ -1,0 +1,20 @@
+{
+	"$schema": "https://typedoc.org/schema.json",
+	"entryPoints": [
+		"src/lib/index.ts",
+		"src/lib/codecs/index.ts",
+		"src/lib/svelte/index.ts",
+		"src/lib/react/index.ts"
+	],
+	"tsconfig": "tsconfig.lib.json",
+	"out": "build/api",
+	"name": "form-graph",
+	"readme": "none",
+	"navigationLinks": {
+		"Site": "../",
+		"GitHub": "https://github.com/bkdiehl/form-graph"
+	},
+	"excludeInternal": true,
+	"categorizeByGroup": true,
+	"intentionallyNotExported": []
+}

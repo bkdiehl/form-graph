@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { codec, defineForm, type Fields } from '$lib/index.js';
-import { enumCodec, sliderCodec } from '$lib/codecs/index.js';
+import { enumCodec, numberCodec } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 2: a real-world shape. Chained computed fields
 // (dimensional weight → billable weight → price), service options that depend
@@ -60,11 +60,11 @@ const INCOTERMS = enumCodec({
   default: 'DAP',
 });
 
-const CM = (max: number, dflt: number) => sliderCodec({ min: 1, max, default: dflt });
+const CM = (max: number, dflt: number) => numberCodec({ min: 1, max, default: dflt });
 const LENGTH = CM(200, 40);
 const WIDTH = CM(200, 30);
 const HEIGHT = CM(200, 20);
-const WEIGHT_KG = sliderCodec({ min: 1, max: 500, default: 10 });
+const WEIGHT_KG = numberCodec({ min: 1, max: 500, default: 10 });
 
 const CONTENTS = codec({
   input: z.string().optional(),
@@ -72,7 +72,7 @@ const CONTENTS = codec({
   default: '',
 });
 
-const DECLARED_VALUE = sliderCodec({ min: 0, max: 10000, step: 50, default: 100 });
+const DECLARED_VALUE = numberCodec({ min: 0, max: 10000, step: 50, default: 100 });
 
 const BOOL = codec({
   input: z.boolean().optional(),

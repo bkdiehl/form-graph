@@ -6,8 +6,8 @@ import type { PatchReconciler } from './store.js';
  *
  *   1. a field kit's `rules` slot — rules owned by ONE field
  *   2. a `defineRules` unit — rules owned by a module or a relationship
- *      between fields (the flux draft<->model coupling, wan's
- *      resolution<->ecosystem mapping)
+ *      between fields (a mode<->model coupling, a resolution<->variant
+ *      mapping)
  *
  * Both expose a single `reconciler`, and a form's `reconcile:` array lists
  * those UNITS — named things with an anatomy — never bare inline functions.
@@ -16,19 +16,19 @@ import type { PatchReconciler } from './store.js';
  * shape fields use. A rule fires when its key is in the patch, receives the
  * patch VALUE, and returns the keys to ADD to the patch (or nothing):
  *
- *   const createFluxCoupling = defineRules<void, FluxRuleState>({
- *     scope: (state) => state.ecosystem === 'Flux1',
+ *   const createPlanCoupling = defineRules<void, PlanRuleState>({
+ *     scope: (state) => state.tier === 'enterprise',
  *     rules: () => ({
- *       workflow: (workflow, { patch, state }) => { ... },
- *       model: (model, { state }) => {
- *         if (model?.id === draftId && state.workflow !== 'txt2img:draft') {
- *           return { workflow: 'txt2img:draft' };
+ *       plan: (plan, { patch, state }) => { ... },
+ *       addon: (addon, { state }) => {
+ *         if (addon?.id === premiumId && state.plan !== 'annual') {
+ *           return { plan: 'annual' };
  *         }
  *       },
  *     }),
  *   });
- *   const fluxCoupling = createFluxCoupling();
- *   // form: reconcile: [hubCoupling, fluxCoupling, checkpoint, ...]
+ *   const planCoupling = createPlanCoupling();
+ *   // form: reconcile: [planCoupling, ...kits]
  */
 
 /**

@@ -6,7 +6,8 @@ import {
   createScaleFactorKit,
   createUpscalerKit,
   enumCodec,
-} from '../codecs/index.js';
+  type EnumOption,
+} from './codecs/index.js';
 import {
   getDefaultEcosystemForWorkflow,
   getEcosystemsForWorkflow,
@@ -110,7 +111,8 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
   const output = f.computed('output', getOutputTypeForWorkflow(workflow));
   const input = f.computed('input', getInputTypeForWorkflow(workflow));
   // High priority is member-gated (v1's PriorityOption.memberOnly): badged in
-  // meta, and refused on submit for non-members — same backstop as gates.
+  // meta via a domain extension of EnumOption, and refused on submit for
+  // non-members — same backstop as gates.
   const priority = f.field('priority', PRIORITY, {
     refine: (s) =>
       s.refine((value) => !(value === 'high' && !ext.user.isMember), {
@@ -123,7 +125,7 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
         { label: 'Low', value: 'low' as const },
         { label: 'Normal', value: 'normal' as const },
         { label: 'High', value: 'high' as const, memberOnly: true, disabled: !ext.user.isMember },
-      ],
+      ] as (EnumOption<'low' | 'normal' | 'high'> & { memberOnly?: boolean })[],
     },
   });
   const head = { workflow, output, input, priority };

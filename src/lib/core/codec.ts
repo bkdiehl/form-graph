@@ -21,11 +21,11 @@ export type InferCodecValue<C> = C extends Codec<infer T, infer _M> ? T : never;
 export type InferCodecMeta<C> = C extends Codec<infer _T, infer M> ? M : never;
 
 /**
- * The per-key inference pattern (rethink doc, decided Q8): the app declares one
- * registry object mapping field key -> codec (a union of codecs where branches
- * differ), and these two mapped types derive the flat Values/Meta lookup maps —
- * v1's CtxValues/CtxMeta — at O(1) type cost. The registry doubles as the
- * module-scope hoisting home the codec-churn rule pushes toward.
+ * The per-key inference pattern: the app declares one registry object mapping
+ * field key -> codec (a union of codecs where branches differ), and these two
+ * mapped types derive the flat Values/Meta lookup maps at O(1) type cost. The
+ * registry doubles as the module-scope hoisting home the codec-churn rule
+ * pushes toward.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type CodecRegistry = Record<string, Codec<any, any>>;

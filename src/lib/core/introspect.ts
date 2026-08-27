@@ -25,8 +25,8 @@ export function fieldKeys<State, Ext>(
 }
 
 /**
- * v1's `workflowHasNode(workflow, nodeKey)`: does this field exist under these
- * choices, with everything unpinned resolved to its default?
+ * Does this field exist under these choices, with everything unpinned
+ * resolved to its default?
  *
  * More accurate than a structural walk, which has to guess at conditions it
  * cannot evaluate — here the real resolver decides.
@@ -41,9 +41,8 @@ export function hasField<State, Ext>(
 }
 
 /**
- * The resolved META of one field under pinned values — v1's
- * clone()/init()/getNodeMeta() probe (workflow-capability.ts: read the model
- * field's versions/defaultModelId/modelLocked per (workflow, ecosystem)).
+ * The resolved META of one field under pinned values — e.g. read a select
+ * field's option list per combination of its upstream discriminants.
  */
 export function fieldMeta<State, Ext>(
   definition: FormDefinition<State, Ext>,
@@ -79,13 +78,13 @@ export interface BranchDescription {
 }
 
 /**
- * Walks `axes` (e.g. ['workflow', 'ecosystem']) breadth-first, expanding each
- * axis over its own `meta.options`, and returns one entry per reachable
- * combination.
+ * Walks `axes` (the form's discriminant fields, in order) breadth-first,
+ * expanding each axis over its own `meta.options`, and returns one entry per
+ * reachable combination.
  *
  * An axis that is not active under the current pins is simply skipped, so
- * branches without an ecosystem (upscale, utility workflows) terminate early
- * instead of needing a special case.
+ * branches where a later discriminant never appears terminate early instead
+ * of needing a special case.
  */
 export function enumerateBranches<State, Ext>(
   definition: FormDefinition<State, Ext>,
@@ -111,8 +110,8 @@ export function enumerateBranches<State, Ext>(
 }
 
 /**
- * v1's `findKeyInBranches`: every combination in which a field appears.
- * Used to answer "which workflows accept image input?" without hard-coding a list.
+ * Every combination of the axes in which a field appears. Answers "which
+ * branches carry this field?" without hard-coding a list.
  */
 export function whereFieldExists<State, Ext>(
   definition: FormDefinition<State, Ext>,
@@ -125,7 +124,7 @@ export function whereFieldExists<State, Ext>(
   );
 }
 
-/** Every field key reachable through `axes` — v1's `getAllPossibleKeys`. */
+/** Every field key reachable through `axes`. */
 export function allPossibleKeys<State, Ext>(
   definition: FormDefinition<State, Ext>,
   axes: readonly string[],

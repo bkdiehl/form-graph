@@ -28,6 +28,14 @@
           {label}
         </a>
       {/each}
+      <!-- TypeDoc output, outside the SvelteKit router — needs a full page load -->
+      <a
+        href="{base}/api/"
+        rel="external"
+        class="text-muted no-underline transition-colors hover:text-ink"
+      >
+        API
+      </a>
     </nav>
   </header>
   {@render children()}

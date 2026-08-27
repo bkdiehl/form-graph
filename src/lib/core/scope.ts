@@ -2,9 +2,9 @@
  * Scoped intent addresses.
  *
  * A field may declare `scope` at its call site — the values are computed by the
- * resolver (ecosystem, model id, a toggle), and they become part of the address
- * its intent entry is stored under. `steps` scoped by ecosystem group lives at
- * `steps@flux` and `steps@sdxl` simultaneously, which is the whole branch-memory
+ * resolver (a discriminant, an id, a toggle), and they become part of the address
+ * its intent entry is stored under. `steps` scoped by a group key lives at
+ * `steps@groupA` and `steps@groupB` simultaneously, which is the whole branch-memory
  * and scoped-persistence mechanism (see docs/data-graph-rethink.md, "Storage").
  */
 
@@ -45,8 +45,8 @@ export function addressKey(address: string): string {
  * `load()`/`save()` format: address -> raw value) — scoped bucket first, bare
  * key as the fallback, mirroring the store's own read order.
  *
- * This is the supported replacement for v1's pattern of parsing the storage
- * adapter's on-disk entries directly (last-used checkpoint per ecosystem, the
+ * This is the supported replacement for parsing the storage adapter's on-disk
+ * entries directly (the last-used value per group, the
  * mount auto-correct's before-init reads, append-images): external readers go
  * through this instead of coupling to the serialization.
  */

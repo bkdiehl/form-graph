@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { codec, defineFieldKit, type Codec } from '../core/index.js';
+import { codec, type Codec } from '../core/index.js';
 
 /**
- * Port of selectNode / samplerNode / schedulerNode. `selectCodec` is the
- * anonymous value shape; the kits are the NAMED fields built on it — one kit
- * instance per ecosystem module, hoisted, with that ecosystem's option list.
+ * A closed string-option field: input projects unknown values to the
+ * default, output is the exact enum. Meta carries the option list (and
+ * optional presets) for the control.
  */
 
 export interface SelectMeta {
@@ -32,29 +32,3 @@ export function selectCodec(opts: {
     meta: { options: values.map((s) => ({ label: s, value: s })), presets: opts.presets },
   });
 }
-
-const defaultSamplerPresets = [
-  { label: 'Fast', value: 'Euler a' },
-  { label: 'Popular', value: 'DPM++ 2M Karras' },
-];
-
-export const createSamplerKit = defineFieldKit<
-  { options: readonly string[]; default?: string; presets?: { label: string; value: string }[] },
-  void,
-  string,
-  SelectMeta
->({
-  key: 'sampler',
-  codec: (config) =>
-    selectCodec({ ...config, presets: config.presets ?? defaultSamplerPresets }),
-});
-
-export const createSchedulerKit = defineFieldKit<
-  { options: readonly string[]; default?: string },
-  void,
-  string,
-  SelectMeta
->({
-  key: 'scheduler',
-  codec: (config) => selectCodec(config),
-});

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { memo, useRef } from 'react';
-import { defaultExt, miniForm, type SliderMeta } from '../../__fixtures__/mini-generation.js';
+import { defaultExt, miniForm, type NumberMeta } from '../../__fixtures__/mini-generation.js';
 import type { FormStore } from '../../core/index.js';
 import { Controller, FormProvider } from '../index.js';
 
@@ -39,7 +39,7 @@ const TextControl = memo(function TextControl({ name }: { name: string }) {
 
 const SliderControl = memo(function SliderControl({ name }: { name: string }) {
   return (
-    <Controller<number, SliderMeta>
+    <Controller<number, NumberMeta>
       name={name}
       render={({ value, meta, onChange }) => {
         count(name);

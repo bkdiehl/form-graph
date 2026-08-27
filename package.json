@@ -13,7 +13,8 @@
 		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit -p tsconfig.lib.json",
 		"typecheck:v1": "tsc --noEmit -p tsconfig.v1.json",
-		"prepublishOnly": "pnpm run typecheck && pnpm run check && vitest run"
+		"prepublishOnly": "pnpm run typecheck && pnpm run check && vitest run",
+		"docs:api": "typedoc"
 	},
 	"files": [
 		"dist",
@@ -79,6 +80,7 @@
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
 		"tailwindcss": "^4.3.3",
+		"typedoc": "^0.28.20",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16",
 		"vite-node": "^6.0.0",
@@ -120,5 +122,6 @@
 	},
 	"engines": {
 		"node": ">=20"
-	}
+	},
+	"packageManager": "pnpm@10.34.4"
 }

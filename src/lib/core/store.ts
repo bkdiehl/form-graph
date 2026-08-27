@@ -78,7 +78,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
     // they rehydrate straight into intent. Explicit defaults (remix, URL
     // handoff) arrive by KEY and go through the pending flow, so a default for
     // a scoped field lands in the bucket the field actually resolves with —
-    // defaults win over storage, matching v1's `{ ...storageValues, ...input }`.
+    // explicit defaults win over storage.
     for (const [address, value] of Object.entries(options.storage?.load() ?? {})) {
       if (value !== undefined) this.intent.set(address, boundaryEntry(value));
     }
@@ -94,7 +94,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
 
   /**
    * Files pending (key-addressed) values at the address each field resolved
-   * with. A key with no active field keeps v1's persist-inactive behaviour:
+   * with. A key with no active field keeps its stored intent:
    * it lands at the bare key, which scoped reads use as a fallback until an
    * explicit write supersedes it.
    */
@@ -181,7 +181,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
   /**
    * Clears intent. Excluded FIELD KEYS keep everything they've accumulated —
    * every scoped bucket included, so an excluded `steps` survives with its
-   * per-ecosystem memory intact.
+   * per-scope memory intact.
    */
   reset(options: { exclude?: readonly string[] } = {}): void {
     const exclude = new Set(options.exclude ?? []);
@@ -224,15 +224,15 @@ export class FormStore<State, Ext, Codecs = unknown> {
     return data as State;
   }
 
-  /** Derived (computed) keys in the active branch — v1's getComputedKeys. */
+  /** Derived (computed) keys in the active branch. */
   getComputedKeys(): string[] {
     return this.resolution.keys.filter((key) => this.resolution.records.get(key)!.isComputed);
   }
 
   /**
-   * Deletes intent entries whose ADDRESS matches — v1's
+   * Deletes intent entries whose ADDRESS matches —
    * `storageAdapter.removeKey` sweeps (clearStorageForOutput). The predicate
-   * sees full addresses (`steps@flux/2`); match on `addressKey(address)` to
+   * sees full addresses (`steps@groupA/2`); match on `addressKey(address)` to
    * clear every bucket of one field.
    */
   prune(predicate: (address: string) => boolean): void {
@@ -305,7 +305,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
    * Re-entrancy depth: subscribers calling set() from a notification. Bounded
    * cascades are legal (equal values terminate them); a runaway one is the ONE
    * cycle shape this design cannot rule out structurally, so it is detected —
-   * the engine's only runtime cycle check, vs v1's 1000-iteration breaker
+   * the engine's only runtime cycle check, vs an iteration-cap breaker
    * guarding its whole evaluation loop.
    */
   private notifyDepth = 0;

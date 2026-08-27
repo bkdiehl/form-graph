@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { defineForm, type Fields } from '../../core/index.js';
+import { defineForm, type Fields } from '../../../core/index.js';
 import { createUpscalerKit, createVaeKit } from '../aux-resources.js';
-import { textCodec } from '../basic.js';
+import { textCodec } from '../../../codecs/basic.js';
 import { createControlNetsKit } from '../controlnets.js';
 import { createQuantityKit } from '../quantity.js';
-import { createSamplerKit, createSchedulerKit } from '../select.js';
+import { createSamplerKit, createSchedulerKit } from '../samplers.js';
 import type { ResourceValue } from '../resources.js';
 
 /**

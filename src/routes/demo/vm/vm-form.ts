@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { codec, defineForm, type Fields } from '$lib/index.js';
-import { enumCodec, sliderCodec } from '$lib/codecs/index.js';
+import { enumCodec, numberCodec } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 3: the hardest mechanisms together. Scoped memory (the
 // instance type is remembered PER workload preset), an availability matrix
@@ -53,9 +53,9 @@ const TYPE = codec<string, { options: { value: string; label: string }[] }>({
   default: 'g1.medium',
 });
 
-const VCPUS = sliderCodec({ min: 2, max: 64, step: 2, default: 8 });
-const RAM = sliderCodec({ min: 4, max: 256, step: 4, default: 32 });
-const GPUS = sliderCodec({ min: 1, max: 8, default: 1 });
+const VCPUS = numberCodec({ min: 2, max: 64, step: 2, default: 8 });
+const RAM = numberCodec({ min: 4, max: 256, step: 4, default: 32 });
+const GPUS = numberCodec({ min: 1, max: 8, default: 1 });
 
 const OS = enumCodec({
   options: [

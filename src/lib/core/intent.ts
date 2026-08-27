@@ -18,8 +18,8 @@ export interface IntentEntry {
 /**
  * Everything the user has ever set, keyed by intent ADDRESS — the bare field key
  * for unscoped fields, `key@scope` for scoped ones (see scope.ts). Never pruned
- * when a branch deactivates — which is what makes branch memory (Flux -> SD ->
- * Flux restores your Flux values) fall out of the data model instead of a
+ * when a branch deactivates — which is what makes branch memory (A -> B ->
+ * A restores your A-branch values) fall out of the data model instead of a
  * storage adapter, and scoped addresses are what let one KEY hold several
  * per-branch values at once.
  */

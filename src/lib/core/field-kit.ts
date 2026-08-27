@@ -15,15 +15,15 @@ import type { Codec } from './types.js';
  * factory binds app config (catalogs, version tables) and yields a KIT the
  * resolver and the form's rule list consume:
  *
- *   const createCheckpointKit = defineFieldKit<Config, Args, ...>({
- *     key: 'model',
- *     codec: CHECKPOINT,
- *     options: (config, args) => ({ default, project, noteOnProject, meta }),
+ *   const createPlanKit = defineFieldKit<Config, Args, ...>({
+ *     key: 'plan',
+ *     codec: PLAN,
+ *     options: (config, args) => ({ default, correct, meta }),
  *     reconciler: (config) => rule,
  *   });
- *   const checkpoint = createCheckpointKit({ catalog, workflowVersions });
- *   // resolver:   checkpoint.field(f, { ctx })
- *   // form rules: reconcile: [checkpoint.reconciler]
+ *   const plan = createPlanKit({ catalog, tierTable });
+ *   // resolver:   plan.field(f, { ctx })
+ *   // form rules: reconcile: [plan.reconciler]
  *
  * What the factory enforces, rather than documents:
  * - the codec resolves ONCE, at kit creation — a config-parameterised codec
@@ -35,9 +35,9 @@ import type { Codec } from './types.js';
  * @typeParam Config - What the APP binds once per kit instance: catalogs,
  *   version tables, injected compatibility functions. Every spec slot receives
  *   it; this is how a kit stays library-generic while the app stays concrete.
- * @typeParam Args - What the RESOLVER passes on every pass: ctx values it just
- *   computed (workflow, ecosystem) and per-pass toggles (modelLocked, gate
- *   ids). Use `void` when nothing is dynamic — callers then pass `undefined`.
+ * @typeParam Args - What the RESOLVER passes on every pass: values it just
+ *   computed (a discriminant, an upstream choice) and per-pass toggles. Use
+ *   `void` when nothing is dynamic — callers then pass `undefined`.
  * @typeParam T - The field's STATE value type; must match the codec's value
  *   type, and is what `kit.field(...)` returns into the resolver.
  * @typeParam M - The field's meta shape (dynamic UI props for controls).

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, defineFieldKit } from '../core/index.js';
+import { codec, defineFieldKit } from '../../core/index.js';
 
 /**
  * Port of controlNetsNode. The preprocessor registry is app data (labels,

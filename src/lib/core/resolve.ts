@@ -23,8 +23,8 @@ import type { Codec, FieldRecord, Refinable, ResolutionNote, SchemaLike } from '
 export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
   /**
    * Where this field's memory lives. Scope values are computed by the resolver
-   * (an ecosystem key, a model id, a toggle) and become part of the intent
-   * address, so `steps` scoped per ecosystem group remembers a value per group.
+   * (a discriminant, an id, a toggle) and become part of the intent
+   * address, so `steps` scoped per group remembers a value per group.
    * Conditional scoping is a ternary at the call site.
    */
   scope?: Scope;
@@ -143,7 +143,7 @@ class Collector implements Fields {
       : undefined;
 
     // `undefined` means "no usable value" and falls through to the default —
-    // matching v1, where a node's stored `undefined` yields its defaultValue.
+    // a stored `undefined` yields the default, same as no entry at all.
     let value = parsed?.value as T | undefined;
     if (value === undefined) {
       value = resolveDefault(opts?.default) ?? resolveDefault(codec.default);

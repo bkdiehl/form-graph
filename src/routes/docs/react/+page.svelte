@@ -41,7 +41,7 @@ function PromptInput() {
 </p>
 
 <pre>{`const steps = useTypedField(store, 'steps');
-// FieldSnapshot<number, SliderMeta> | null — inferred, no annotations`}</pre>
+// FieldSnapshot<number, NumberMeta> | null — inferred, no annotations`}</pre>
 
 <h2>The React ↔ Svelte mapping</h2>
 <p>Same concepts, each framework's idiom:</p>

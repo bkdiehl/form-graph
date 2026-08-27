@@ -6,10 +6,10 @@ import {
   createSchedulerKit,
   createVaeKit,
   createImagesKit,
-  sliderCodec,
+  numberCodec,
   type AspectRatioOption,
   type ResourceValue,
-} from '../codecs/index.js';
+} from './codecs/index.js';
 import { baseModelToEcosystem, type GenerationExt } from './config.js';
 import { checkpointKit, collectTriggerWords, groupOf, resourcesKit, SEED, textSection } from './shared.js';
 
@@ -24,9 +24,9 @@ const sdAspectRatios: AspectRatioOption[] = [
 ];
 
 const SD_AR = aspectRatioCodec({ options: sdAspectRatios, default: '1:1' });
-const SD_CFG = sliderCodec({ min: 1, max: 30, default: 7, step: 0.5 });
-const SD_STEPS = sliderCodec({ min: 10, max: 50, default: 25 });
-const CLIP_SKIP = sliderCodec({ min: 1, max: 3, default: 2 });
+const SD_CFG = numberCodec({ min: 1, max: 30, default: 7, step: 0.5 });
+const SD_STEPS = numberCodec({ min: 10, max: 50, default: 25 });
+const CLIP_SKIP = numberCodec({ min: 1, max: 3, default: 2 });
 
 const sdCheckpoint = checkpointKit({
   appliesTo: (state) => state.ecosystem === 'SD1' || state.ecosystem === 'SDXL',
@@ -120,7 +120,7 @@ const LTX_AR: Record<LtxResolution, ReturnType<typeof aspectRatioCodec>> = {
   '1080p': aspectRatioCodec({ options: ltxAspectRatiosByResolution['1080p'], default: '16:9' }),
 };
 
-const DURATION = sliderCodec({ min: 2, max: 10, default: 5 });
+const DURATION = numberCodec({ min: 2, max: 10, default: 5 });
 
 const ltxCheckpoint = checkpointKit({
   appliesTo: (state) => state.ecosystem === 'LTXV2' || state.ecosystem === 'LTXV23',
@@ -218,7 +218,7 @@ const WAN_RESOLUTION = codec<WanResolution, { options: readonly string[] }>({
 const wanCheckpoint = checkpointKit({
   appliesTo: (state) => (state.ecosystem ?? '').startsWith('WanV21'),
 });
-const WAN_DURATION = sliderCodec({ min: 2, max: 6, default: 5 });
+const WAN_DURATION = numberCodec({ min: 2, max: 6, default: 5 });
 
 export function wanResolver(
   f: Fields,

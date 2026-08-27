@@ -62,7 +62,7 @@ export type FieldsOf<Codecs> = {
  *
  *   const form = defineForm()({ codecs: { steps: STEPS, ... }, resolve });
  *   const f = typedFields(form.createStore({ ext }));
- *   f.steps.current   // FieldSnapshot<number, SliderMeta> | null
+ *   f.steps.current   // FieldSnapshot<number, NumberMeta> | null
  *
  * Handles are created lazily per key and cached, so `f.steps` is stable and
  * subscribing costs nothing until a handle is actually read in an effect.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defineForm, type Fields } from '../../core/index.js';
-import { textCodec } from '../basic.js';
+import { defineForm, type Fields } from '../../../core/index.js';
+import { textCodec } from '../../../codecs/basic.js';
 import { createCheckpointKit, type CheckpointCatalog } from '../checkpoint.js';
 import { createResourcesKit, type ResourceData, type ResourceValue } from '../resources.js';
 import type { WorkflowVersionConfig } from '../versions.js';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { codec, defineForm, type Fields } from '$lib/index.js';
-import { enumCodec, sliderCodec } from '$lib/codecs/index.js';
+import { enumCodec, numberCodec } from '$lib/codecs/index.js';
 
 // A compact form authored right next to the page that consumes it, so the demo
 // shows both ends: the resolver whose switch IS the union, and the typed
@@ -20,9 +20,9 @@ const PROMPT = codec({
   default: '',
 });
 
-const STEPS = sliderCodec({ min: 1, max: 50, default: 25 });
-const CFG = sliderCodec({ min: 1, max: 20, step: 0.5, default: 7 });
-const SCALE = sliderCodec({ min: 2, max: 4, default: 2 });
+const STEPS = numberCodec({ min: 1, max: 50, default: 25 });
+const CFG = numberCodec({ min: 1, max: 20, step: 0.5, default: 7 });
+const SCALE = numberCodec({ min: 2, max: 4, default: 2 });
 
 const ASPECT = enumCodec({
   options: [

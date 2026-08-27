@@ -7,7 +7,7 @@ import {
   type CheckpointCatalog,
   type CheckpointKitConfig,
   type ResourceValue,
-} from '../codecs/index.js';
+} from './codecs/index.js';
 import {
   baseModelToEcosystem,
   ecosystemByKey,

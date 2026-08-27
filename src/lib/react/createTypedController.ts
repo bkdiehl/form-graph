@@ -37,7 +37,7 @@ export interface TypedControllerProps<R extends CodecRegistry, K extends keyof R
  * The zero-arg call with an annotated registry (`createTypedController<typeof
  * codecs>()`) remains for forms defined without a codecs slot. Where a key
  * uses different codecs per branch, register the union — value and meta become
- * the branch union, exactly like v1's CtxValues/CtxMeta lookups.
+ * the branch union.
  *
  * @typeParam R - The codec registry: INFERRED from the form argument, or
  *   ANNOTATED as `typeof codecs` on the zero-arg call. It is the single source

@@ -22,7 +22,7 @@ export interface ControllerProps<Value, Meta> {
 }
 
 /**
- * Same contract as v1's Controller: subscribe to one field, render nothing when
+ * Subscribe to one field, render nothing when
  * the field is inactive in the current branch.
  */
 export function Controller<Value = unknown, Meta = unknown>({

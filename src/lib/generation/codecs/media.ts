@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, defineFieldKit, type Scope } from '../core/index.js';
+import { codec, defineFieldKit, type Scope } from '../../core/index.js';
 
 /**
  * Ports of imagesNode, videoNode, scaleFactorNode.

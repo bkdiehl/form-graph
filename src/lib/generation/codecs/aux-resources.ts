@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, defineFieldKit } from '../core/index.js';
+import { codec, defineFieldKit } from '../../core/index.js';
 import { resourceSchema, type ResourceValue } from './resources.js';
 
 /**

@@ -37,7 +37,7 @@ export interface FormConfig<Ext, State, Codecs extends CodecsInput = CodecRegist
   codecs?: Codecs;
   /**
    * Rewrites a patch before it reaches intent — the home for conflicts between
-   * two user choices (v1's mutually-recursive effects). Runs once, before
+   * two user choices. Runs once, before
    * resolution, so there is no loop to detect.
    *
    * THE STANDARD: an array of rule UNITS — field kits and `defineRules`
@@ -97,8 +97,7 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
    *
    * `data` is typed as `State`: the output view holds the same keys with
    * per-key output-schema-validated values (strict schemas may STRIP extra
-   * properties — enriched resources — but never change a key's declared
-   * shape). Same claim v1 makes typing safeParse data as Ctx.
+   * properties, but never change a key's declared shape).
    */
   parse(raw: Record<string, unknown>, ext: Ext): ValidationResult<State, State> {
     const resolution = this.resolve(intentFromRaw(raw), ext);

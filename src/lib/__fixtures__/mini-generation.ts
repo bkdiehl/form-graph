@@ -75,17 +75,17 @@ const seedCodec = codec<number | undefined>({
     .transform((v) => v ?? undefined),
 });
 
-export interface SliderMeta {
+export interface NumberMeta {
   min: number;
   max: number;
   step: number;
 }
 
-export function sliderCodec(opts: { min: number; max: number; step?: number; default: number }) {
+export function numberCodec(opts: { min: number; max: number; step?: number; default: number }) {
   const step = opts.step ?? 1;
   const snap = (v: number) => Math.min(opts.max, Math.max(opts.min, Math.round(v / step) * step));
 
-  return codec<number, SliderMeta>({
+  return codec<number, NumberMeta>({
     output: z.number().min(opts.min).max(opts.max),
     input: z.coerce.number().optional(),
     default: opts.default,
@@ -100,10 +100,10 @@ export function sliderCodec(opts: { min: number; max: number; step?: number; def
  * every pass construct fresh zod schemas — measured at 152x the keystroke cost.
  * The store's `getCodecChurn()` guard catches regressions of this.
  */
-const FLUX_STEPS = sliderCodec({ min: 1, max: 50, default: 25 });
-const SD_STEPS = sliderCodec({ min: 1, max: 150, default: 20 });
-const CFG_SCALE = sliderCodec({ min: 1, max: 30, step: 0.5, default: 7 });
-const UPSCALE_SCALE = sliderCodec({ min: 2, max: 4, default: 2 });
+const FLUX_STEPS = numberCodec({ min: 1, max: 50, default: 25 });
+const SD_STEPS = numberCodec({ min: 1, max: 150, default: 20 });
+const CFG_SCALE = numberCodec({ min: 1, max: 30, step: 0.5, default: 7 });
+const UPSCALE_SCALE = numberCodec({ min: 2, max: 4, default: 2 });
 
 const samplerCodec = codec<string, { options: string[] }>({
   output: z.string(),

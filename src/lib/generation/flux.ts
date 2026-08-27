@@ -2,9 +2,10 @@ import { defineRules, type Fields } from '../core/index.js';
 import {
   aspectRatioCodec,
   createControlNetsKit,
-  sliderCodec,
+  numberCodec,
+  presetNumberCodec,
   type AspectRatioOption,
-} from '../codecs/index.js';
+} from './codecs/index.js';
 import { fluxVersionIds, type GenerationExt } from './config.js';
 import { checkpointKit, collectTriggerWords, groupOf, resourcesKit, SEED, textSection } from './shared.js';
 
@@ -44,9 +45,9 @@ const fluxGuidancePresets = [
 
 const AR_STANDARD = aspectRatioCodec({ options: sdxlAspectRatios, default: '1:1' });
 const AR_ULTRA = aspectRatioCodec({ options: fluxUltraAspectRatios, default: '1:1' });
-const CFG = sliderCodec({ min: 2, max: 20, default: 3.5, step: 0.5, presets: fluxGuidancePresets });
-const STEPS = sliderCodec({ min: 20, max: 50, default: 25 });
-const FLUX_ULTRA_RAW = sliderCodec({ min: 0, max: 1, default: 0 });
+const CFG = presetNumberCodec({ min: 2, max: 20, default: 3.5, step: 0.5, presets: fluxGuidancePresets });
+const STEPS = numberCodec({ min: 20, max: 50, default: 25 });
+const FLUX_ULTRA_RAW = numberCodec({ min: 0, max: 1, default: 0 });
 
 const checkpoint = checkpointKit({
   versions: {

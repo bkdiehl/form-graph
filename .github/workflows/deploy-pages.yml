@@ -32,6 +32,8 @@ jobs:
         run: pnpm exec vite build
         env:
           BASE_PATH: /form-graph
+      - name: Generate API reference
+        run: pnpm exec typedoc
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec } from '../core/index.js';
+import { codec } from '../../core/index.js';
 
 /**
  * Port of aspectRatioNode. The value is the full option object (value + pixel

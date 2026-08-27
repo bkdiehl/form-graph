@@ -5,7 +5,7 @@ import {
   type FieldOptions,
   type Rule,
   type Scope,
-} from '../core/index.js';
+} from '../../core/index.js';
 import { resourceSchema, type ResourceData, type ResourceValue } from './resources.js';
 import {
   buildVersionMappings,

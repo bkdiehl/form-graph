@@ -26,7 +26,7 @@
     The recommended consumption path: <code>typedFields(store)</code> derives every key's exact
     <code>value</code> and <code>meta</code> types from the form itself — the form declares its
     codecs once, and the page imports nothing but the form. The <code>Slider</code> component
-    only compiles against number/SliderMeta fields, and the state panel narrows the discriminated
+    only compiles against number/NumberMeta fields, and the state panel narrows the discriminated
     union with a plain <code>if</code>. Source: <code>src/routes/demo</code>.
   </p>
 
