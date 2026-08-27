@@ -72,7 +72,7 @@ export const createResourcesKit = defineFieldKit<
   codec: RESOURCES,
   options: (config, args) => ({
     scope: args.scope ?? args.ecosystem,
-    project: (value) =>
+    correct: (value) =>
       value.filter((resource) => config.isCompatible(args.ecosystem, resource)).slice(0, args.limit),
     meta: (value) => ({
       options: { canGenerate: true, excludeIds: value.map((r) => r.id) },

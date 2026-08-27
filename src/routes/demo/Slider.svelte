@@ -17,45 +17,25 @@
 </script>
 
 {#if field.current?.meta}
-  <label class="row">
-    <span class="name">{label}</span>
+  <label class="flex items-center gap-3 py-1.5">
+    <span class="w-28 font-mono text-sm text-muted">{label}</span>
     <input
       type="range"
+      class="max-w-64 flex-1 accent-accent"
       min={field.current.meta.min}
       max={field.current.meta.max}
       step={field.current.meta.step}
       value={field.current.value}
       oninput={(e) => onchange(Number(e.currentTarget.value))}
     />
-    <span class="value">{field.current.value}</span>
+    <span class="min-w-10 text-sm tabular-nums">{field.current.value}</span>
     {#if field.current.error}
-      <span class="error">{field.current.error.message}</span>
+      <span class="text-xs text-problem">{field.current.error.message}</span>
+    {/if}
+    {#if field.current.note}
+      <span class="text-xs text-accent">
+        adjusted from {String(field.current.note.detail?.from)} — {field.current.note.kind}
+      </span>
     {/if}
   </label>
 {/if}
-
-<style>
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.3rem 0;
-  }
-  .name {
-    width: 7rem;
-    font-family: ui-monospace, monospace;
-    font-size: 0.85rem;
-  }
-  input {
-    flex: 1;
-    max-width: 16rem;
-  }
-  .value {
-    min-width: 2.5rem;
-    font-size: 0.85rem;
-  }
-  .error {
-    color: #c0392b;
-    font-size: 0.8rem;
-  }
-</style>

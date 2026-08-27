@@ -43,7 +43,7 @@ const scopedForm = defineForm<Ext>()({
     const model = f.field('model', modelCodec, {
       default: MODELS[ecosystem]![0]!.id,
       scope: ecosystem,
-      project: (id) => (MODELS[ecosystem]!.some((m) => m.id === id) ? id : MODELS[ecosystem]![0]!.id),
+      correct: (id) => (MODELS[ecosystem]!.some((m) => m.id === id) ? id : MODELS[ecosystem]![0]!.id),
     });
     const turbo = MODELS[ecosystem]!.find((m) => m.id === model)?.turbo ?? false;
 

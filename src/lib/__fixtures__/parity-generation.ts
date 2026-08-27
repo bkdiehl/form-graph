@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, defineForm, type Fields } from '../core/index.js';
+import { codec, corrected, defineForm, type Fields } from '../core/index.js';
 
 /**
  * A fixture shaped after the graphs v1's tests actually exercise, so the parity
@@ -93,12 +93,8 @@ function resolveParity(f: Fields, ext: ParityExt) {
   const model = f.field('model', modelCodec, {
     default: fallback,
     meta: { options },
-    project: (value) => (options.includes(value) ? value : fallback),
-    noteOnProject: (requested, substituted) => ({
-      key: 'model',
-      kind: 'workflow-incompatible',
-      detail: { requested, substituted, workflow },
-    }),
+    correct: (value) =>
+      options.includes(value) ? value : corrected(fallback, 'workflow-incompatible', { workflow }),
   });
 
   const turbo = TURBO_IDS.has(model);
@@ -111,12 +107,12 @@ function resolveParity(f: Fields, ext: ParityExt) {
   f.field('steps', stepsCodec, {
     default: turbo ? 8 : 25,
     meta: { min: 1, max: stepsMax },
-    project: (value) => Math.min(value, stepsMax),
+    correct: (value) => Math.min(value, stepsMax),
   });
   f.field('cfgScale', cfgCodec, {
     default: turbo ? 1 : 4,
     meta: { min: 1, max: cfgMax },
-    project: (value) => Math.min(value, cfgMax),
+    correct: (value) => Math.min(value, cfgMax),
   });
 
   // The toggle simply does not exist for versions that cannot do it, so a stale

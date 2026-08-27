@@ -1,19 +1,12 @@
 <script lang="ts">
-  import { createTypedField, formState } from '$lib/svelte/index.js';
-  import { demoCodecs, demoForm } from './demo-form.js';
+  import { formState, typedFields } from '$lib/svelte/index.js';
+  import { demoForm } from './demo-form.js';
   import Slider from './Slider.svelte';
 
   const store = demoForm.createStore({ ext: undefined });
 
-  // One create-site annotation; every key below gets its codec's value/meta
-  // types with no per-call generics.
-  const typedField = createTypedField<typeof demoCodecs>();
-  const mode = typedField(store, 'mode'); // 'create' | 'upscale', EnumMeta
-  const prompt = typedField(store, 'prompt'); // string
-  const steps = typedField(store, 'steps'); // number, SliderMeta
-  const cfgScale = typedField(store, 'cfgScale');
-  const scale = typedField(store, 'scale');
-  const aspectRatio = typedField(store, 'aspectRatio');
+  // Typed handles derived from the form itself — no registry import.
+  const f = typedFields(store);
 
   const snapshot = formState(store);
   const s = $derived(snapshot.current);
@@ -26,147 +19,104 @@
 </script>
 
 <main>
-  <h1>Typed controls</h1>
-  <p>
-    The recommended consumption path: <code>createTypedField</code> is annotated once with the
-    app's codec registry, and every control below receives its key's exact <code>value</code> and
-    <code>meta</code> types — the <code>Slider</code> component only compiles against
-    number/SliderMeta fields. The state panel narrows the discriminated union with a plain
-    <code>if</code>. Source: <code>src/routes/demo</code>.
+  <h1 class="font-display text-3xl font-bold tracking-tight">Typed controls</h1>
+  <p class="mt-4 max-w-[65ch] leading-relaxed text-muted">
+    The recommended consumption path: <code>typedFields(store)</code> derives every key's exact
+    <code>value</code> and <code>meta</code> types from the form itself — the form declares its
+    codecs once, and the page imports nothing but the form. The <code>Slider</code> component
+    only compiles against number/SliderMeta fields, and the state panel narrows the discriminated
+    union with a plain <code>if</code>. Source: <code>src/routes/demo</code>.
   </p>
 
-  <section class="fields">
-    {#if mode.current?.meta}
-      <label class="row">
-        <span class="name">mode</span>
+  <section class="my-6 flex flex-col">
+    {#if f.mode.current?.meta}
+      <label class="flex items-center gap-3 py-1.5">
+        <span class="w-28 font-mono text-sm text-muted">mode</span>
         <select
-          value={mode.current.value}
+          class="rounded border border-line bg-surface px-2 py-1 text-sm"
+          value={f.mode.current.value}
           onchange={(e) => store.set({ mode: e.currentTarget.value })}
         >
-          {#each mode.current.meta.options as option (option.value)}
+          {#each f.mode.current.meta.options as option (option.value)}
             <option value={option.value}>{option.label}</option>
           {/each}
         </select>
       </label>
     {/if}
 
-    {#if prompt.current}
-      <label class="row">
-        <span class="name">prompt</span>
+    {#if f.prompt.current}
+      <label class="flex items-center gap-3 py-1.5">
+        <span class="w-28 font-mono text-sm text-muted">prompt</span>
         <input
           type="text"
-          value={prompt.current.value}
+          class="max-w-64 flex-1 rounded border border-line bg-surface px-2 py-1 text-sm"
+          value={f.prompt.current.value}
           oninput={(e) => store.set({ prompt: e.currentTarget.value })}
         />
-        {#if prompt.current.error}
-          <span class="error">{prompt.current.error.message}</span>
+        {#if f.prompt.current.error}
+          <span class="text-xs text-problem">{f.prompt.current.error.message}</span>
         {/if}
       </label>
     {/if}
 
-    <Slider label="steps" field={steps} onchange={(value) => store.set({ steps: value })} />
-    <Slider label="cfgScale" field={cfgScale} onchange={(value) => store.set({ cfgScale: value })} />
-    <Slider label="scale" field={scale} onchange={(value) => store.set({ scale: value })} />
+    <Slider label="steps" field={f.steps} onchange={(value) => store.set({ steps: value })} />
+    <Slider label="cfgScale" field={f.cfgScale} onchange={(value) => store.set({ cfgScale: value })} />
+    <Slider label="scale" field={f.scale} onchange={(value) => store.set({ scale: value })} />
 
-    {#if aspectRatio.current?.meta}
-      <label class="row">
-        <span class="name">aspectRatio</span>
-        <span class="options">
-          {#each aspectRatio.current.meta.options as option (option.value)}
+    {#if f.aspectRatio.current?.meta}
+      <div class="flex items-center gap-3 py-1.5">
+        <span class="w-28 font-mono text-sm text-muted">aspectRatio</span>
+        <span class="flex gap-1.5">
+          {#each f.aspectRatio.current.meta.options as option (option.value)}
             <button
               type="button"
-              class:selected={aspectRatio.current.value === option.value}
+              class="cursor-pointer rounded border px-3 py-1 text-sm transition-colors {f.aspectRatio
+                .current?.value === option.value
+                ? 'border-accent bg-accent font-medium text-ground'
+                : 'border-line bg-surface text-muted hover:text-ink'}"
               onclick={() => store.set({ aspectRatio: option.value })}
             >
               {option.label}
             </button>
           {/each}
         </span>
-      </label>
+      </div>
     {/if}
   </section>
 
-  <section class="panel">
-    <h2>Narrowing the union</h2>
-    <p>
-      <code>state.current</code> is the discriminated union straight from the resolver — the
+  <section class="my-6 rounded-lg border border-line px-4 pt-1 pb-2">
+    <h2 class="font-display mt-3 text-lg font-semibold">Narrowing the union</h2>
+    <p class="mt-2 max-w-[65ch] text-sm leading-relaxed text-muted">
+      <code>snapshot.current</code> is the discriminated union straight from the resolver — the
       branch decides which keys exist, and TypeScript knows it:
     </p>
     {#if s.mode === 'upscale'}
-      <p class="narrowed">
+      <p class="my-3 border-l-2 border-mechanism bg-surface py-2 pl-3 text-sm leading-relaxed">
         <code>mode === 'upscale'</code> → <code>s.scale</code> is a <code>number</code>:
         upscaling <strong>{s.scale}×</strong>. (<code>s.steps</code> doesn't exist here — using it
         wouldn't compile.)
       </p>
     {:else}
-      <p class="narrowed">
+      <p class="my-3 border-l-2 border-mechanism bg-surface py-2 pl-3 text-sm leading-relaxed">
         <code>mode === 'create'</code> → <code>{s.steps}</code> steps at cfg
         <code>{s.cfgScale}</code>, <code>{s.aspectRatio}</code>. (<code>s.scale</code> doesn't
         exist here.)
       </p>
     {/if}
-    <p>
+    <p class="text-sm leading-relaxed text-muted">
       Switch modes, change values, switch back — scoped intent means each branch remembers its own
       values.
     </p>
   </section>
 
-  <button type="button" class="validate" onclick={validate}>Validate (strict output)</button>
+  <button
+    type="button"
+    class="cursor-pointer rounded border border-line bg-surface px-4 py-2 text-sm transition-colors hover:border-accent"
+    onclick={validate}
+  >
+    Validate (strict output)
+  </button>
   {#if submitted}
-    <pre>{submitted}</pre>
+    <pre class="mt-4">{submitted}</pre>
   {/if}
 </main>
-
-<style>
-  .fields {
-    margin: 1.5rem 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.3rem 0;
-  }
-  .name {
-    width: 7rem;
-    font-family: ui-monospace, monospace;
-    font-size: 0.85rem;
-  }
-  .options {
-    display: flex;
-    gap: 0.4rem;
-  }
-  .options button {
-    padding: 0.25rem 0.7rem;
-    border: 1px solid #ccc;
-    background: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  .options button.selected {
-    background: #1a1a1a;
-    color: #fff;
-    border-color: #1a1a1a;
-  }
-  .panel {
-    border: 1px solid #eee;
-    border-radius: 6px;
-    padding: 0.25rem 1rem 0.5rem;
-    margin: 1.5rem 0;
-  }
-  .narrowed {
-    background: #f6faf6;
-    border-left: 3px solid #3a7;
-    padding: 0.5rem 0.75rem;
-  }
-  .validate {
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-  }
-  .error {
-    color: #c0392b;
-    font-size: 0.8rem;
-  }
-</style>

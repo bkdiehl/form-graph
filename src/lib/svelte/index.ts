@@ -43,32 +43,52 @@ export function field<Value = unknown, Meta = unknown>(
 }
 
 /**
- * Builds an app-typed `field` from a codec registry, so `name` narrows `value`
- * and `meta` with no per-call-site generics — the Svelte counterpart of the
- * React binding's `createTypedController`:
+ * Every key of a codec registry mapped to its typed reactive field handle.
  *
- *   const codecs = { steps: STEPS, aspectRatio: ASPECT };
- *   const typedField = createTypedField<typeof codecs>();
- *   const steps = typedField(store, 'steps');
- *   // steps.current: FieldSnapshot<number, SliderMeta> | null
- *
- * Where a key uses different codecs per branch, register the union — value and
- * meta become the branch union.
- *
- * @typeParam R - The app's codec-registry literal, ANNOTATED as
- *   `typeof codecs` at the create site. It is the single source the returned
- *   function derives per-key types from.
- * @typeParam K - (on the returned function) the field name: INFERRED from the
- *   `name` argument, constrained to `keyof R`, and what narrows the snapshot's
- *   `value`/`meta`.
+ * @typeParam Codecs - The registry carried on the store, from the form's
+ *   `codecs` slot.
  */
-export function createTypedField<R extends CodecRegistry>() {
-  return function typedField<K extends keyof R & string>(
-    store: AnyStore,
-    name: K
-  ): Reactive<FieldSnapshot<InferCodecValue<R[K]>, InferCodecMeta<R[K]>> | null> {
-    return field<InferCodecValue<R[K]>, InferCodecMeta<R[K]>>(store, name);
-  };
+export type FieldsOf<Codecs> = {
+  readonly [K in keyof Codecs & string]: Reactive<FieldSnapshot<
+    InferCodecValue<Codecs[K]>,
+    InferCodecMeta<Codecs[K]>
+  > | null>;
+};
+
+/**
+ * Typed field handles derived FROM THE FORM — no separate registry to declare
+ * or import. The form's `codecs` slot is the single source; the store carries
+ * its type; this reads it back:
+ *
+ *   const form = defineForm()({ codecs: { steps: STEPS, ... }, resolve });
+ *   const f = typedFields(form.createStore({ ext }));
+ *   f.steps.current   // FieldSnapshot<number, SliderMeta> | null
+ *
+ * Handles are created lazily per key and cached, so `f.steps` is stable and
+ * subscribing costs nothing until a handle is actually read in an effect.
+ * `current` is null while the key is inactive in the current branch — the form
+ * decides what exists; the page just places controls.
+ *
+ * @typeParam State - The store's state union (inferred, unused here).
+ * @typeParam Ext - The store's external-context type (inferred, unused here).
+ * @typeParam Codecs - The registry to derive per-key value/meta types from:
+ *   INFERRED from the store argument, which carries it from the form.
+ */
+export function typedFields<State, Ext, Codecs extends CodecRegistry>(
+  store: FormStore<State, Ext, Codecs>
+): FieldsOf<Codecs> {
+  const cache = new Map<string, Reactive<FieldSnapshot<unknown, unknown> | null>>();
+  return new Proxy({} as FieldsOf<Codecs>, {
+    get: (_target, key) => {
+      if (typeof key !== 'string') return undefined;
+      let handle = cache.get(key);
+      if (!handle) {
+        handle = field(store as AnyStore, key);
+        cache.set(key, handle);
+      }
+      return handle;
+    },
+  });
 }
 
 /** Subscribes to the whole state. Wakes on any change — prefer `field` for controls. */
@@ -81,3 +101,5 @@ export function formState<State, Ext = unknown>(store: FormStore<State, Ext>): R
     },
   };
 }
+
+export { default as Field } from './Field.svelte';

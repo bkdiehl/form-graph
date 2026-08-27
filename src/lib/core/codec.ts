@@ -1,4 +1,4 @@
-import type { Codec, Schema } from './types.js';
+import type { Codec, Schema, SchemaLike } from './types.js';
 
 /**
  * Identity helper that pins `T`/`M` inference for a codec literal.
@@ -11,7 +11,9 @@ import type { Codec, Schema } from './types.js';
  *   Defaults to `undefined` when controls need nothing computed; inferred from
  *   `meta` when the literal provides one and the caller annotates it.
  */
-export function codec<T, M = undefined>(def: Codec<T, M>): Codec<T, M> {
+export function codec<T, M = undefined, O extends SchemaLike<T> = SchemaLike<T>>(
+  def: Codec<T, M> & { output: O }
+): Codec<T, M> & { output: O } {
   return def;
 }
 

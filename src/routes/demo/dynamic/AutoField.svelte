@@ -30,13 +30,17 @@
 </script>
 
 {#if f.current}
-  <label class="row">
-    <span class="name">{name}</span>
+  <label class="flex items-center gap-3 py-1">
+    <span class="w-40 shrink-0 font-mono text-sm text-muted">{name}</span>
     {#if f.current.isComputed}
-      <code class="json">{JSON.stringify(f.current.value)}</code>
-      <span class="computed">computed</span>
+      <code class="text-xs break-all text-faint">{JSON.stringify(f.current.value)}</code>
+      <span class="text-[0.6rem] tracking-widest text-faint uppercase">computed</span>
     {:else if options}
-      <select value={String(f.current.value)} onchange={onSelect}>
+      <select
+        class="rounded border border-line bg-surface px-2 py-1 text-sm"
+        value={String(f.current.value)}
+        onchange={onSelect}
+      >
         {#each options as option (String(option.value))}
           <option value={String(option.value)}>{option.label ?? String(option.value)}</option>
         {/each}
@@ -44,54 +48,29 @@
     {:else if typeof f.current.value === 'number'}
       <input
         type="number"
+        class="w-28 rounded border border-line bg-surface px-2 py-1 text-sm tabular-nums"
         value={f.current.value}
         onchange={(e) => setValue(Number(e.currentTarget.value))}
       />
     {:else if typeof f.current.value === 'boolean'}
       <input
         type="checkbox"
+        class="accent-accent"
         checked={f.current.value}
         onchange={(e) => setValue(e.currentTarget.checked)}
       />
     {:else if typeof f.current.value === 'string' || f.current.value === undefined}
       <input
         type="text"
+        class="max-w-64 flex-1 rounded border border-line bg-surface px-2 py-1 text-sm"
         value={f.current.value ?? ''}
         oninput={(e) => setValue(e.currentTarget.value)}
       />
     {:else}
-      <code class="json">{JSON.stringify(f.current.value)}</code>
+      <code class="text-xs break-all text-faint">{JSON.stringify(f.current.value)}</code>
     {/if}
     {#if f.current.error}
-      <span class="error">{f.current.error.message}</span>
+      <span class="text-xs text-problem">{f.current.error.message}</span>
     {/if}
   </label>
 {/if}
-
-<style>
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.25rem 0;
-  }
-  .name {
-    width: 10rem;
-    font-family: monospace;
-    font-size: 0.85rem;
-  }
-  .json {
-    font-size: 0.8rem;
-    overflow-wrap: anywhere;
-  }
-  .error {
-    color: #c0392b;
-    font-size: 0.8rem;
-  }
-  .computed {
-    color: #888;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-</style>

@@ -160,7 +160,7 @@ function ecosystemSection(f: Fields, ext: MiniExt, workflow: Workflow) {
         steps: f.field('steps', FLUX_STEPS),
         resources: f.field('resources', resourcesCodec, {
           meta: { limit: ext.limits.maxResources },
-          project: (value) => value.slice(0, ext.limits.maxResources),
+          correct: (value) => value.slice(0, ext.limits.maxResources),
         }),
       };
     }

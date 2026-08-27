@@ -33,7 +33,7 @@ export const createVaeKit = defineFieldKit<
   key: 'vae',
   codec: VAE,
   options: (config, args) => ({
-    project: (vae) =>
+    correct: (vae) =>
       vae && vae.baseModel && !config.isCompatible(args.ecosystem, vae) ? undefined : vae,
     meta: (value) => ({
       options: { canGenerate: true, excludeIds: value ? [value.id] : [] },

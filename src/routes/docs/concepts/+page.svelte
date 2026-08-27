@@ -28,19 +28,22 @@ f.field('images', IMAGES, { scope: workflow });`}</pre>
   <code>parse()</code>. Nothing zod-shaped runs on the keystroke path.
 </p>
 
-<h2>Projection and validation</h2>
+<h2>Correction and refinement</h2>
 <p>
   Two distinct reactions to an out-of-range value, chosen per field:
 </p>
 <ul>
   <li>
-    <code>project</code> silently corrects during resolution (clamp a quantity to the user's limit,
-    substitute a retired model) — with an optional <code>noteOnProject</code> that surfaces a
-    reasoned substitution note to the server.
+    <code>correct</code> silently replaces during resolution (clamp a quantity to the user's
+    limit, substitute a retired model). Return the value, or
+    <code>corrected(newValue, reason)</code> — the reason rides to the server as an audit note
+    and onto the field's snapshot for inline display. For mismatches the SYSTEM caused.
   </li>
   <li>
-    <code>validate</code> refuses at output time (a gated workflow, a members-only priority) —
-    the field keeps its value and carries the error.
+    <code>refine</code> narrows the codec's output schema under this pass's conditions, in zod's
+    own vocabulary — <code>(s) =&gt; s.refine(...)</code> with <code>refineDeps</code> caching
+    construction. A failing value keeps its place, carries a LIVE error, and fails submit. For
+    mismatches the USER must resolve.
   </li>
 </ul>
 

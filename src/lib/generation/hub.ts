@@ -83,11 +83,18 @@ function workflowField(f: Fields, ext: GenerationExt) {
   const { workflows } = rulesToStates(ext.gateRules ?? []);
   const { hidden, states } = mergeGateStates(undefined, workflows);
   const gated = new Set([...hidden, ...states.map((s) => s.key)]);
+  const gatedKey = [...gated].sort().join('|');
 
   return f.field('workflow', WORKFLOW, {
-    // Gated keys reject on submit — the server-side backstop for a stale value
-    // or crafted request (v1's refine). The picker hides/badges via meta.
-    validate: (key) => (gated.has(key) ? 'Workflow is currently unavailable' : undefined),
+    // Gated keys reject — the server-side backstop for a stale value or
+    // crafted request, and a live error client-side. The picker hides/badges
+    // via meta.
+    refine: (s) =>
+      s.refine((key) => !gated.has(key), {
+        message: 'Workflow is currently unavailable',
+        params: { kind: 'gated' },
+      }),
+    refineDeps: [gatedKey],
     meta: {
       options: [...workflowConfigByKey.keys()]
         .filter((key) => !hidden.includes(key))
@@ -105,8 +112,12 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
   // High priority is member-gated (v1's PriorityOption.memberOnly): badged in
   // meta, and refused on submit for non-members — same backstop as gates.
   const priority = f.field('priority', PRIORITY, {
-    validate: (value) =>
-      value === 'high' && !ext.user.isMember ? 'High priority requires membership' : undefined,
+    refine: (s) =>
+      s.refine((value) => !(value === 'high' && !ext.user.isMember), {
+        message: 'High priority requires membership',
+        params: { kind: 'member_only' },
+      }),
+    refineDeps: [ext.user.isMember],
     meta: {
       options: [
         { label: 'Low', value: 'low' as const },
@@ -151,6 +162,7 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
     }
     if (resolution) ecoGates.set(key, resolution);
   }
+  const ecoGateKey = [...ecoGates.keys()].sort().join('|');
   const hiddenEcosystems = [...ecoGates].filter(([, r]) => r.state === 'hidden').map(([k]) => k);
   const ecoStates: GateItemState[] = [...ecoGates]
     .filter(([, r]) => r.state !== 'hidden')
@@ -160,8 +172,13 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
   const ecosystem = f.field('ecosystem', ECOSYSTEM, {
     scope: workflow,
     default: () => getDefaultEcosystemForWorkflow(workflow) ?? 'Flux1',
-    project: (key) => (available.includes(key as (typeof available)[number]) ? key : available[0]!),
-    validate: (key) => (ecoGates.has(key) ? 'Ecosystem is currently unavailable' : undefined),
+    correct: (key) => (available.includes(key as (typeof available)[number]) ? key : available[0]!),
+    refine: (s) =>
+      s.refine((key) => !ecoGates.has(key), {
+        message: 'Ecosystem is currently unavailable',
+        params: { kind: 'gated' },
+      }),
+    refineDeps: [ecoGateKey],
     meta: {
       options: available
         .filter((key) => !hiddenEcosystems.includes(key))

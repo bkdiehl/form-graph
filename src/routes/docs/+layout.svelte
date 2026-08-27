@@ -14,53 +14,24 @@
   ];
 </script>
 
-<div class="docs">
-  <aside>
+<div class="flex flex-col items-start gap-10 sm:flex-row">
+  <aside
+    class="flex flex-row flex-wrap gap-x-4 gap-y-2 text-sm sm:sticky sm:top-4 sm:min-w-40 sm:flex-col"
+  >
     {#each pages as { href, label } (href)}
-      <a {href} class:active={page.url.pathname === href}>{label}</a>
+      <a
+        {href}
+        class="no-underline transition-colors {page.url.pathname === href
+          ? 'font-semibold text-accent'
+          : 'text-muted hover:text-ink'}"
+      >
+        {label}
+      </a>
     {/each}
   </aside>
-  <article>
+  <article
+    class="prose prose-invert min-w-0 max-w-[75ch] flex-1 prose-headings:font-display prose-headings:tracking-tight prose-a:text-accent prose-strong:text-ink prose-pre:bg-surface prose-pre:border prose-pre:border-line"
+  >
     {@render children()}
   </article>
 </div>
-
-<style>
-  .docs {
-    display: flex;
-    gap: 2.5rem;
-    align-items: flex-start;
-  }
-  aside {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    min-width: 10rem;
-    position: sticky;
-    top: 1rem;
-  }
-  aside a {
-    text-decoration: none;
-    color: #555;
-    font-size: 0.9rem;
-  }
-  aside a.active {
-    color: #000;
-    font-weight: 600;
-  }
-  article {
-    min-width: 0;
-    flex: 1;
-  }
-  @media (max-width: 640px) {
-    .docs {
-      flex-direction: column;
-    }
-    aside {
-      flex-direction: row;
-      flex-wrap: wrap;
-      gap: 1rem;
-      position: static;
-    }
-  }
-</style>

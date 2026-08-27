@@ -24,14 +24,11 @@ export function validateResolution<State>(resolution: Resolution<State>): {
       continue;
     }
 
-    const result = runSchema(record.codec.output, record.value);
+    // The refined schema (when the field declared `refine`) IS the output
+    // contract for this pass — the codec's output narrowed by the current
+    // conditions.
+    const result = runSchema(record.refined ?? record.codec.output, record.value);
     if (result.success) {
-      const message = record.validate?.(record.value);
-      if (message) {
-        data[key] = record.value;
-        errors.set(key, { message, code: 'custom', issues: [{ message, code: 'custom' }] });
-        continue;
-      }
       data[key] = record.codec.toOutput ? record.codec.toOutput(record.value) : result.data;
     } else {
       data[key] = record.value;

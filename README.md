@@ -479,6 +479,14 @@ key-presence block in the parity harness):
 
 ## Pre-extraction hardening: the API surface and the error shape
 
+**Superseded in part (2026-08-26): the correction surface was redesigned.** `project`/`noteOnProject`/`validate` no longer exist. Older mentions below and elsewhere in this record are historical. The current per-field surface:
+
+- **`correct: (value) => value | corrected(newValue, reason, detail?)`** — per-pass silent replacement for mismatches the SYSTEM caused (stale stored option, a ceiling another field lowered). The engine auto-fills the note (`key`/`from`/`to`); the reason is co-located with the decision instead of split into a second prop. The note also lands on the field SNAPSHOT (`snapshot.note`) for inline display.
+- **`refine: (s) => s.refine(...)` + `refineDeps`** — the output contract narrowed under this pass conditions, in zod own vocabulary (`message`/`params.kind` are the channels). Refusal with a LIVE error during editing, not just at submit. Construction is deps-cached (React-style array): typing never rebuilds a schema — proven by test — so the codec-churn rule holds. Deps must be STABLE values; a per-pass Set/array identity defeats the cache (derive a canonical string, see hub.ts gatedKey).
+
+The split is principled — **schemas judge, functions transform**: refusal is schema-shaped (zod), replacement is a function returning a value+reason. A unified .catch-based design was considered and rejected: .catch swallows refusals upstream in the chain, computed substitutions lose their reason channel, and Standard Schema has no recovery equivalent. Checkpoint substitution notes changed shape with this: `kind` IS the classified reason (`locked_default`, ...) rather than a generic `model-substitution` wrapper.
+
+
 Two decisions taken while reviewing the package as an npm surface, before anything freezes:
 
 - **The public index is authoring + runtime + introspection + migration ONLY.** Engine

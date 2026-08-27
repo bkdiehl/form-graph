@@ -38,6 +38,9 @@ interface Ext {
 }
 
 export const form = defineForm<Ext>()({
+  // The registry, inline: what lets typedFields()/<Field>/typed controllers
+  // derive every key's value and meta types from the form itself.
+  codecs: { mode: MODE, prompt: PROMPT, steps: STEPS, scale: SCALE },
   resolve: (f: Fields, ext: Ext) => {
     const mode = f.field('mode', MODE); // 'create' | 'upscale'
     const base = { mode, prompt: f.field('prompt', PROMPT) };

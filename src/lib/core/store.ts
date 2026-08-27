@@ -1,9 +1,9 @@
 import { diffSnapshot } from './diff.js';
 import { boundaryEntry, trustedEntry, type IntentEntry, type ParseCache } from './intent.js';
 import { addressKey } from './scope.js';
-import { resolve, type Resolution, type ResolutionNote, type Resolver } from './resolve.js';
+import { resolve, type RefineCache, type Resolution, type Resolver } from './resolve.js';
 import { validateResolution } from './validate.js';
-import type { FieldError, FieldSnapshot, Snapshot, ValidationResult } from './types.js';
+import type { FieldError, FieldSnapshot, ResolutionNote, Snapshot, ValidationResult } from './types.js';
 
 export interface StorageAdapter {
   load(): Record<string, unknown> | undefined;
@@ -36,9 +36,16 @@ type Listener = () => void;
  * The keystroke path is: write intent -> resolve -> diff -> notify changed keys.
  * No schema work happens in it (see docs/data-graph-rethink.md, "Keystroke budget").
  */
-export class FormStore<State, Ext> {
+/**
+ * @typeParam Codecs - Phantom registry carried from the FormDefinition so
+ *   registry-driven binding helpers can infer per-key types from a store
+ *   value alone. Never read at runtime.
+ */
+export class FormStore<State, Ext, Codecs = unknown> {
+  declare private __codecs?: Codecs;
   private intent = new Map<string, IntentEntry>();
   private cache: ParseCache = new WeakMap();
+  private refineCache: RefineCache = new Map();
   private errors = new Map<string, FieldError>();
   private resolution: Resolution<State>;
   private snapshot: Snapshot<State>;
@@ -80,7 +87,7 @@ export class FormStore<State, Ext> {
       if (value !== undefined) pending.set(key, boundaryEntry(value));
     }
 
-    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending);
+    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.refineCache);
     this.commitPending(pending);
     this.snapshot = diffSnapshot(null, this.resolution, this.errors).snapshot;
   }
@@ -269,7 +276,7 @@ export class FormStore<State, Ext> {
   }
 
   private recompute(pending?: ReadonlyMap<string, IntentEntry>): boolean {
-    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending);
+    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.refineCache);
     if (pending) this.commitPending(pending);
     this.trackCodecChurn();
 

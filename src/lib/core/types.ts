@@ -1,5 +1,3 @@
-import type { ResolutionNote } from './resolve.js';
-
 /**
  * Structural schema contract. Satisfied by zod 3 and 4 as-is, and by hand-written
  * schemas in tests — the core never imports zod, so the engine is testable and
@@ -30,6 +28,19 @@ export type StandardSchemaResult<T> =
 
 /** Anything a codec may carry as a schema. */
 export type SchemaLike<T = unknown> = Schema<T> | StandardSchemaV1<T>;
+
+/**
+ * The one method `FieldOptions.refine` callbacks can rely on regardless of how
+ * widened the codec's output type is — zod schemas satisfy it structurally.
+ * With a concretely-typed codec the full schema type is ALSO available (the
+ * callback parameter is the intersection), so .max/.min etc. work there.
+ */
+export interface Refinable<T> {
+  refine(
+    check: (value: T) => unknown,
+    opts?: string | { message?: string; params?: Record<string, unknown> }
+  ): SchemaLike<T>;
+}
 
 export type SafeParseResult<T> =
   | { success: true; data: T }
@@ -79,6 +90,21 @@ export interface Codec<T = unknown, M = unknown> {
   toOutput?: (value: T) => unknown;
 }
 
+/**
+ * Something the resolver decided that the caller may want to observe — a value
+ * corrected into range, a stored choice that no longer applies.
+ *
+ * v1 carries this as a mutable collector hung on the external context, which has
+ * to be freshly built per request or it leaks between them. Here it is part of
+ * the resolution's return value: deterministic, per-call, and impossible to
+ * share by accident.
+ */
+export interface ResolutionNote {
+  key: string;
+  kind: string;
+  detail?: Record<string, unknown>;
+}
+
 export interface FieldRecord<T = unknown, M = unknown> {
   key: string;
   /** Intent address this field resolved with — `key` unscoped, `key@scope` scoped. */
@@ -89,8 +115,12 @@ export interface FieldRecord<T = unknown, M = unknown> {
   isComputed: boolean;
   /** Set when a boundary value failed its input schema and the default was used instead. */
   boundaryError: FieldError | undefined;
-  /** Per-pass output constraint from FieldOptions.validate. */
-  validate?: (value: unknown) => string | undefined;
+  /** The refined output schema for this pass (FieldOptions.refine); replaces codec.output at submit. */
+  refined: SchemaLike<unknown> | undefined;
+  /** Live refinement failure — a value the user must resolve. */
+  refineError: FieldError | undefined;
+  /** The correction note from this pass, when `correct` replaced the value. */
+  note: ResolutionNote | undefined;
 }
 
 export interface FieldSnapshot<T = unknown, M = unknown> {
@@ -98,6 +128,8 @@ export interface FieldSnapshot<T = unknown, M = unknown> {
   value: T;
   meta: M | undefined;
   error: FieldError | undefined;
+  /** Set when `correct` replaced this value this pass — render "we adjusted this" inline. */
+  note: ResolutionNote | undefined;
   isComputed: boolean;
 }
 

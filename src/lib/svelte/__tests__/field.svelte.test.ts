@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { z } from 'zod';
-import { createTypedField, field, formState } from '../index.js';
+import { field, formState, typedFields } from '../index.js';
 import { codec, defineForm, type Fields } from '../../core/index.js';
 import { defaultExt, miniForm } from '../../__fixtures__/mini-generation.js';
 
@@ -86,7 +86,7 @@ describe('svelte binding: per-field reactivity', () => {
   });
 });
 
-describe('createTypedField', () => {
+describe('typedFields', () => {
   const STEPS = codec<number, { min: number; max: number }>({
     input: z.coerce.number().optional(),
     output: z.number().min(1).max(50),
@@ -98,20 +98,22 @@ describe('createTypedField', () => {
     output: z.string(),
     default: '',
   });
-  const registry = { steps: STEPS, name: NAME };
+  // The registry lives IN the form — nothing separate to export or annotate.
   const tinyForm = defineForm()({
+    codecs: { steps: STEPS, name: NAME },
     resolve: (f: Fields) => ({
       steps: f.field('steps', STEPS),
       name: f.field('name', NAME),
     }),
   });
 
-  it('derives value/meta types from the registry and reads like field()', () => {
+  it('derives value/meta types from the form and reads like field()', () => {
     const store = tinyForm.createStore({ ext: undefined });
-    const typedField = createTypedField<typeof registry>();
+    const f = typedFields(store);
 
-    const steps = typedField(store, 'steps');
-    const name = typedField(store, 'name');
+    const steps = f.steps;
+    const name = f.name;
+    expect(f.steps).toBe(steps); // handles are cached, dot access is stable
 
     // Type-level: value and meta come from the registry, no call-site generics.
     type Assert<T extends true> = T;

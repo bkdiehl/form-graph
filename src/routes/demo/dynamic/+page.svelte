@@ -15,13 +15,13 @@
 </script>
 
 <main>
-  <h1>Live demo: the generation form</h1>
-  <p>
+  <h1 class="font-display text-3xl font-bold tracking-tight">Live demo: the generation form</h1>
+  <p class="mt-4 max-w-[65ch] leading-relaxed text-muted">
     One definition, both sides: the fields below run the store client-side; submitting posts the
     visible state to a form action that parses it with the <em>same</em> definition on the server.
   </p>
 
-  <section class="fields">
+  <section class="my-6 flex flex-col">
     {#each keys as key (key)}
       <AutoField {store} name={key} />
     {/each}
@@ -29,27 +29,20 @@
 
   <form method="POST" use:enhance>
     <input type="hidden" name="state" value={JSON.stringify(state.current)} />
-    <button type="submit">Parse on the server</button>
+    <button
+      type="submit"
+      class="cursor-pointer rounded border border-line bg-surface px-4 py-2 text-sm transition-colors hover:border-accent"
+    >
+      Parse on the server
+    </button>
   </form>
 
   {#if form}
-    <section class="result">
-      <h2>{'data' in form ? 'Server parse: success' : 'Server parse: failed'}</h2>
-      <pre>{JSON.stringify(form, null, 2)}</pre>
+    <section class="mt-6">
+      <h2 class="font-display text-lg font-semibold">
+        {'data' in form ? 'Server parse: success' : 'Server parse: failed'}
+      </h2>
+      <pre class="mt-3">{JSON.stringify(form, null, 2)}</pre>
     </section>
   {/if}
 </main>
-
-<style>
-  .fields {
-    margin: 1.5rem 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .result pre {
-    background: #f5f5f5;
-    padding: 1rem;
-    overflow-x: auto;
-    font-size: 0.8rem;
-  }
-</style>

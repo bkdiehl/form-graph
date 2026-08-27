@@ -155,8 +155,11 @@ describe('checkpointField: locked substitution (issue #3520 shape)', () => {
     expect(result.notes).toContainEqual(
       expect.objectContaining({
         key: 'model',
-        kind: 'model-substitution',
-        detail: expect.objectContaining({ requested: 999, applied: ids.sdCheckpoint }),
+        kind: 'locked_default',
+        detail: expect.objectContaining({
+          requested: 999,
+          to: expect.objectContaining({ id: ids.sdCheckpoint }),
+        }),
       })
     );
   });

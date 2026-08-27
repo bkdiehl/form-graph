@@ -29,6 +29,7 @@ export {
   type FormConfig,
   type InferState,
   type InferExt,
+  type InferCodecs,
   type InferFieldValue,
 } from './form.js';
 export type { Intent, IntentEntry } from './intent.js';
@@ -43,7 +44,8 @@ export {
   type BranchDescription,
   type Pins,
 } from './introspect.js';
-export type { Fields, FieldOptions, Resolver, Resolution, ResolutionNote } from './resolve.js';
+export { corrected } from './resolve.js';
+export type { Corrected, Fields, FieldOptions, Resolver, Resolution } from './resolve.js';
 export type { FormStore, StorageAdapter, StoreOptions } from './store.js';
 export {
   defineRules,
@@ -58,6 +60,8 @@ export { readIntentBuckets, readIntentValue, type Scope, type ScopeValue } from 
 export type {
   Codec,
   FieldError,
+  Refinable,
+  ResolutionNote,
   FieldRecord,
   FieldSnapshot,
   SafeParseResult,

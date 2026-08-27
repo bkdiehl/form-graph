@@ -41,11 +41,11 @@ describe('G2: substitution notes carry ids + reason, on failure too (#3520 pipel
 
     expect(result.notes).toContainEqual(
       expect.objectContaining({
-        kind: 'model-substitution',
+        // The clause that fired IS the note's kind — no post-hoc classifier.
+        kind: 'locked_default',
         detail: expect.objectContaining({
           requested: 999999,
-          applied: fluxVersionIds.draft,
-          reason: 'locked_default',
+          to: expect.objectContaining({ id: fluxVersionIds.draft }),
         }),
       })
     );
@@ -60,7 +60,7 @@ describe('G2: substitution notes carry ids + reason, on failure too (#3520 pipel
 
     expect(result.success).toBe(false);
     expect(result.notes).toContainEqual(
-      expect.objectContaining({ kind: 'model-substitution' })
+      expect.objectContaining({ kind: 'locked_default' })
     );
   });
 });

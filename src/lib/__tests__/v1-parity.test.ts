@@ -133,8 +133,8 @@ describe('v1 parity: substitution observability (model-substitution.test.ts)', (
         key: 'model',
         kind: 'workflow-incompatible',
         detail: {
-          requested: versionIds.txt2imgTurbo,
-          substituted: versionIds.editStandard,
+          from: versionIds.txt2imgTurbo,
+          to: versionIds.editStandard,
           workflow: 'img2img:edit',
         },
       },
@@ -197,7 +197,7 @@ describe('v1 parity: external-context deps (data-graph.test.ts)', () => {
         counter.runs++;
         const resources = f.field('resources', resourcesCodec, {
           meta: { limit: ext.limits.maxResources },
-          project: (value) => value.slice(0, ext.limits.maxResources),
+          correct: (value) => value.slice(0, ext.limits.maxResources),
         });
         return { resources };
       },

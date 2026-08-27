@@ -24,7 +24,8 @@ export function diffSnapshot<State>(
       key,
       value: record.value,
       meta: record.meta,
-      error: errors.get(key) ?? record.boundaryError,
+      error: errors.get(key) ?? record.refineError ?? record.boundaryError,
+      note: record.note,
       isComputed: record.isComputed,
     };
 
@@ -69,6 +70,7 @@ function fieldsEqual(a: FieldSnapshot, b: FieldSnapshot): boolean {
     a.isComputed === b.isComputed &&
     deepEqual(a.value, b.value) &&
     deepEqual(a.meta, b.meta) &&
-    deepEqual(a.error, b.error)
+    deepEqual(a.error, b.error) &&
+    deepEqual(a.note, b.note)
   );
 }

@@ -171,7 +171,7 @@ export function ltxResolver(
     aspectRatio: f.field('aspectRatio', LTX_AR[resolution], { scope: [scope, resolution] }),
     duration: f.field('duration', DURATION, {
       scope: [scope, resolution],
-      project: (v) => Math.min(v, maxDuration),
+      correct: (v) => Math.min(v, maxDuration),
       meta: { min: 2, max: maxDuration, step: 1 },
     }),
     ...(ctx.workflow === 'img2vid'
@@ -228,7 +228,7 @@ export function wanResolver(
     model,
     resolution: f.field('resolution', WAN_RESOLUTION, {
       // The ecosystem is authoritative; the picker's value always reflects it.
-      project: () => impliedResolution,
+      correct: () => impliedResolution,
     }),
     ...textSection(f, { promptRequired: true, negativePrompt: true }),
     duration: f.field('duration', WAN_DURATION, { scope: 'wan' }),

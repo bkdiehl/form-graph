@@ -48,20 +48,45 @@ ${'<'}/script>
 
 <pre>{`const state = formState(store); // whole-snapshot reactivity — prefer field() for controls`}</pre>
 
-<h2>Typed fields</h2>
+<h2>Typed fields — from the form, not a registry export</h2>
 <p>
-  <code>createTypedField</code> derives a <code>field()</code> from your codec registry, so
-  <code>name</code> narrows <code>value</code> and <code>meta</code> with no per-call-site
-  generics — the Svelte counterpart of React's <code>createTypedController</code>:
+  Declare the codecs once, on the form. The store carries the registry's type, and
+  <code>typedFields(store)</code> reads it back — the page imports nothing but the form:
 </p>
 
-<pre>{`const codecs = { steps: STEPS, aspectRatio: ASPECT };
-const typedField = createTypedField<typeof codecs>();
+<pre>{`// my-form.ts
+export const form = defineForm()({
+  codecs: { steps: STEPS, aspectRatio: ASPECT },
+  resolve,
+});
 
-const steps = typedField(store, 'steps');
-// steps.current: FieldSnapshot<number, SliderMeta> | null`}</pre>
+// +page.svelte
+const store = form.createStore({ ext });
+const f = typedFields(store);
 
-<p>The <a href="/demo">typed demo</a> is built entirely this way.</p>
+f.steps.current
+// FieldSnapshot<number, SliderMeta> | null — inferred, no annotation`}</pre>
+
+<h2>&lt;Field&gt; — the form drives visibility</h2>
+<p>
+  Place <code>&lt;Field&gt;</code> flat on the page; it renders its snippet only while the
+  current branch has the key, with the snapshot and a typed setter as snippet arguments. No
+  <code>&#123;#if&#125;</code> re-stating branch logic the resolver already owns:
+</p>
+
+<pre>{`<Field {store} name="steps">
+  {#snippet children(snap, setValue)}
+    <input
+      type="range"
+      min={snap.meta.min}
+      max={snap.meta.max}
+      value={snap.value}
+      oninput={(e) => setValue(Number(e.currentTarget.value))}
+    />
+  {/snippet}
+</Field>`}</pre>
+
+<p>The <a href="/demo">demos</a> are built entirely this way.</p>
 
 <h2>Testing gotcha</h2>
 <p>

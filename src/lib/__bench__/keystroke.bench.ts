@@ -36,7 +36,7 @@ function resolveHeavy(f: Fields, ext: HeavyExt) {
     codec<string[], { limit: number }>({ output: z.array(z.string()), default: [] }),
     {
       meta: { limit: ext.limits.maxResources },
-      project: (v) => v.slice(0, ext.limits.maxResources),
+      correct: (v) => v.slice(0, ext.limits.maxResources),
     }
   );
   f.computed('resourceCount', resources.length);
@@ -71,7 +71,7 @@ function resolveHoisted(f: Fields, ext: HeavyExt) {
 
   const resources = f.field('resources', HOISTED_RESOURCES, {
     meta: { limit: ext.limits.maxResources },
-    project: (v) => v.slice(0, ext.limits.maxResources),
+    correct: (v) => v.slice(0, ext.limits.maxResources),
   });
   f.computed('resourceCount', resources.length);
 

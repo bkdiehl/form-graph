@@ -36,7 +36,7 @@ export const createQuantityKit = defineFieldKit<
     const min = args.min ?? step;
     return {
       default: min,
-      project: (value) => snap(value, step, min, args.max),
+      correct: (value) => snap(value, step, min, args.max),
       meta: { min, max: args.max, step },
     };
   },

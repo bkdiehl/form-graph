@@ -175,7 +175,7 @@ export const createScaleFactorKit = defineFieldKit<
 
     return {
       default: firstValid,
-      project: (value) => (fits(value) ? value : firstValid),
+      correct: (value) => (fits(value) ? value : firstValid),
       meta: {
         options,
         canUpscale: !maxDimension || maxDimension * Math.min(...multipliers) <= maxOutputResolution,

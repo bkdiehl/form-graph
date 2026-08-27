@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { codec, defineFieldKit, type FieldOptions, type Rule, type Scope } from '../core/index.js';
+import {
+  codec,
+  corrected,
+  defineFieldKit,
+  type FieldOptions,
+  type Rule,
+  type Scope,
+} from '../core/index.js';
 import { resourceSchema, type ResourceData, type ResourceValue } from './resources.js';
 import {
   buildVersionMappings,
@@ -180,34 +187,32 @@ function checkpointOptions(args: CheckpointArgs): FieldOptions<ResourceValue | u
   return {
     scope: args.scope,
     default: defaultModelId !== undefined ? asCheckpoint(defaultModelId) : undefined,
-    project: (model) => {
+    // v1 records the locked substitution through ext.modelSubstitutions
+    // (observe-only, must not change behaviour). `corrected` carries the same
+    // record — WHICH substitute and WHY decided in one place.
+    correct: (model) => {
+      const context = { ecosystem: ctx.ecosystem, workflow: ctx.workflow, requested: model?.id };
       switch (classify(model)) {
         case 'locked_default':
         case 'ecosystem_mismatch':
-          return defaultModelId !== undefined ? asCheckpoint(defaultModelId) : model;
+          return defaultModelId !== undefined
+            ? corrected(asCheckpoint(defaultModelId), classify(model)!, context)
+            : model;
         case 'workflow_version_swap': {
           const workflowKey = getWorkflowKey(args.workflowVersions, ctx.workflow);
           const equivalent = mappings!.get(model!.id!)?.[workflowKey];
-          return equivalent ? asCheckpoint(equivalent.id, equivalent.baseModel) : model;
+          return equivalent
+            ? corrected(
+                asCheckpoint(equivalent.id, equivalent.baseModel),
+                'workflow_version_swap',
+                context
+              )
+            : model;
         }
         default:
           return model;
       }
     },
-    // v1 records the locked substitution through ext.modelSubstitutions
-    // (observe-only, must not change behaviour). Notes carry the same record in
-    // the resolution's return value.
-    noteOnProject: (requested, applied) => ({
-      key: 'model',
-      kind: 'model-substitution',
-      detail: {
-        requested: requested?.id,
-        applied: applied?.id,
-        reason: classify(requested),
-        ecosystem: ctx.ecosystem,
-        workflow: ctx.workflow,
-      },
-    }),
     meta: (value): CheckpointMeta => ({
       options: { canGenerate: true, excludeIds: value ? [value.id] : [] },
       modelLocked,

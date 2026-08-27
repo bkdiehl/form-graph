@@ -33,16 +33,15 @@ const ASPECT = enumCodec({
   default: '1:1',
 });
 
-export const demoCodecs = {
-  mode: MODE,
-  prompt: PROMPT,
-  steps: STEPS,
-  cfgScale: CFG,
-  scale: SCALE,
-  aspectRatio: ASPECT,
-};
-
 export const demoForm = defineForm()({
+  codecs: {
+    mode: MODE,
+    prompt: PROMPT,
+    steps: STEPS,
+    cfgScale: CFG,
+    scale: SCALE,
+    aspectRatio: ASPECT,
+  },
   resolve: (f: Fields) => {
     const mode = f.field('mode', MODE);
     const base = { mode, prompt: f.field('prompt', PROMPT) };
