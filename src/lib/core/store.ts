@@ -213,7 +213,15 @@ export class FormStore<State, Ext, Codecs = unknown> {
    * values. Never written back into state.
    */
   output(): State {
-    return validateResolution(this.resolution).data as State;
+    const { errors, data } = validateResolution(this.resolution);
+    if (errors.size > 0) {
+      throw new Error(
+        'output(): the form is invalid (' +
+          [...errors.keys()].join(', ') +
+          '). Use validate() for a checked result, or parsePartial() for best-effort data.'
+      );
+    }
+    return data as State;
   }
 
   /** Derived (computed) keys in the active branch — v1's getComputedKeys. */

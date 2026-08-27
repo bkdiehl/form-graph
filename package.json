@@ -18,10 +18,13 @@
 		"dist",
 		"!dist/**/*.test.*",
 		"!dist/**/*.spec.*",
+		"!dist/**/__tests__",
 		"!dist/__tests__",
 		"!dist/__bench__",
 		"!dist/__stress__",
-		"!dist/**/__tests__"
+		"!dist/__fixtures__",
+		"!dist/civitai",
+		"!dist/generation"
 	],
 	"sideEffects": [
 		"**/*.css"
@@ -43,7 +46,7 @@
 			"types": "./dist/react/index.d.ts",
 			"import": "./dist/react/index.js"
 		},
-		"./kits": {
+		"./codecs": {
 			"types": "./dist/codecs/index.d.ts",
 			"import": "./dist/codecs/index.js"
 		}

@@ -4,21 +4,35 @@ import { FormStore, type PatchReconciler, type StoreOptions } from './store.js';
 import type { RuleUnit } from './rules.js';
 import { validateResolution } from './validate.js';
 import type { CodecRegistry } from './codec.js';
-import type { FieldError, ValidationResult } from './types.js';
+import type { Codec, FieldError, ValidationResult } from './types.js';
+
+/** What the `codecs` slot accepts per key: a codec, or a kit (its codec is unwrapped). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type CodecsInput = Record<string, Codec<any, any> | { codec: Codec<any, any> }>;
+
+/** The registry after kit unwrapping — what FormDefinition/FormStore carry. */
+export type NormalizeCodecs<C> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [K in keyof C]: C[K] extends { codec: infer X extends Codec<any, any> }
+    ? X
+    : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Extract<C[K], Codec<any, any>>;
+};
 
 /**
  * @typeParam Ext - See {@link defineForm}: annotated by the caller.
  * @typeParam State - See {@link defineForm}: inferred from `resolve`'s return.
  * @typeParam Codecs - See {@link defineForm}: inferred from the `codecs` slot.
  */
-export interface FormConfig<Ext, State, Codecs extends CodecRegistry = CodecRegistry> {
+export interface FormConfig<Ext, State, Codecs extends CodecsInput = CodecRegistry> {
   resolve: Resolver<Ext, State>;
   /**
-   * The form's codec registry: every field key mapped to its codec. This is
-   * what lets bindings derive each key's value/meta types FROM THE FORM —
-   * `typedFields(store)` and `<Field>` need no separate registry export.
-   * Purely additive: forms without it still work, their fields just type as
-   * unknown in registry-driven helpers.
+   * The form's codec registry: every field key mapped to its codec — or to a
+   * FIELD KIT, whose codec is unwrapped, so kit-built fields register without
+   * repeating `.codec`. This is what lets bindings derive each key's
+   * value/meta types FROM THE FORM — `typedFields(store)` and `<Field>` need
+   * no separate registry export. Purely additive: forms without it still work,
+   * their fields just type as unknown in registry-driven helpers.
    */
   codecs?: Codecs;
   /**
@@ -56,11 +70,15 @@ function composeReconcilers<State, Ext>(
  *   value/meta types from the form itself.
  */
 export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegistry> {
-  /** The registry from the config, for runtime lookups (empty if none given). */
+  /** The registry from the config (kits unwrapped to their codecs; empty if none given). */
   readonly codecs: Codecs;
 
-  constructor(private readonly config: FormConfig<Ext, State, Codecs>) {
-    this.codecs = config.codecs ?? ({} as Codecs);
+  constructor(private readonly config: FormConfig<Ext, State, CodecsInput>) {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(config.codecs ?? {})) {
+      normalized[key] = entry && 'codec' in entry ? entry.codec : entry;
+    }
+    this.codecs = normalized as Codecs;
   }
 
   /**
@@ -113,7 +131,8 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
     return { data: partial as Partial<State>, errors: Object.fromEntries(errors), state: resolution.state };
   }
 
-  createStore(options: StoreOptions<Ext>): FormStore<State, Ext, Codecs> {
+  createStore(...args: CreateStoreArgs<Ext>): FormStore<State, Ext, Codecs> {
+    const options = (args[0] ?? {}) as StoreOptions<Ext>;
     return new FormStore(this.config.resolve, composeReconcilers(this.config.reconcile), options);
   }
 }
@@ -133,11 +152,16 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
  *   different shapes per branch IS the discriminated union, and annotating it
  *   would forfeit that inference.
  */
+/** `options` (and `ext` inside it) is optional when the form has no external context. */
+export type CreateStoreArgs<Ext> = [void] extends [Ext]
+  ? [options?: Omit<StoreOptions<Ext>, 'ext'> & { ext?: Ext }]
+  : [options: StoreOptions<Ext>];
+
 export function defineForm<Ext = void>() {
-  return function <State, Codecs extends CodecRegistry = CodecRegistry>(
+  return function <State, Codecs extends CodecsInput = CodecRegistry>(
     config: FormConfig<Ext, State, Codecs>
-  ): FormDefinition<State, Ext, Codecs> {
-    return new FormDefinition<State, Ext, Codecs>(config);
+  ): FormDefinition<State, Ext, NormalizeCodecs<Codecs>> {
+    return new FormDefinition<State, Ext, NormalizeCodecs<Codecs>>(config);
   };
 }
 

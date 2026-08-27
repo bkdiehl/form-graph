@@ -53,3 +53,58 @@ export function debouncedStorage(inner: StorageAdapter, delayMs = 300): Debounce
     flush,
   };
 }
+
+/**
+ * The batteries-included web-storage adapter: JSON (de)serialization over
+ * localStorage (or sessionStorage), writes debounced off the keystroke path,
+ * and a synchronous flush wired to pagehide/visibilitychange so a closing tab
+ * cannot lose the last change.
+ *
+ * Returns undefined outside a browser (SSR) — StoreOptions.storage accepts
+ * that directly:
+ *
+ *   const store = form.createStore({ ext, storage: persistedStorage('my-form') });
+ *
+ * The flush listeners live for the page's lifetime, sized for the common case
+ * of one store per page; call the returned adapter's dispose() if a store is
+ * torn down early.
+ */
+export function persistedStorage(
+  key: string,
+  options?: { session?: boolean; delayMs?: number }
+): (DebouncedStorageAdapter & { dispose(): void }) | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const backend = options?.session ? window.sessionStorage : window.localStorage;
+  const inner: StorageAdapter = {
+    load: () => {
+      try {
+        return JSON.parse(backend.getItem(key) ?? 'null') ?? undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    save: (intent) => {
+      try {
+        backend.setItem(key, JSON.stringify(intent));
+      } catch {
+        // Quota/privacy-mode failures degrade to in-memory-only — the store
+        // itself keeps working.
+      }
+    },
+  };
+  const adapter = debouncedStorage(inner, options?.delayMs ?? 300);
+  const flush = () => adapter.flush();
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') adapter.flush();
+  };
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', onVisibility);
+  return {
+    ...adapter,
+    dispose() {
+      adapter.flush();
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    },
+  };
+}

@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
-  import { debouncedStorage, type StorageAdapter } from '$lib/index.js';
+  import { persistedStorage } from '$lib/index.js';
   import { formState } from '$lib/svelte/index.js';
   import { videoForm, type VideoExt } from '$lib/civitai/video-hub.js';
   import AutoField from '../dynamic/AutoField.svelte';
@@ -15,30 +14,10 @@
     gateRules: [],
   };
 
-  const KEY = 'form-graph-demo:video';
-  const backend: StorageAdapter = {
-    load: () => {
-      try {
-        return JSON.parse(localStorage.getItem(KEY) ?? 'null') ?? undefined;
-      } catch {
-        return undefined;
-      }
-    },
-    save: (intent) => localStorage.setItem(KEY, JSON.stringify(intent)),
-  };
-  const storage = browser ? debouncedStorage(backend, 300) : undefined;
+  const storage = persistedStorage('form-graph-demo:video');
 
   const store = videoForm.createStore({ ext, storage });
 
-  $effect(() => {
-    if (!storage) return;
-    const flush = () => storage.flush();
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  });
 
   const snapshot = formState(store);
   const s = $derived(snapshot.current);

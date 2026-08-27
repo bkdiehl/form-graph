@@ -34,6 +34,24 @@ function PromptInput() {
   );
 }`}</pre>
 
+<h2>Typed fields</h2>
+<p>
+  <code>useTypedField(store, name)</code> derives the snapshot's value/meta types from the form's
+  codec registry, carried on the store — the hook twin of Svelte's <code>typedFields</code>:
+</p>
+
+<pre>{`const steps = useTypedField(store, 'steps');
+// FieldSnapshot<number, SliderMeta> | null — inferred, no annotations`}</pre>
+
+<h2>The React ↔ Svelte mapping</h2>
+<p>Same concepts, each framework's idiom:</p>
+<ul>
+  <li><code>useField</code> ↔ <code>field()</code> — one untyped subscription</li>
+  <li><code>useTypedField</code> ↔ <code>typedFields(store).key</code> — registry-typed</li>
+  <li><code>Controller</code> / <code>createTypedController(form)</code> ↔ <code>&lt;Field&gt;</code> — form-driven visibility with a render callback/snippet</li>
+  <li><code>useFormState</code> ↔ <code>formState()</code> — whole-snapshot</li>
+</ul>
+
 <h2>Typed controllers</h2>
 <p>
   <code>createTypedController</code> derives a Controller from your codec registry, so

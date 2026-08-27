@@ -1,5 +1,11 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import type { FieldSnapshot, FormStore } from '../core/index.js';
+import type {
+  CodecRegistry,
+  FieldSnapshot,
+  FormStore,
+  InferCodecMeta,
+  InferCodecValue,
+} from '../core/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyStore = FormStore<any, any>;
@@ -26,4 +32,16 @@ export function useField<Value = unknown, Meta = unknown>(
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/**
+ * useField with value/meta types derived FROM THE FORM — the hook twin of the
+ * Svelte binding's typedFields. The store carries the registry type from the
+ * form's codecs slot; name narrows the snapshot with no call-site generics.
+ */
+export function useTypedField<State, Ext, R extends CodecRegistry, K extends keyof R & string>(
+  store: FormStore<State, Ext, R> | null,
+  name: K
+): FieldSnapshot<InferCodecValue<R[K]>, InferCodecMeta<R[K]>> | null {
+  return useField<InferCodecValue<R[K]>, InferCodecMeta<R[K]>>(store as AnyStore | null, name);
 }

@@ -1,38 +1,13 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
-  import { debouncedStorage, type StorageAdapter } from '$lib/index.js';
+  import { persistedStorage } from '$lib/index.js';
   import { Field, formState } from '$lib/svelte/index.js';
   import { pizzaForm, SIZES, TOPPINGS } from './pizza-form.js';
 
-  // localStorage, debounced off the keystroke path. `load` runs once at store
-  // creation; `save` receives the whole intent record on every change and the
-  // wrapper writes it at most once per 300ms.
-  const KEY = 'form-graph-demo:pizza';
-  const backend: StorageAdapter = {
-    load: () => {
-      try {
-        return JSON.parse(localStorage.getItem(KEY) ?? 'null') ?? undefined;
-      } catch {
-        return undefined;
-      }
-    },
-    save: (intent) => localStorage.setItem(KEY, JSON.stringify(intent)),
-  };
-  const storage = browser ? debouncedStorage(backend, 300) : undefined;
+  // persistedStorage: JSON localStorage backend, debounced writes, and a
+  // synchronous flush on pagehide — the whole persistence story in one line.
+  const storage = persistedStorage('form-graph-demo:pizza');
 
-  const store = pizzaForm.createStore({ ext: undefined, storage });
-
-  // A tab close inside the debounce window would lose the last change —
-  // flush synchronously when the page hides.
-  $effect(() => {
-    if (!storage) return;
-    const flush = () => storage.flush();
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  });
+  const store = pizzaForm.createStore({ storage });
 
   const snapshot = formState(store);
   const s = $derived(snapshot.current);
@@ -46,7 +21,7 @@
   }
 
   function resetSaved() {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem('form-graph-demo:pizza');
     location.reload();
   }
 </script>

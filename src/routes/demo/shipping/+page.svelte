@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
-  import { debouncedStorage, type StorageAdapter } from '$lib/index.js';
+  import { persistedStorage } from '$lib/index.js';
   import { formState, typedFields } from '$lib/svelte/index.js';
   import Slider from '../Slider.svelte';
   import { shippingForm } from './shipping-form.js';
@@ -8,30 +7,10 @@
   // sessionStorage this time: a quote is tab-scoped work-in-progress, not a
   // durable preference — close the tab and it's gone, reload and it's back.
   // Same adapter contract as localStorage; only the backend differs.
-  const KEY = 'form-graph-demo:shipping';
-  const backend: StorageAdapter = {
-    load: () => {
-      try {
-        return JSON.parse(sessionStorage.getItem(KEY) ?? 'null') ?? undefined;
-      } catch {
-        return undefined;
-      }
-    },
-    save: (intent) => sessionStorage.setItem(KEY, JSON.stringify(intent)),
-  };
-  const storage = browser ? debouncedStorage(backend, 300) : undefined;
+  const storage = persistedStorage('form-graph-demo:shipping', { session: true });
 
-  const store = shippingForm.createStore({ ext: undefined, storage });
+  const store = shippingForm.createStore({ storage });
 
-  $effect(() => {
-    if (!storage) return;
-    const flush = () => storage.flush();
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  });
 
   // Typed handles derived from the form itself — no registry import.
   const f = typedFields(store);

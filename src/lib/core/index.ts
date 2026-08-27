@@ -25,8 +25,11 @@ export {
 export { defineFieldKit, type FieldKit, type FieldKitSpec } from './field-kit.js';
 export {
   defineForm,
+  type CodecsInput,
+  type CreateStoreArgs,
   type FormDefinition,
   type FormConfig,
+  type NormalizeCodecs,
   type InferState,
   type InferExt,
   type InferCodecs,
@@ -54,7 +57,7 @@ export {
   type RulesSpec,
   type RuleUnit,
 } from './rules.js';
-export { debouncedStorage, type DebouncedStorageAdapter } from './storage.js';
+export { debouncedStorage, persistedStorage, type DebouncedStorageAdapter } from './storage.js';
 export { readIntentBuckets, readIntentValue, type Scope, type ScopeValue } from './scope.js';
 export type {
   Codec,

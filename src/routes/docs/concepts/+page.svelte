@@ -49,8 +49,10 @@ f.field('images', IMAGES, { scope: workflow });`}</pre>
 
 <h2>Rules</h2>
 <p>
-  Cross-field couplings live in <code>defineRules</code>: a record keyed by the field whose change
-  triggers it. Rules run in one ordered pass per <code>set()</code>, each rule at most once, no
+  Three words, one layer: you write <em>rules</em> (<code>defineRules</code>, a record keyed by
+  the triggering field), a kit exposes them compiled as its <em>reconciler</em>, and the form's
+  <em>reconcile</em> array composes those units in order. Cross-field couplings live in
+  <code>defineRules</code>: a record keyed by the field whose change triggers it. Rules run in one ordered pass per <code>set()</code>, each rule at most once, no
   rewind — so cycles are structurally unrepresentable, not detected at runtime.
 </p>
 

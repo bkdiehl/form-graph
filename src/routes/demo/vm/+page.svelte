@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
-  import { debouncedStorage, type StorageAdapter } from '$lib/index.js';
+  import { persistedStorage } from '$lib/index.js';
   import { formState, typedFields } from '$lib/svelte/index.js';
   import Slider from '../Slider.svelte';
   import { vmForm } from './vm-form.js';
@@ -8,30 +7,10 @@
   // localStorage again — a machine spec is a durable preference. The scoped
   // intent is visible IN the stored record: keys like `instanceType@gpu` and
   // `vcpus@compute`, one bucket per preset.
-  const KEY = 'form-graph-demo:vm';
-  const backend: StorageAdapter = {
-    load: () => {
-      try {
-        return JSON.parse(localStorage.getItem(KEY) ?? 'null') ?? undefined;
-      } catch {
-        return undefined;
-      }
-    },
-    save: (intent) => localStorage.setItem(KEY, JSON.stringify(intent)),
-  };
-  const storage = browser ? debouncedStorage(backend, 300) : undefined;
+  const storage = persistedStorage('form-graph-demo:vm');
 
-  const store = vmForm.createStore({ ext: undefined, storage });
+  const store = vmForm.createStore({ storage });
 
-  $effect(() => {
-    if (!storage) return;
-    const flush = () => storage.flush();
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  });
 
   // Typed handles derived from the form itself — no registry import.
   const f = typedFields(store);

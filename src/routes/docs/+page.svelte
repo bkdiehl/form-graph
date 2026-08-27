@@ -78,12 +78,15 @@ export const form = defineForm<Ext>()({
 
 <h2>3. Drive a client</h2>
 
-<pre>{`const store = form.createStore({ ext, storage });
+<pre>{`// persistedStorage: JSON localStorage backend, debounced writes,
+// pagehide flush, SSR-safe. Pass { session: true } for sessionStorage.
+const store = form.createStore({ ext, storage: persistedStorage('my-form') });
 
 store.set({ prompt: 'a cat' });   // one resolve pass; only changed fields notify
 store.getField('steps');           // { value, meta, error, isComputed } | null
 store.subscribe('steps', cb);      // per-field subscription
-store.output();                    // strict-validated output view`}</pre>
+store.output();                    // strict-validated data — THROWS if invalid
+store.validate();                  // the checked sibling: { success, data | errors }`}</pre>
 
 <p>
   Bindings for <a href="/docs/svelte">Svelte</a> and <a href="/docs/react">React</a> wrap those

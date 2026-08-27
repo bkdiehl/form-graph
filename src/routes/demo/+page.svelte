@@ -3,7 +3,7 @@
   import { demoForm } from './demo-form.js';
   import Slider from './Slider.svelte';
 
-  const store = demoForm.createStore({ ext: undefined });
+  const store = demoForm.createStore();
 
   // Typed handles derived from the form itself — no registry import.
   const f = typedFields(store);

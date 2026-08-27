@@ -18,12 +18,37 @@ harness in that worktree imports from THIS repo). New since the move:
   copies .tsx raw instead of transpiling it.
 - Relative imports carry explicit .js extensions (NodeNext), which is what
   makes the svelte-package dist valid ESM for node consumers.
-- Subpath exports: '.' (core), './svelte', './react', './kits' (codecs).
+- Subpath exports: '.' (core), './svelte', './react', './codecs' (codec factories + field kits).
   svelte/react/zod are optional peers.
 
 Commands: `pnpm test` (vitest, all 215), `pnpm check` (svelte-check),
 `pnpm typecheck` (tsc over src/lib), `pnpm build` (app + package + publint),
 `pnpm dev` (demo).
+
+## API-review ergonomics pass (2026-08-27)
+
+From the deep review's inconsistency list, all addressed pre-publish:
+
+- **`./kits` renamed `./codecs`** — the export now matches the directory and
+  the load-bearing concept.
+- **`useTypedField(store, name)`** in the React binding — the hook twin of
+  Svelte's typedFields, registry inferred from the store.
+- **`store.output()` now THROWS when the form is invalid** (naming the failing
+  keys) instead of silently returning bad data; validate()/parsePartial() are
+  the checked/best-effort paths.
+- **Kits register directly in the `codecs` slot** — `codecs: { model: checkpointKit }`
+  unwraps to the kit's codec (NormalizeCodecs), killing the last registry
+  duplication.
+- **`createStore()` takes no arguments for void-Ext forms** — `ext: undefined`
+  is gone from call sites.
+- **`persistedStorage(key, { session?, delayMs? })`** — the batteries-included
+  web-storage adapter: JSON backend, debounced writes, pagehide/visibility
+  flush, SSR-safe (returns undefined without window), dispose() for early
+  teardown. Replaces ~20 lines of boilerplate per consumer.
+- **Packaging**: the npm tarball now excludes `dist/civitai`, `dist/generation`,
+  fixtures/bench/stress — civitai-specific content stays in the repo as demo/
+  parity material but does not ship. The package ships the framework-free core
+  plus the React and Svelte component bindings.
 
 ## Codec types are inferred (2026-08-27)
 
@@ -419,7 +444,7 @@ DECIDED behaviour difference it is (v1 errors, form-graph clamps). Its first run
 config fidelity matters even for leniency: v1 resolves `'16:9'` to `'3:2'` because the real
 SDXL buckets have no 16:9 — parity held only after copying the real table.
 
-**Publishability check** (`pnpm build:lib`, tsup): `.`, `./react`, `./kits` entries emit
+**Publishability check** (`pnpm build:lib`, tsup): `.`, `./react`, `./codecs` entries emit
 ESM+CJS+d.ts with react/zod external; both formats smoke-tested by executing a parse from the
 built artifact. Extraction to a standalone npm package happens once parity coverage is
 convincing — until then, development continues here.
