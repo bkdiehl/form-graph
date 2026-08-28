@@ -18,10 +18,21 @@ function snapToStep(val: number, step: number, min: number, max: number): number
   return Math.min(max, Math.max(min, Number(snapped.toFixed(10))));
 }
 
+/**
+ * numberCodec's constraint vocabulary: per-pass bounds, stated once. The codec
+ * derives both halves — meta min/max tighten, and an out-of-bounds value
+ * corrects (clamped and step-snapped) with the constraint's reason.
+ */
+export interface NumberConstraint {
+  min?: number;
+  max?: number;
+  reason: string;
+}
+
 /** A bounded number. Boundary values snap to step; trusted writes snap via coerce. */
 export function numberCodec(opts: { min: number; max: number; step?: number; default?: number }) {
   const { min, max, step = 1 } = opts;
-  return codec<number, NumberMeta>({
+  return codec<number, NumberMeta, NumberConstraint>({
     input: z.coerce
       .number()
       .optional()
@@ -30,6 +41,17 @@ export function numberCodec(opts: { min: number; max: number; step?: number; def
     default: opts.default ?? min,
     coerce: (raw) => snapToStep(Number(raw), step, min, max),
     meta: { min, max, step },
+    constrain: ({ value, meta, constraint }) => {
+      const lo = Math.max(min, constraint.min ?? min);
+      const hi = Math.min(max, constraint.max ?? max);
+      const admitted = snapToStep(value, step, lo, hi);
+      return {
+        value: admitted,
+        meta: { ...(meta ?? { min, max, step }), min: lo, max: hi },
+        reason: constraint.reason,
+        detail: { min: lo, max: hi },
+      };
+    },
   });
 }
 
@@ -44,6 +66,16 @@ export interface EnumMeta<T extends string | number> {
 }
 
 /**
+ * enumCodec's constraint vocabulary: per-option exclusions, stated once. A
+ * string gates that option — disabled in meta, and a value sitting on it
+ * corrects to the first enabled option with the string as the reason. Falsy
+ * entries are open.
+ */
+export type EnumConstraint<T extends string | number> = {
+  [K in T]?: string | false | null | undefined;
+};
+
+/**
  * A closed set of options. Numeric enums coerce string input (segmented
  * controls pass strings) via `coerce`, so trusted writes normalise without a
  * schema run.
@@ -56,7 +88,7 @@ export function enumCodec<const T extends string | number>(opts: {
   const numeric = typeof values[0] === 'number';
   const isValid = (v: unknown): v is T => values.includes(v as T);
 
-  return codec<T, EnumMeta<T>>({
+  return codec<T, EnumMeta<T>, EnumConstraint<T>>({
     input: z
       .unknown()
       .optional()
@@ -71,6 +103,21 @@ export function enumCodec<const T extends string | number>(opts: {
       return isValid(candidate) ? candidate : opts.default;
     },
     meta: { options: opts.options },
+    constrain: ({ value, meta, constraint }) => {
+      const options = (meta?.options ?? opts.options).map((o) => {
+        const reason = constraint[o.value];
+        return typeof reason === 'string' ? { ...o, disabled: true } : o;
+      });
+      const reason = constraint[value];
+      if (typeof reason !== 'string') return { value, meta: { ...meta, options } };
+      const target = options.find((o) => !o.disabled);
+      return {
+        value: target ? target.value : value,
+        meta: { ...meta, options },
+        reason,
+        detail: { gated: value },
+      };
+    },
   });
 }
 

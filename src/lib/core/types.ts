@@ -72,7 +72,15 @@ export interface FieldError {
  * untrusted boundaries, output is strict and runs only on demand. See
  * docs/data-graph-rethink.md §10.
  */
-export interface Codec<T = unknown, M = unknown> {
+/** What a codec's `constrain` produces: the admitted value, optionally reshaped meta, and — when the value moved — why. */
+export interface Constrained<T, M> {
+  value: T;
+  meta?: M;
+  reason?: string;
+  detail?: Record<string, unknown>;
+}
+
+export interface Codec<T = unknown, M = unknown, C = never> {
   /** Strict contract for validate()/output()/server parse. */
   output: SchemaLike<T>;
   /**
@@ -82,12 +90,28 @@ export interface Codec<T = unknown, M = unknown> {
    */
   input?: SchemaLike<T | undefined>;
   default?: T | (() => T);
-  /** Static, or derived from the resolved value (e.g. a picker's excludeIds). */
-  meta?: M | ((value: T) => M);
+  /**
+   * The codec's CONTRIBUTION to the field's meta — the unconditional and
+   * contract-derived props, as a PARTIAL. A prop whose value is conditional
+   * belongs at the field call, not here: omit it, and the field's meta patch
+   * states it once. The function form (derived from the resolved value)
+   * returns the full shape.
+   */
+  meta?: Partial<M> | ((value: T) => M);
   /** Opt-in normalisation for trusted set() writes (enum coercion, step snapping). */
   coerce?: (raw: unknown) => T;
   /** Projection to the submission shape when state holds more than the server wants (enriched resources). */
   toOutput?: (value: T) => unknown;
+  /**
+   * The codec's CONSTRAINT vocabulary: a per-pass restriction stated once at
+   * the field call (`constrain:` option), from which the codec derives both
+   * halves — the presentation (its own meta shape: disabled options, tightened
+   * bounds, excluded ids) and the admitted value. When the returned value
+   * differs from the input, the collector records it as a correction with the
+   * returned reason. Only the codec knows its meta, so only the codec can own
+   * this pairing; `C` is whatever shape its domain needs.
+   */
+  constrain?(input: { value: T; meta: M | undefined; constraint: C }): Constrained<T, M>;
 }
 
 /**

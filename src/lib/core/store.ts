@@ -2,6 +2,7 @@ import { diffSnapshot } from './diff.js';
 import { boundaryEntry, trustedEntry, type IntentEntry, type ParseCache } from './intent.js';
 import { addressKey } from './scope.js';
 import { resolve, type RefineCache, type Resolution, type Resolver } from './resolve.js';
+import type { CodecRegistry } from './codec.js';
 import { validateResolution } from './validate.js';
 import type { FieldError, FieldSnapshot, ResolutionNote, Snapshot, ValidationResult } from './types.js';
 
@@ -70,7 +71,8 @@ export class FormStore<State, Ext, Codecs = unknown> {
   constructor(
     private readonly resolver: Resolver<Ext, State>,
     private readonly reconciler: PatchReconciler<State, Ext> | undefined,
-    private readonly options: StoreOptions<Ext>
+    private readonly options: StoreOptions<Ext>,
+    private readonly codecs?: Codecs
   ) {
     this.ext = options.ext;
 
@@ -87,7 +89,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
       if (value !== undefined) pending.set(key, boundaryEntry(value));
     }
 
-    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.refineCache);
+    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.refineCache, this.codecs as CodecRegistry | undefined);
     this.commitPending(pending);
     this.snapshot = diffSnapshot(null, this.resolution, this.errors).snapshot;
   }
@@ -284,7 +286,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
   }
 
   private recompute(pending?: ReadonlyMap<string, IntentEntry>): boolean {
-    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.refineCache);
+    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.refineCache, this.codecs as CodecRegistry | undefined);
     if (pending) this.commitPending(pending);
     this.trackCodecChurn();
 

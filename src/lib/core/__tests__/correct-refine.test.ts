@@ -53,7 +53,7 @@ describe('f.correct: correction as a resolver STATEMENT', () => {
   });
 
   it('correcting an undeclared or computed key throws', () => {
-    const bad = defineForm()({
+    const bad = defineForm({
       resolve: (f: Fields) => {
         f.correct('ghost', 1, 'nope');
         return {};
@@ -61,7 +61,7 @@ describe('f.correct: correction as a resolver STATEMENT', () => {
     });
     expect(() => bad.parse({}, undefined)).toThrowError(/no field/);
 
-    const badComputed = defineForm()({
+    const badComputed = defineForm({
       resolve: (f: Fields) => {
         const total = f.computed('total', 5);
         f.correct('total', 1, 'nope');

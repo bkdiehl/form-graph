@@ -59,10 +59,11 @@ interface Ext {
   limits: { maxQuantity: number };
 }
 
-export const form = defineForm<Ext>()({
+export const form = defineForm({
   // The registry, inline: what lets typedFields()/<Field>/typed controllers
   // derive every key's value and meta types from the form itself.
   codecs: { mode: MODE, prompt: PROMPT, steps: STEPS, scale: SCALE },
+  // Annotating ext here is what types the form's external context.
   resolve: (f: Fields, ext: Ext) => {
     const mode = f.field('mode', MODE); // 'create' | 'upscale'
     const base = { mode, prompt: f.field('prompt', PROMPT) };

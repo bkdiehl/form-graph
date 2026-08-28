@@ -97,7 +97,7 @@ describe('field errors carry EVERY issue, with paths', () => {
   });
 
   it('an array field with several invalid items reports each one, addressable by path', () => {
-    const form = defineForm()({
+    const form = defineForm({
       resolve: (f: Fields) => ({ items: f.field('items', ITEMS) }),
     });
     const result = form.parse({ items: [{ id: 'x' }, { id: 2 }, { id: null }] }, undefined);

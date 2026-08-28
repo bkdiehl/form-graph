@@ -2,7 +2,7 @@
   import { persistedStorage } from '$lib/index.js';
   import { formState, typedFields } from '$lib/svelte/index.js';
   import Slider from '../Slider.svelte';
-  import { vmForm } from './vm-form.js';
+  import { vmForm, defaultVmExt, type VmExt } from './vm-form.js';
   import SourceCode from '../SourceCode.svelte';
   import formSource from './vm-form.ts?shiki';
 
@@ -11,7 +11,17 @@
   // `vcpus@compute`, one bucket per preset.
   const storage = persistedStorage('form-graph-demo:vm');
 
-  const store = vmForm.createStore({ storage });
+  let ext = $state<VmExt>({ ...defaultVmExt });
+  function updateExt(patch: Partial<VmExt>) {
+    ext = { ...ext, ...patch };
+    // The server learned something new — one call, the whole form re-resolves.
+    store.setExt($state.snapshot(ext));
+  }
+
+  // Initial-value capture is intentional: later context changes go through
+  // updateExt -> setExt, never through store creation.
+  // svelte-ignore state_referenced_locally
+  const store = vmForm.createStore({ ext: $state.snapshot(ext), storage });
 
 
   // Typed handles derived from the form itself — no registry import.
@@ -23,17 +33,19 @@
   const storedIntent = $derived((snapshot.current, store.getIntent()));
 </script>
 
-{#snippet enumButtons(name: string, current: unknown, options: { value: string; label: string }[])}
+{#snippet enumButtons(name: string, current: unknown, options: { value: string; label: string; disabled?: boolean }[])}
   <div class="flex items-center gap-3 py-1.5">
     <span class="w-32 shrink-0 font-mono text-sm text-muted">{name}</span>
     <span class="flex flex-wrap gap-1.5">
       {#each options as option (option.value)}
         <button
           type="button"
-          class="cursor-pointer rounded border px-3 py-1 text-sm transition-colors {current ===
-          option.value
+          disabled={option.disabled}
+          class="rounded border px-3 py-1 text-sm transition-colors {current === option.value
             ? 'border-accent bg-accent font-medium text-ground'
-            : 'border-line bg-surface text-muted hover:text-ink'}"
+            : 'border-line bg-surface text-muted'} {option.disabled
+            ? 'cursor-not-allowed opacity-40'
+            : 'cursor-pointer hover:text-ink'}"
           onclick={() => store.set({ [name]: option.value })}
         >
           {option.label}
@@ -54,6 +66,46 @@
     daily with an inline note. The stored-intent panel at the bottom shows the scoped
     buckets in <strong class="text-ink">localStorage</strong>, live.
   </p>
+
+  <section class="my-6 rounded-lg border border-mechanism/50 bg-surface p-4">
+    <p class="font-mono text-xs tracking-widest text-mechanism uppercase">
+      External context — what the server knows
+    </p>
+    <p class="mt-1 text-xs text-faint">
+      Not fields: these are facts every resolve receives. Changing one calls
+      <code>setExt</code> and the whole form re-resolves — options shrink, remembered values
+      project, and the corrections below explain themselves.
+    </p>
+    <div class="mt-3 flex flex-wrap items-center gap-6">
+      <div class="flex items-center gap-3">
+        <span class="font-mono text-sm text-muted">tier</span>
+        <span class="flex gap-1.5">
+          {#each ['free', 'pro'] as const as tier (tier)}
+            <button
+              type="button"
+              class="cursor-pointer rounded border px-3 py-1 text-sm transition-colors {ext.tier ===
+              tier
+                ? 'border-mechanism bg-mechanism font-medium text-ground'
+                : 'border-line bg-surface text-muted hover:text-ink'}"
+              onclick={() => updateExt({ tier })}
+            >
+              {tier}
+            </button>
+          {/each}
+        </span>
+      </div>
+      <label class="flex items-center gap-3">
+        <span class="font-mono text-sm text-muted">gpuAvailable</span>
+        <input
+          type="checkbox"
+          class="accent-accent"
+          checked={ext.gpuAvailable}
+          onchange={(e) => updateExt({ gpuAvailable: e.currentTarget.checked })}
+        />
+        <span class="text-xs text-faint">fleet capacity</span>
+      </label>
+    </div>
+  </section>
 
   <section class="my-6 flex flex-col">
     {#if f.preset.current?.meta}
@@ -172,7 +224,8 @@
   <span class="text-xs text-faint">
     Try: pick gpu.a100, switch preset to Compute and back. Move region to ap-south with c2.metal
     selected. Drop vCPUs to 2 with RAM maxed. Turn on backups, pick hourly, then flip spot on.
-    Then reload the page.
+    Then the context panel: max the vCPUs on pro, drop tier to free — and raise it back. Pick a
+    GPU preset and uncheck gpuAvailable. Then reload the page.
   </span>
   <SourceCode code={formSource} filename="vm-form.ts" />
 </main>

@@ -88,7 +88,7 @@ const EMERGENCY_CONTACT = codec({
   default: '',
 });
 
-export const shippingForm = defineForm()({
+export const shippingForm = defineForm({
   codecs: {
     shipmentType: TYPE,
     service: SERVICE,

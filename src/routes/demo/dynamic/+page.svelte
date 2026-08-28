@@ -4,9 +4,9 @@
   import SourceCode from '../SourceCode.svelte';
   import formSource from '../vm/vm-form.ts?shiki';
   import autoFieldSource from './AutoField.svelte?shiki';
-  import { vmForm } from '../vm/vm-form.js';
+  import { vmForm, defaultVmExt } from '../vm/vm-form.js';
 
-  const store = vmForm.createStore();
+  const store = vmForm.createStore({ ext: defaultVmExt });
 
   // This site is statically hosted, so the "server side" runs here — but it
   // is LITERALLY the same call a server would make: vmForm.parse(raw, ext)
@@ -14,7 +14,7 @@
   let parsed = $state<string | null>(null);
   function parseLikeAServer() {
     const raw = JSON.parse(JSON.stringify(snapshot.current)) as Record<string, unknown>;
-    const result = vmForm.parse(raw, undefined);
+    const result = vmForm.parse(raw, defaultVmExt);
     parsed = JSON.stringify(
       result.success
         ? { data: result.data, computedKeys: result.computedKeys, notes: result.notes ?? [] }

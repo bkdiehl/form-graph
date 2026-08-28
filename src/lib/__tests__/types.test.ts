@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { miniForm, type MiniState } from '../__fixtures__/mini-generation.js';
-import type { InferFieldValue, InferState } from '../core/index.js';
+import type { Fields, InferExt, InferFieldValue, InferState } from '../core/index.js';
+import { defineForm, defineSection, codec } from '../core/index.js';
+import { z } from 'zod';
+const codecFor = () => codec({ input: z.number().optional(), output: z.number(), default: 1 });
 
 /**
  * Type-level assertions. These carry no runtime weight — the value is that
@@ -85,5 +88,59 @@ describe('type-level contracts', () => {
     } else {
       throw new Error('expected the upscale branch');
     }
+  });
+});
+
+// --- defineForm call forms ---------------------------------------------------
+// Single call: Ext inferred from the resolver's annotated parameter.
+const extAnnotated = defineForm({
+  resolve: (f: Fields, ext: { cap: number }) => ({ n: f.computed('n', ext.cap) }),
+});
+type _ExtFromParam = Assert<Equals<InferExt<typeof extAnnotated>, { cap: number }>>;
+
+// Single call, no ext parameter: Ext defaults to void, createStore() is bare.
+const extFree = defineForm({ resolve: (f: Fields) => ({ ok: f.computed('ok', true) }) });
+type _ExtDefaultsVoid = Assert<Equals<InferExt<typeof extFree>, void>>;
+
+describe('defineForm call forms', () => {
+  it('single-call with an annotated ext parameter resolves against that ext', () => {
+    const result = extAnnotated.parse({}, { cap: 7 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.n).toBe(7);
+  });
+
+  it('void-Ext single call needs no store options', () => {
+    expect(extFree.createStore().getSnapshot().state.ok).toBe(true);
+  });
+});
+
+// --- defineSection: f typed from the codecs beside it, no annotation --------
+const sectionNum = codecFor();
+const section = defineSection({
+  key: 'demo',
+  codecs: { amount: sectionNum },
+  resolve: (f, args: { cap: number }) => ({
+    amount: f.field('amount'),
+    capped: f.computed('capped', args.cap),
+  }),
+});
+type _SectionKeyLiteral = Assert<Equals<typeof section.key, 'demo'>>;
+type _SectionFieldTyped = Assert<
+  Equals<ReturnType<typeof section.resolve>['amount'], number>
+>;
+const _badSection = defineSection({
+  codecs: { amount: sectionNum },
+  // @ts-expect-error — 'nope' is not in the section's codecs, and f knows it
+  resolve: (f) => ({ oops: f.field('nope') }),
+});
+
+describe('defineSection', () => {
+  it('mounts under a parent form with args passed down', () => {
+    const parent = defineForm({
+      codecs: { ...section.codecs },
+      resolve: (f) => ({ ...section.resolve(f, { cap: 3 }) }),
+    });
+    const state = parent.createStore().getState();
+    expect(state).toEqual({ amount: 1, capped: 3 });
   });
 });

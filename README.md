@@ -9,7 +9,7 @@ drives the client store and parses raw input on the server. No second schema, no
 
 ```ts
 import { z } from 'zod';
-import { codec, defineForm } from 'form-graph';
+import { codec, defineForm, type Fields } from 'form-graph';
 
 // A codec is one field's contract. Types are inferred from the schemas.
 const PROMPT = codec({
@@ -18,9 +18,11 @@ const PROMPT = codec({
   default: '',
 });
 
-const form = defineForm<{ maxSteps: number }>()({
+const form = defineForm({
   codecs: { mode: MODE, prompt: PROMPT, steps: STEPS, scale: SCALE },
-  resolve: (f, ext) => {
+  // ext's annotation types the form's external context; omit the
+  // parameter entirely for a form with none.
+  resolve: (f: Fields, ext: { maxSteps: number }) => {
     const mode = f.field('mode', MODE);
     const base = { mode, prompt: f.field('prompt', PROMPT) };
 

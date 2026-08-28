@@ -16,15 +16,18 @@
  */
 export {
   codec,
+  codecFamily,
   type CodecRegistry,
   type InferCodecValue,
   type InferCodecMeta,
+  type InferCodecConstraint,
   type RegistryMetas,
   type RegistryValues,
 } from './codec.js';
 export { defineFieldKit, type FieldKit, type FieldKitSpec } from './field-kit.js';
 export {
   defineForm,
+  defineSection,
   type CodecsInput,
   type CreateStoreArgs,
   type FormDefinition,

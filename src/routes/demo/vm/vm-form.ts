@@ -96,7 +96,16 @@ const BOOL = codec({
   default: false,
 });
 
-export const vmForm = defineForm()({
+// What the SERVER knows about this account and the fleet — not a field, an
+// input to every resolve. The page's context panel drives setExt with it.
+export interface VmExt {
+  tier: 'free' | 'pro';
+  gpuAvailable: boolean;
+}
+
+export const defaultVmExt: VmExt = { tier: 'pro', gpuAvailable: true };
+
+export const vmForm = defineForm({
   codecs: {
     preset: PRESET,
     region: REGION,
@@ -111,31 +120,49 @@ export const vmForm = defineForm()({
     backups: BOOL,
     backupFrequency: BACKUP_FREQ,
   },
-  resolve: (f: Fields) => {
+  resolve: (f: Fields, ext: VmExt) => {
     const preset = f.field('preset', PRESET);
     const region = f.field('region', REGION);
 
     const forPreset = INSTANCE_TYPES.filter((t) => t.preset === preset);
-    const available = forPreset.filter((t) => t.regions.includes(region));
+    // Context gates the catalog itself: free tier never sees bare metal, and
+    // a GPU capacity crunch empties the gpu preset's list entirely.
+    const offered = forPreset.filter(
+      (t) =>
+        (ext.tier === 'pro' || t.id !== 'c2.metal') &&
+        (ext.gpuAvailable || t.preset !== 'gpu')
+    );
+    const available = offered.filter((t) => t.regions.includes(region));
     let instanceType = f.field('instanceType', TYPE, {
       // Remembered per preset: your GPU pick survives a detour through compute.
       scope: preset,
       // A region can offer NOTHING for a preset (compute in ap-south) — fall
       // back to the preset's first type so the form stays resolvable.
-      default: () => (available[0] ?? forPreset[0])!.id,
+      default: () => (available[0] ?? offered[0] ?? forPreset[0])!.id,
       meta: { options: available.map((t) => ({ value: t.id, label: t.id })) },
     });
     if (!available.some((t) => t.id === instanceType)) {
+      const inRegion = forPreset.some((t) => t.id === instanceType && t.regions.includes(region));
       instanceType = f.correct(
         'instanceType',
-        (available[0] ?? forPreset[0])!.id,
-        'region_unavailable',
-        { region }
+        (available[0] ?? offered[0] ?? forPreset[0])!.id,
+        inRegion
+          ? ext.gpuAvailable
+            ? 'tier_unavailable'
+            : 'gpu_capacity'
+          : 'region_unavailable',
+        inRegion ? { tier: ext.tier } : { region }
       );
     }
     const typeConfig = INSTANCE_TYPES.find((t) => t.id === instanceType) ?? forPreset[0]!;
 
-    const vcpus = f.field('vcpus', VCPUS, { scope: preset });
+    // Free tier caps compute at 16 vCPUs — numberCodec's constraint
+    // vocabulary: the slider's max tightens AND a remembered pro spec clamps,
+    // then comes back when the tier rises.
+    const vcpus = f.field('vcpus', VCPUS, {
+      scope: preset,
+      constrain: ext.tier === 'pro' ? undefined : { max: 16, reason: 'tier_limit' },
+    });
     // The ceiling: RAM can't exceed 4 GB per vCPU. Lowering vCPUs projects an
     // already-chosen RAM value DOWN — one field's projection driven by another.
     const maxRam = vcpus * 4;
@@ -149,24 +176,26 @@ export const vmForm = defineForm()({
     const spot = f.field('spot', BOOL);
 
     const backups = f.field('backups', BOOL);
+    // A spot instance can vanish mid-hour, so hourly backups would mostly
+    // snapshot a machine that no longer exists — gated, with the note the
+    // page surfaces inline.
     const backupBranch = backups
-      ? (() => {
-          let backupFrequency = f.field('backupFrequency', BACKUP_FREQ);
-          // A spot instance can vanish mid-hour, so hourly backups would
-          // mostly snapshot a machine that no longer exists — corrected, with
-          // a note the page surfaces inline.
-          if (spot && backupFrequency === 'hourly') {
-            backupFrequency = f.correct('backupFrequency', 'daily', 'spot_hourly_pointless', {});
-          }
-          return { backupFrequency };
-        })()
+      ? {
+          backupFrequency: f.field('backupFrequency', BACKUP_FREQ, {
+            constrain: { hourly: spot && 'spot_hourly_pointless' },
+          }),
+        }
       : {};
 
     const branch = {
       ...(preset === 'gpu' ? { gpuCount: f.field('gpuCount', GPUS) } : {}),
       ...(os === 'windows' ? { windowsLicense: f.field('windowsLicense', LICENSE) } : {}),
-      // Spot capacity can be reclaimed at any time — no SLA to offer.
-      ...(spot ? {} : { sla: f.field('sla', SLA) }),
+      // Spot capacity can be reclaimed at any time — no SLA to offer. And
+      // 99.99% is a pro contract: one gate declaration disables the option
+      // for free tier and corrects a remembered pro selection.
+      ...(spot
+        ? {}
+        : { sla: f.field('sla', SLA, { constrain: { '99.99': ext.tier !== 'pro' && 'tier_limit' } }) }),
       ...backupBranch,
     };
 

@@ -1,4 +1,5 @@
 import { readEntry, type Intent, type ParseCache, type PendingValues } from './intent.js';
+import type { CodecRegistry, InferCodecConstraint, InferCodecMeta, InferCodecValue } from './codec.js';
 import { runSchema } from './run-schema.js';
 import { scopedAddress, type Scope } from './scope.js';
 import { toFieldError } from './intent.js';
@@ -20,7 +21,7 @@ import type { Codec, FieldRecord, Refinable, ResolutionNote, SchemaLike } from '
  * the value stays, the field carries a live error, and submit fails. For
  * mismatches the USER must resolve: a gated option, a forbidden combination.
  */
-export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
+export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>, C = never> {
   /**
    * Where this field's memory lives. Scope values are computed by the resolver
    * (a discriminant, an id, a toggle) and become part of the intent
@@ -31,11 +32,19 @@ export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
   /** Overrides the codec default — for call-site defaults that depend on context. */
   default?: T | (() => T);
   /**
-   * Overrides the codec meta — for dynamic UI props derived from ctx/ext. A
-   * function form receives the RESOLVED value (after default + correction),
-   * for metas derived from it, e.g. a picker's excludeIds.
+   * Per-pass meta. The OBJECT form is a PATCH: shallow-merged over the codec's
+   * own meta, so a conditional prop is stated ONCE, here. A fully conditional
+   * prop is omitted from the codec and given both arms at the field; a
+   * default-with-exception patches only the exception, keeping the codec's
+   * value otherwise:
+   *
+   *   meta: business ? { placeholder: 'billing@acme.com' } : {}
+   *
+   * The FUNCTION form takes full control: it receives the RESOLVED value
+   * (after default + correction) and the codec's contribution as `base`, and
+   * its return REPLACES.
    */
-  meta?: M | ((value: T) => M);
+  meta?: Partial<M> | ((value: T, base: Partial<M> | undefined) => M);
   /**
    * Narrows the codec's OUTPUT schema under this pass's conditions, in the
    * schema library's own vocabulary: `(s) => s.refine(...)` for zod. A failing
@@ -50,6 +59,15 @@ export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
    * Omitted deps mean a stale refinement: list everything the refine reads.
    */
   refineDeps?: readonly unknown[];
+  /**
+   * A per-pass restriction stated ONCE, in the codec's own constraint
+   * vocabulary (`Codec.constrain` defines what `C` is — excluded options for
+   * an enum, tightened bounds for a number, a compatibility rule for a
+   * picker). The codec derives both halves from it: the presentation in its
+   * meta, and the admitted value — a moved value is recorded as a correction
+   * with the codec-returned reason. `undefined` means unconstrained.
+   */
+  constrain?: C;
 }
 
 /** Persistent cache of built refinements, keyed by field key. Held by the store across passes. */
@@ -64,12 +82,27 @@ function sameDeps(a: readonly unknown[], b: readonly unknown[]): boolean {
  * resolver body reads like plain code — a dependency is a variable reference,
  * ordering is line order, a conditional field is an `if`, a branch is a `switch`.
  */
-export interface Fields {
-  field<T, M, O extends SchemaLike<T> = SchemaLike<T>>(
+export interface Fields<Codecs extends CodecRegistry = CodecRegistry> {
+  field<T, M, C, O extends SchemaLike<T> = SchemaLike<T>>(
     key: string,
-    codec: Codec<T, M> & { output: O },
-    opts?: FieldOptions<T, M, O>
+    codec: Codec<T, M, C> & { output: O },
+    opts?: FieldOptions<T, M, O, C>
   ): T;
+  /**
+   * Registry form: the codec comes from the form's `codecs` slot, so a
+   * registered field needs no repetition at the call site. Typed per key when
+   * the resolver's `f` is `Fields<typeof codecs>` (which `defineForm` provides
+   * to inline resolvers); throws at resolve time for an unregistered key.
+   */
+  field<K extends keyof Codecs & string>(
+    key: K,
+    opts?: FieldOptions<
+      InferCodecValue<Codecs[K]>,
+      InferCodecMeta<Codecs[K]>,
+      SchemaLike<InferCodecValue<Codecs[K]>>,
+      InferCodecConstraint<Codecs[K]>
+    >
+  ): InferCodecValue<Codecs[K]>;
   computed<T>(key: string, value: T): T;
   /**
    * Replaces an already-declared field's value and records why — correction
@@ -118,14 +151,26 @@ class Collector implements Fields {
     private readonly intent: Intent,
     private readonly cache: ParseCache,
     private readonly pending: PendingValues | undefined,
-    private readonly refineCache: RefineCache
+    private readonly refineCache: RefineCache,
+    private readonly registry?: CodecRegistry
   ) {}
 
-  field<T, M, O extends SchemaLike<T> = SchemaLike<T>>(
+  field<T, M, C, O extends SchemaLike<T> = SchemaLike<T>>(
     key: string,
-    codec: Codec<T, M> & { output: O },
-    opts?: FieldOptions<T, M, O>
+    codecOrOpts?: (Codec<T, M, C> & { output: O }) | FieldOptions<T, M, O, C>,
+    maybeOpts?: FieldOptions<T, M, O, C>
   ): T {
+    // `output` is required on Codec and absent from FieldOptions — the discriminant.
+    const explicit = codecOrOpts !== undefined && 'output' in codecOrOpts;
+    const codec = explicit
+      ? (codecOrOpts as Codec<T, M, C> & { output: O })
+      : (this.registry?.[key] as (Codec<T, M, C> & { output: O }) | undefined);
+    const opts = explicit ? maybeOpts : (codecOrOpts as FieldOptions<T, M, O, C> | undefined);
+    if (!codec) {
+      throw new Error(
+        `No codec for field "${key}": pass one explicitly, or declare the key in the form's codecs.`
+      );
+    }
     this.assertUnique(key);
 
     const address = scopedAddress(key, opts?.scope);
@@ -166,9 +211,48 @@ class Collector implements Fields {
       if (!judged.success) refineError = toFieldError(judged.error.issues);
     }
 
-    const rawMeta = opts && 'meta' in opts ? opts.meta : codec.meta;
-    const metaFn = typeof rawMeta === 'function' ? (rawMeta as (v: T) => M) : undefined;
-    const meta = metaFn ? metaFn(value as T) : (rawMeta as M | undefined);
+    const constraint = opts?.constrain;
+    if (constraint !== undefined && !codec.constrain) {
+      throw new Error(`Field "${key}": this codec defines no constraint vocabulary.`);
+    }
+    const applyConstraint =
+      constraint !== undefined && codec.constrain
+        ? (v: T, m: M | undefined) => codec.constrain!({ value: v, meta: m, constraint })
+        : undefined;
+
+    const overridden = opts !== undefined && 'meta' in opts;
+    const rawMeta = overridden ? opts.meta : codec.meta;
+    const baseFor = (v: T): Partial<M> | undefined => {
+      const base = codec.meta;
+      return typeof base === 'function' ? (base as (val: T) => M)(v) : (base as Partial<M> | undefined);
+    };
+    const patch =
+      overridden && typeof rawMeta !== 'function' ? (rawMeta as Partial<M> | undefined) : undefined;
+    const bareMetaFn =
+      typeof rawMeta === 'function'
+        ? overridden
+          ? (v: T) => (rawMeta as (val: T, base: Partial<M> | undefined) => M)(v, baseFor(v))
+          : (rawMeta as (v: T) => M)
+        : patch !== undefined && typeof codec.meta === 'function'
+          ? (v: T) => ({ ...(baseFor(v) as object), ...patch }) as M
+          : undefined;
+    const bareMetaAt = (v: T): M | undefined => {
+      if (bareMetaFn) return bareMetaFn(v);
+      if (patch !== undefined) {
+        const base = baseFor(v);
+        return (base === undefined ? patch : { ...(base as object), ...patch }) as M;
+      }
+      return rawMeta as M | undefined;
+    };
+    const metaFn =
+      applyConstraint !== undefined
+        ? (v: T) => {
+            const m = bareMetaAt(v);
+            return (applyConstraint(v, m).meta ?? m) as M;
+          }
+        : bareMetaFn;
+    const constrained = applyConstraint?.(value as T, bareMetaAt(value as T));
+    const meta = constrained ? ((constrained.meta ?? bareMetaAt(value as T)) as M) : bareMetaAt(value as T);
 
     this.record({
       key,
@@ -183,6 +267,17 @@ class Collector implements Fields {
       refineError,
       note: undefined,
     });
+
+    // The other half of the constraint: a moved value is a correction, with
+    // the codec-returned reason.
+    if (constrained !== undefined && !Object.is(constrained.value, value)) {
+      return this.correct(
+        key,
+        constrained.value,
+        constrained.reason ?? 'constrained',
+        constrained.detail
+      );
+    }
 
     return value as T;
   }
@@ -259,9 +354,10 @@ export function resolve<Ext, State>(
   ext: Ext,
   cache: ParseCache = new WeakMap(),
   pending?: PendingValues,
-  refineCache: RefineCache = new Map()
+  refineCache: RefineCache = new Map(),
+  codecs?: CodecRegistry
 ): Resolution<State> {
-  const collector = new Collector(intent, cache, pending, refineCache);
+  const collector = new Collector(intent, cache, pending, refineCache, codecs);
   const state = resolver(collector, ext);
   return {
     state,

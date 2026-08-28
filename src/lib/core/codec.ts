@@ -1,5 +1,6 @@
 import type { Codec, Schema, SchemaLike } from './types.js';
 
+
 /**
  * Identity helper that pins `T`/`M` inference for a codec literal.
  *
@@ -11,14 +12,18 @@ import type { Codec, Schema, SchemaLike } from './types.js';
  *   Defaults to `undefined` when controls need nothing computed; inferred from
  *   `meta` when the literal provides one and the caller annotates it.
  */
-export function codec<T, M = undefined, O extends SchemaLike<T> = SchemaLike<T>>(
-  def: Codec<T, M> & { output: O }
-): Codec<T, M> & { output: O } {
+export function codec<T, M = undefined, C = never, O extends SchemaLike<T> = SchemaLike<T>>(
+  def: Codec<T, M, C> & { output: O }
+): Codec<T, M, C> & { output: O } {
   return def;
 }
 
-export type InferCodecValue<C> = C extends Codec<infer T, infer _M> ? T : never;
-export type InferCodecMeta<C> = C extends Codec<infer _T, infer M> ? M : never;
+export type InferCodecValue<C> = C extends Codec<infer T, infer _M, infer _C> ? T : never;
+export type InferCodecMeta<C> = C extends Codec<infer _T, infer M, infer _C> ? M : never;
+/** The constraint vocabulary a codec accepts via the `constrain:` field option. */
+export type InferCodecConstraint<X> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  X extends Codec<infer _T, infer _M, infer C> ? C : never;
 
 /**
  * The per-key inference pattern: the app declares one registry object mapping
@@ -39,6 +44,33 @@ export type RegistryValues<R extends CodecRegistry> = {
 export type RegistryMetas<R extends CodecRegistry> = {
   [K in keyof R]: InferCodecMeta<R[K]>;
 };
+
+/**
+ * A codec FAMILY: one declaration of a codec as a function of per-branch
+ * parameters, memoized so each distinct parameter list builds exactly once.
+ * This is how a field whose contract varies with a condition (per-resolution
+ * aspect ratios, a per-tier bound) stays churn-free without hand-rolling a
+ * dictionary of pre-built variants:
+ *
+ *   const AR = codecFamily((res: Resolution) =>
+ *     aspectRatioCodec({ options: TABLE[res], default: '16:9' }));
+ *   // in resolve:  f.field('aspectRatio', AR(resolution))
+ *
+ * Parameters must be primitives (they form the cache key) and should come
+ * from a finite set — each distinct combination is cached for the module's
+ * lifetime.
+ */
+export function codecFamily<
+  Args extends readonly (string | number | boolean | null | undefined)[],
+  C,
+>(build: (...args: Args) => C): (...args: Args) => C {
+  const cache = new Map<string, C>();
+  return (...args: Args) => {
+    const key = JSON.stringify(args);
+    if (!cache.has(key)) cache.set(key, build(...args));
+    return cache.get(key)!;
+  };
+}
 
 /**
  * Wraps a plain predicate as a Schema. Lets the core be exercised without zod —

@@ -59,7 +59,7 @@ ${'<'}/script>
 </p>
 
 <pre>{`// my-form.ts
-export const form = defineForm()({
+export const form = defineForm({
   codecs: { steps: STEPS, aspectRatio: ASPECT },
   resolve,
 });

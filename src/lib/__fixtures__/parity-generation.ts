@@ -53,7 +53,7 @@ const workflowCodec = codec<ParityWorkflow, { options: readonly ParityWorkflow[]
   meta: { options: WORKFLOWS },
 });
 
-const modelCodec = codec<number>({
+const modelCodec = codec<number, { options: number[] }>({
   output: z.number(),
   input: z.coerce.number().optional(),
 });

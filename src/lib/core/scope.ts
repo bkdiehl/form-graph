@@ -26,8 +26,19 @@ function escapePart(part: ScopeValue, key: string): string {
   return String(part).replace(/%/g, '%25').replace(/@/g, '%40').replace(/\//g, '%2F');
 }
 
+// Structural characters of the address grammar: `@` and `/` are in use, `[`
+// and `]` are reserved for per-item addressing (docs/array-intent-addressing.md),
+// `%` is the escape prefix. A key containing any of them corrupts parsing.
+const RESERVED_IN_KEYS = /[@/[\]%]/;
+
 /** Canonical intent address for a field. No scope -> the bare key. */
 export function scopedAddress(key: string, scope: Scope | undefined): string {
+  const reserved = RESERVED_IN_KEYS.exec(key);
+  if (reserved) {
+    throw new Error(
+      `Invalid field key "${key}": "${reserved[0]}" is reserved by the intent-address grammar.`
+    );
+  }
   if (scope === undefined) return key;
   const parts = Array.isArray(scope) ? scope : [scope];
   if (parts.length === 0) return key;

@@ -1,5 +1,5 @@
 import { intentFromRaw, type Intent } from './intent.js';
-import { resolve, type Resolution, type Resolver } from './resolve.js';
+import { resolve, type Fields, type Resolution } from './resolve.js';
 import { FormStore, type PatchReconciler, type StoreOptions } from './store.js';
 import type { RuleUnit } from './rules.js';
 import { validateResolution } from './validate.js';
@@ -25,7 +25,7 @@ export type NormalizeCodecs<C> = {
  * @typeParam Codecs - See {@link defineForm}: inferred from the `codecs` slot.
  */
 export interface FormConfig<Ext, State, Codecs extends CodecsInput = CodecRegistry> {
-  resolve: Resolver<Ext, State>;
+  resolve: (f: Fields<NormalizeCodecs<Codecs>>, ext: Ext) => State;
   /**
    * The form's codec registry: every field key mapped to its codec — or to a
    * FIELD KIT, whose codec is unwrapped, so kit-built fields register without
@@ -87,7 +87,7 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
    * find them by key — scope buckets are a store concern, invisible here.
    */
   resolve(valuesByKey: Intent, ext: Ext): Resolution<State> {
-    return resolve(this.config.resolve, new Map(), ext, new WeakMap(), valuesByKey);
+    return resolve(this.config.resolve, new Map(), ext, new WeakMap(), valuesByKey, undefined, this.codecs);
   }
 
   /**
@@ -132,36 +132,78 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
 
   createStore(...args: CreateStoreArgs<Ext>): FormStore<State, Ext, Codecs> {
     const options = (args[0] ?? {}) as StoreOptions<Ext>;
-    return new FormStore(this.config.resolve, composeReconcilers(this.config.reconcile), options);
+    return new FormStore(this.config.resolve, composeReconcilers(this.config.reconcile), options, this.codecs);
   }
 }
 
 /**
- * `defineForm<Ext>()({ resolve, reconcile })`
+ * `defineForm({ resolve, ... })`. External context is annotated on the
+ * resolver's own parameter — `resolve: (f, ext: MyExt) => ...` — and `Ext` is
+ * inferred from it; omit the parameter and `Ext` is `void`.
  *
- * Two calls so `Ext` is annotated while `State` stays inferred from the
- * resolver's return type — which is where the discriminated union comes from.
+ * `defineForm<Ext>()({ ... })` (curried) also works, for stating `Ext` as an
+ * explicit type argument. It cannot be one call — `defineForm<Ext>({ ... })`
+ * would forfeit `State` inference, because TypeScript type arguments are
+ * all-or-nothing: supply one and the rest fall to their defaults instead of
+ * being inferred.
  *
  * @typeParam Ext - The external-context type every resolver pass receives
- *   (limits, user, gate rules): ANNOTATED by the caller on the first call.
- *   Serializable values only — it is provided to `createStore`, replaced whole
- *   via `setExt`, and passed to server-side `parse`.
+ *   (limits, permissions, catalogs). Serializable values only — it is
+ *   provided to `createStore`, replaced whole via `setExt`, and passed to
+ *   server-side `parse`.
  * @typeParam State - The form's state union: NEVER annotated. It is inferred
- *   from the resolver's return type on the second call — a `switch` returning
- *   different shapes per branch IS the discriminated union, and annotating it
- *   would forfeit that inference.
+ *   from the resolver's return type — a `switch` returning different shapes
+ *   per branch IS the discriminated union, and annotating it would forfeit
+ *   that inference.
  */
 /** `options` (and `ext` inside it) is optional when the form has no external context. */
 export type CreateStoreArgs<Ext> = [void] extends [Ext]
   ? [options?: Omit<StoreOptions<Ext>, 'ext'> & { ext?: Ext }]
   : [options: StoreOptions<Ext>];
 
-export function defineForm<Ext = void>() {
-  return function <State, Codecs extends CodecsInput = CodecRegistry>(
-    config: FormConfig<Ext, State, Codecs>
-  ): FormDefinition<State, Ext, NormalizeCodecs<Codecs>> {
-    return new FormDefinition<State, Ext, NormalizeCodecs<Codecs>>(config);
-  };
+export function defineForm<State, Ext = void, Codecs extends CodecsInput = CodecRegistry>(
+  config: FormConfig<Ext, State, Codecs>
+): FormDefinition<State, Ext, NormalizeCodecs<Codecs>>;
+export function defineForm<Ext = void>(): <State, Codecs extends CodecsInput = CodecRegistry>(
+  config: FormConfig<Ext, State, Codecs>
+) => FormDefinition<State, Ext, NormalizeCodecs<Codecs>>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function defineForm(config?: FormConfig<any, any, CodecsInput>): any {
+  const build = (c: FormConfig<unknown, unknown, CodecsInput>) => new FormDefinition(c);
+  return config === undefined ? build : build(config);
+}
+
+/**
+ * `defineSection({ codecs, resolve })` — a reusable form FRAGMENT: codecs plus
+ * a resolver piece, defined without a form. An identity function, exactly like
+ * `codec()`: its only job is typing — `resolve`'s `f` is contextually typed
+ * from the `codecs` beside it, so `f.field('bucket')` is fully typed with no
+ * `Fields<typeof codecs>` annotation.
+ *
+ * Extra arguments on `resolve` (cross-section facts the parent passes down)
+ * are inferred from their annotations, like `ext` on `defineForm`. Extra
+ * properties on the section (a discriminator key, a label, a rules unit) pass
+ * through with their literal types preserved.
+ *
+ * A parent form mounts a section by spreading `codecs` into its own registry
+ * and calling `resolve(f, ...)` — and a section is itself mountable alone:
+ * `defineForm({ codecs: section.codecs, resolve: section.resolve })`.
+ */
+export function defineSection<
+  Codecs extends CodecsInput,
+  State,
+  Args extends readonly unknown[],
+  const Extra extends object,
+>(
+  section: Extra & {
+    codecs: Codecs;
+    resolve: (f: Fields<NormalizeCodecs<Codecs>>, ...args: Args) => State;
+  }
+): Extra & {
+  codecs: Codecs;
+  resolve: (f: Fields<NormalizeCodecs<Codecs>>, ...args: Args) => State;
+} {
+  return section;
 }
 
 export type InferState<F> =

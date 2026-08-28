@@ -33,7 +33,7 @@ const ASPECT = enumCodec({
   default: '1:1',
 });
 
-export const demoForm = defineForm()({
+export const demoForm = defineForm({
   codecs: {
     mode: MODE,
     prompt: PROMPT,

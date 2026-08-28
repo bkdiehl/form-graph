@@ -60,7 +60,7 @@ export type FieldsOf<Codecs> = {
  * or import. The form's `codecs` slot is the single source; the store carries
  * its type; this reads it back:
  *
- *   const form = defineForm()({ codecs: { steps: STEPS, ... }, resolve });
+ *   const form = defineForm({ codecs: { steps: STEPS, ... }, resolve });
  *   const f = typedFields(form.createStore({ ext }));
  *   f.steps.current   // FieldSnapshot<number, NumberMeta> | null
  *

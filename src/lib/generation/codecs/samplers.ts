@@ -1,8 +1,25 @@
 import { defineFieldKit } from '../../core/index.js';
+import type { Codec } from '../../core/types.js';
 import { selectCodec, type SelectMeta } from '../../codecs/select.js';
 
 // Port of samplerNode / schedulerNode: named kits over selectCodec, one
-// instance per ecosystem module with that ecosystem's option list.
+// instance per ecosystem module with that ecosystem's option list. Preset
+// chips are product behavior, so the meta extension lives here, not on the
+// public SelectMeta.
+
+export interface PresetSelectMeta extends SelectMeta {
+  presets?: { label: string; value: string }[];
+}
+
+function presetSelectCodec(opts: {
+  options: readonly string[];
+  default?: string;
+  presets?: { label: string; value: string }[];
+}): Codec<string, PresetSelectMeta> {
+  const base = selectCodec(opts);
+  // selectCodec always builds its meta as a static literal, never the fn form
+  return { ...base, meta: { ...(base.meta as SelectMeta), presets: opts.presets } };
+}
 
 const defaultSamplerPresets = [
   { label: 'Fast', value: 'Euler a' },
@@ -13,11 +30,11 @@ export const createSamplerKit = defineFieldKit<
   { options: readonly string[]; default?: string; presets?: { label: string; value: string }[] },
   void,
   string,
-  SelectMeta
+  PresetSelectMeta
 >({
   key: 'sampler',
   codec: (config) =>
-    selectCodec({ ...config, presets: config.presets ?? defaultSamplerPresets }),
+    presetSelectCodec({ ...config, presets: config.presets ?? defaultSamplerPresets }),
 });
 
 export const createSchedulerKit = defineFieldKit<

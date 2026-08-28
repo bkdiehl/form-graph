@@ -53,7 +53,13 @@ const WORKFLOW = codec<string, WorkflowMeta>({
   default: 'txt2img',
 });
 
-const ECOSYSTEM = codec<string>({
+interface EcosystemMeta {
+  options: { value: string; label: string }[];
+  gateStates: GateItemState[];
+  experimental: { key: string; message: string | undefined; dismissId: string }[];
+}
+
+const ECOSYSTEM = codec<string, EcosystemMeta>({
   input: z.string().optional(),
   output: z.string(),
 });

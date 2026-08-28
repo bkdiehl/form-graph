@@ -206,3 +206,16 @@ describe('one-shot resolution (server parse, introspection) ignores scoping', ()
     expect(hasField(scopedForm, 'steps', { ecosystem: 'SD' }, ext)).toBe(true);
   });
 });
+
+describe('reserved characters in field keys', () => {
+  // The address grammar owns @ / [ ] % — see docs/array-intent-addressing.md.
+  // [ and ] are reserved for per-item addressing before any array API exists,
+  // so no persisted record can ever contain an ambiguous address.
+  it.each(['@', '/', '[', ']', '%'])('rejects a key containing "%s"', (ch) => {
+    expect(() => scopedAddress(`bad${ch}key`, undefined)).toThrow(/reserved/);
+  });
+
+  it('accepts ordinary keys and still escapes scope values', () => {
+    expect(scopedAddress('steps', 'a@b/c')).toBe('steps@a%40b%2Fc');
+  });
+});

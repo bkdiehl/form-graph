@@ -81,7 +81,7 @@ function toppingField(f: Fields, key: string, budget: number) {
   });
 }
 
-export const pizzaForm = defineForm()({
+export const pizzaForm = defineForm({
   codecs: {
     style: STYLE,
     size: SIZE,
