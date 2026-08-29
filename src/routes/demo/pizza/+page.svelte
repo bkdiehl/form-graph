@@ -131,16 +131,18 @@
         <div class="flex items-center gap-3 py-1.5">
           <span class="w-28 font-mono text-sm text-muted">crust</span>
           <span class="flex gap-1.5">
-            {#each snap.meta?.options ?? [] as option (option)}
+            {#each snap.meta?.options ?? [] as option (option.value)}
               <button
                 type="button"
-                class="cursor-pointer rounded border px-3 py-1 text-sm transition-colors {snap.value ===
-                option
+                disabled={option.disabled}
+                class="rounded border px-3 py-1 text-sm transition-colors {snap.value === option.value
                   ? 'border-accent bg-accent font-medium text-ground'
-                  : 'border-line bg-surface text-muted hover:text-ink'}"
-                onclick={() => setValue(option)}
+                  : 'border-line bg-surface text-muted'} {option.disabled
+                  ? 'cursor-not-allowed opacity-40'
+                  : 'cursor-pointer hover:text-ink'}"
+                onclick={() => setValue(option.value)}
               >
-                {option}
+                {option.label}
               </button>
             {/each}
           </span>

@@ -5,7 +5,6 @@
   import { typedFields } from '$lib/svelte/index.js';
   import SourceCode from '../SourceCode.svelte';
   import hubSource from './publish-form.ts?shiki';
-  import sharedSource from './shared.ts?shiki';
   import s3Source from './s3.ts?shiki';
   import emailSource from './email.ts?shiki';
   import webhookSource from './webhook.ts?shiki';
@@ -175,7 +174,6 @@
   {/if}
 
   <SourceCode code={hubSource} filename="publish-form.ts" />
-  <SourceCode code={sharedSource} filename="shared.ts" />
   <SourceCode code={s3Source} filename="s3.ts" />
   <SourceCode code={emailSource} filename="email.ts" />
   <SourceCode code={webhookSource} filename="webhook.ts" />

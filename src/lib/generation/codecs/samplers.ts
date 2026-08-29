@@ -1,4 +1,4 @@
-import { defineFieldKit } from '../../core/index.js';
+import { defineFieldKit } from '../../core/field-kit.js';
 import type { Codec } from '../../core/types.js';
 import { selectCodec, type SelectMeta } from '../../codecs/select.js';
 

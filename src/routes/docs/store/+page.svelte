@@ -63,9 +63,4 @@ const part   = form.parsePartial(raw, ext); // best-effort: per-key results, no 
   pipeline over a raw record — one behavior, client and server.
 </p>
 
-<h2>Debugging</h2>
-<p>
-  <code>getCodecChurn()</code> lists fields whose codec identity changed between passes — the
-  signature of a codec built inside <code>resolve</code>, which defeats reference preservation.
-  Fix by hoisting the codec and moving the dynamic part into field options.
-</p>
+

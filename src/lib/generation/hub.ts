@@ -100,9 +100,7 @@ function workflowField(f: Fields, ext: GenerationExt) {
       s.refine((key) => !gated.has(key), {
         message: 'Workflow is currently unavailable',
         params: { kind: 'gated' },
-      }),
-    refineDeps: [gatedKey],
-    meta: {
+      }),    meta: {
       options: [...workflowConfigByKey.keys()]
         .filter((key) => !hidden.includes(key))
         .map((key) => ({ value: key, label: key })),
@@ -124,9 +122,7 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
       s.refine((value) => !(value === 'high' && !ext.user.isMember), {
         message: 'High priority requires membership',
         params: { kind: 'member_only' },
-      }),
-    refineDeps: [ext.user.isMember],
-    meta: {
+      }),    meta: {
       options: [
         { label: 'Low', value: 'low' as const },
         { label: 'Normal', value: 'normal' as const },
@@ -184,9 +180,7 @@ function resolveGeneration(f: Fields, ext: GenerationExt) {
       s.refine((key) => !ecoGates.has(key), {
         message: 'Ecosystem is currently unavailable',
         params: { kind: 'gated' },
-      }),
-    refineDeps: [ecoGateKey],
-    meta: {
+      }),    meta: {
       options: available
         .filter((key) => !hiddenEcosystems.includes(key))
         .map((key) => ({ value: key, label: key })),

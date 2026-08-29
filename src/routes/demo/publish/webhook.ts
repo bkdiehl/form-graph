@@ -1,38 +1,25 @@
 import { z } from 'zod';
-import { codec, defineSection } from '$lib/index.js';
-import { enumCodec } from '$lib/codecs/index.js';
-import { retriesField } from './shared.js';
+import { defineGraph } from '$lib/index.js';
+import { enumOf, slider } from '$lib/codecs/index.js';
 
-export const webhookDestination = defineSection({
-  key: 'webhook',
-  label: 'Webhook',
+export const webhookGraph = defineGraph()
+  .field('url', {
+    input: z.string().optional(),
+    output: z.string().url('A full https:// URL'),
+    default: '',
+  })
+  .field('secret', {
+    input: z.string().optional(),
+    output: z.string().min(8, 'Signing secret needs 8+ characters'),
+    default: '',
+  })
+  .field('method', enumOf({
+    options: [
+      { value: 'POST', label: 'POST' },
+      { value: 'PUT', label: 'PUT' },
+    ],
+    default: 'POST',
+  }))
+  .field('retries', { ...slider({ min: 0, max: 10, default: 3 }), scope: 'webhook' });
 
-  codecs: {
-    url: codec({
-      input: z.string().optional(),
-      output: z.string().url('A full https:// URL'),
-      default: '',
-    }),
-    secret: codec({
-      input: z.string().optional(),
-      output: z.string().min(8, 'Signing secret needs 8+ characters'),
-      default: '',
-    }),
-    method: enumCodec({
-      options: [
-        { value: 'POST', label: 'POST' },
-        { value: 'PUT', label: 'PUT' },
-      ],
-      default: 'POST',
-    }),
-  },
-
-  resolve: (f) => ({
-    url: f.field('url'),
-    secret: f.field('secret'),
-    method: f.field('method'),
-    // Same `retries` key as the email destination — scope keeps each
-    // destination's remembered value separate.
-    retries: retriesField(f, 'webhook'),
-  }),
-});
+export const webhookMeta = { key: 'webhook', label: 'Webhook' } as const;

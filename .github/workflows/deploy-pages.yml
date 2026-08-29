@@ -26,6 +26,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
+      - run: node scripts/type-budget.mjs
       - run: pnpm run check
       - run: pnpm exec vitest run
       - name: Build static site

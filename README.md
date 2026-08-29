@@ -9,30 +9,32 @@ drives the client store and parses raw input on the server. No second schema, no
 
 ```ts
 import { z } from 'zod';
-import { codec, defineForm, type Fields } from 'form-graph';
+import { defineGraph, defineForm } from 'form-graph';
+import { slider, enumOf } from 'form-graph/codecs';
 
-// A codec is one field's contract. Types are inferred from the schemas.
-const PROMPT = codec({
-  input: z.string().optional(),                    // lenient: storage, URLs, raw input
-  output: z.string().min(1, 'Prompt is required'), // strict: submit / server parse
-  default: '',
-});
+// A field is ONE definition — schemas, default, meta, conditions, together.
+// Conditional fields are functions of (ctx, ext); null = doesn't exist this pass.
+const graph = defineGraph<{ maxSteps: number }>()
+  .field('mode', enumOf({
+    options: [
+      { value: 'create', label: 'Create' },
+      { value: 'upscale', label: 'Upscale' },
+    ],
+    default: 'create',
+  }))
+  .field('prompt', {
+    input: z.string().optional(),                    // lenient: storage, URLs, raw input
+    output: z.string().min(1, 'Prompt is required'), // strict: submit / server parse
+    default: '',
+  })
+  .field('steps', (ctx, ext) =>
+    ctx.mode === 'create' ? slider({ min: 1, max: ext.maxSteps, default: 25 }) : null)
+  .field('scale', (ctx) =>
+    ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null);
 
 const form = defineForm({
-  codecs: { mode: MODE, prompt: PROMPT, steps: STEPS, scale: SCALE },
-  // ext's annotation types the form's external context; omit the
-  // parameter entirely for a form with none.
-  resolve: (f: Fields, ext: { maxSteps: number }) => {
-    const mode = f.field('mode', MODE);
-    const base = { mode, prompt: f.field('prompt', PROMPT) };
-
-    switch (mode) {                // the switch IS the discriminated union
-      case 'upscale':
-        return { ...base, mode, scale: f.field('scale', SCALE) };
-      case 'create':
-        return { ...base, mode, steps: f.field('steps', stepsCodec(ext.maxSteps)) };
-    }
-  },
+  codecs: graph.codecs,   // types every binding, conditional fields included
+  resolve: (f, ext: { maxSteps: number }) => graph.resolve(f, ext),
 });
 
 // Client: a live store — per-field subscriptions, persistent scoped memory.

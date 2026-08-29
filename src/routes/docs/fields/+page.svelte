@@ -1,157 +1,81 @@
-<h1>The resolver's Fields API</h1>
+<h1>The graph</h1>
 
 <p>
-  <code>resolve(f, ext)</code> receives a <code>Fields</code> collector. Every field the current
-  branch has is <em>declared by calling</em> <code>f.field</code> — presence in the return value
-  is what makes a field exist, so a <code>switch</code> arm that skips a call removes that field
-  from the branch, its snapshot, and the UI.
+  <code>defineGraph&lt;Ext&gt;()</code> starts a chain of field definitions. Each entry is the
+  whole field; each definition function sees the accumulated context of the fields declared
+  above it, plus the external context:
 </p>
 
-<pre>{`resolve: (f: Fields, ext: Ext) => {
-  const mode = f.field('mode', MODE);
-  const base = { mode, prompt: f.field('prompt', PROMPT) };
+<pre>{`const graph = defineGraph<Ext>()
+  .field('mode', enumOf({ ... }))                    // static definition
+  .field('steps', (ctx, ext) =>                      // conditional: a function
+    ctx.mode === 'create' ? slider({ min: 1, max: ext.maxSteps }) : null)
+  .computed('price', (ctx) => ...)                   // derived, read-only key
+  .effect(coupling);                                 // a rules unit riding the graph`}</pre>
 
-  switch (mode) {
-    case 'upscale':
-      return { ...base, scale: f.field('scale', SCALE) };
-    default:
-      return { ...base, steps: f.field('steps', STEPS) };
+<h2>Existence: return null</h2>
+<p>
+  A definition function returning <code>null</code> means the field does not exist this pass —
+  no record, no snapshot, gone from the page (the bindings' <code>&lt;Field&gt;</code> renders
+  nothing). The key types optional in <code>ctx</code> and in the state. Intent survives
+  deactivation, so the value returns when the field does.
+</p>
+
+<h2>Dependencies are the chain</h2>
+<p>
+  <code>ctx</code> contains exactly the fields declared above — statically. You cannot
+  reference a later field, a misspelled field, or a field from another branch; the compiler
+  enforces what a dependency graph would, with no dependency graph. Order is visible, cycles
+  are unrepresentable.
+</p>
+
+<h2>Composition</h2>
+<p>Graphs are immutable values. Everything composes with the language:</p>
+
+<pre>{`// shared prefix: keep chaining from a common base
+const base = defineGraph<Ext>().field('images', ...).field('model', ...);
+const v23 = base.computed('version', () => 'v23' as const).field('resolution', ...);
+
+// shared section: a plain Graph -> Graph function
+const withPromptBlock = (g) => g.field('prompt', ...).field('negativePrompt', ...);
+const full = withPromptBlock(v23);
+
+// the same section twice, under key prefixes (see the checkout demo)
+withAddress(g, 'shipping'); withAddress(g, 'billing', (ctx) => !ctx.sameAsShipping);`}</pre>
+
+<h2>Alternative shapes: the resolver switch</h2>
+<p>
+  The one thing a chain deliberately does not express: branches that produce DIFFERENT shapes
+  with a discriminated union between them (a hub's destinations, a generator's version
+  subgraphs). That stays a <code>switch</code> composing whole graphs — each arm's return is
+  tagged by the narrowed discriminant, so <code>Extract&lt;State, &#123; version: 'v23'
+  &#125;&gt;</code> gives the exact branch shape:
+</p>
+
+<pre>{`resolve: (f, ext) => {
+  const destination = f.field('destination', DESTINATION);
+  switch (destination) {
+    case 's3':      return { destination, ...s3Graph.resolve(f, ext) };
+    case 'email':   return { destination, ...emailGraph.resolve(f, ext) };
+    case 'webhook': return { destination, ...webhookGraph.resolve(f, ext) };
   }
 }`}</pre>
 
-<h2>Dependencies are variables</h2>
 <p>
-  A field that depends on another field references its VALUE — and since values are variables,
-  the language enforces what v1's graph builder enforced with types: you can only reference a
-  field declared above you, it cannot be misspelled, and it arrives typed. Declaration order is
-  dependency order, visibly.
+  Rule of thumb: <code>null</code> for fields that come and go within one shape; a switch
+  between different shapes. Within a graph, conditional keys are optional; between graphs, the
+  union discriminates.
 </p>
 
-<pre>{`resolve: (f) => {
-  const region = f.field('region');            // declared -> in scope
-  return {
-    region,
-    storageClass: f.field('storageClass', {
-      // can ONLY reference prior fields; typed from region's codec
-      constrain: { glacier: region === 'ap-northeast-1' && 'unavailable' },
-    }),
-  };
-}`}</pre>
-
-<h2>f.field(key, codec?, options?)</h2>
-<p>
-  When the key is declared in the form's <code>codecs</code> slot, the codec argument can be
-  omitted — the registry supplies it, and inline resolvers get per-key typing automatically. A
-  standalone fragment opts in by typing its parameter with its own codec record:
-</p>
-
-<pre>{`// inline resolvers are typed automatically; standalone fragments use
-// defineSection — an identity helper whose only job is this inference:
-const section = defineSection({
-  codecs: { bucket: BUCKET, region: REGION },
-  resolve: (f) => ({
-    bucket: f.field('bucket'),                 // codec from the registry, typed string
-    region: f.field('region', { scope: 'x' }), // options in the second position
-  }),
+<h2>Mounting</h2>
+<pre>{`export const form = defineForm({
+  codecs: graph.codecs,                 // TYPE-complete registry for the bindings
+  reconcile: [...graph.effects],        // the rules units the graph carries
+  resolve: (f, ext: Ext) => graph.resolve(f, ext),
 });`}</pre>
-
 <p>
-  Passing the codec explicitly always works — required for keys outside the registry, and for a
-  codec built with call-site config. An unregistered key with no codec throws at resolve time,
-  naming the key.
+  <code>graph.resolve</code> is an ordinary resolver fragment — a graph can be a whole form, a
+  branch of a hub, or mounted standalone for tests. Underneath, every entry compiles to
+  <code>f.field(key, def, options)</code> on the engine; nothing about intent, scoping,
+  corrections, the diff, or server <code>parse</code> is graph-specific.
 </p>
-
-<ul>
-  <li>
-    <code>scope</code> — where this field's memory lives. Scope values are computed by the
-    resolver and become part of the intent address (<code>steps&#64;groupA</code>), so the same
-    key remembers a value per group. See Storage for how this looks on disk.
-  </li>
-  <li>
-    <code>default</code> — call-site override of the codec default; a function form defers
-    computation (<code>default: () =&gt; expensive()</code>).
-  </li>
-  <li>
-    <code>meta</code> — per-pass presentation, merged over the codec's contribution. The rule
-    that keeps every fact single-homed: the codec declares only the UNCONDITIONAL props (its
-    meta is a partial — omit what varies); a fully conditional prop is stated once here, with
-    both arms (<code>meta: &#123; placeholder: business ? 'billing&#64;…' : 'you&#64;…'
-    &#125;</code>); a default-with-exception patches only the exception
-    (<code>meta: business ? &#123; maxLength: 500 &#125; : &#123;&#125;</code> — empty else, the
-    codec value survives). The FUNCTION form takes full control (resolved value +
-    <code>base</code>; its return replaces).
-  </li>
-  <li>
-    <code>constrain</code> — a per-pass restriction stated ONCE, in the codec's own constraint
-    vocabulary (each codec defines what it accepts via its <code>constrain</code> slot). The
-    codec derives both halves: the presentation in its meta, and the admitted value — a moved
-    value is recorded as a correction with the codec-returned reason. enumCodec/selectCodec
-    take per-option exclusions (<code>constrain: &#123; glacier: tokyo &amp;&amp; 'reason'
-    &#125;</code> → disabled option + substitution); numberCodec takes bounds
-    (<code>constrain: &#123; max: 16, reason: 'tier_limit' &#125;</code> → tightened slider +
-    clamp). A custom codec ships its own vocabulary the same way. Reach for raw
-    <code>meta</code>/<code>f.correct</code> only when the reaction isn't what the codec's
-    vocabulary expresses.
-  </li>
-  <li>
-    <code>refine</code> / <code>refineDeps</code> — narrow the output contract under this pass's
-    conditions, in zod's own vocabulary. Deps-cached like a React hook: the schema is rebuilt
-    only when <code>refineDeps</code> change, so keep deps primitive and stable.
-  </li>
-</ul>
-
-<pre>{`const service = f.field('service', SERVICE, { meta: { options: available } });
-
-f.field('hazmatClass', HAZMAT, {
-  refine: (s) =>
-    s.refine((v) => !(v === '1.4' && service === 'air'), {
-      message: 'Class 1.4 explosives cannot ship by air',
-      params: { kind: 'hazmat_air_forbidden' },
-    }),
-  refineDeps: [service],
-});`}</pre>
-
-<h2>f.correct(key, value, reason, detail?)</h2>
-<p>
-  An imperative correction: replaces the resolved value, re-derives the meta, records a note —
-  and leaves intent untouched, so the user's original choice returns when conditions do. Call it
-  immediately after the field it corrects. For when the SYSTEM invalidated a choice; see
-  "When the system disagrees" on the Concepts page for how it differs from
-  <code>reconcile</code> and <code>refine</code>.
-</p>
-
-<pre>{`let crust = f.field('crust', CRUST, { scope: size, meta: { options } });
-if (!options.includes(crust)) {
-  crust = f.correct('crust', options[0], 'not_available_for_size', { size });
-}`}</pre>
-
-<h2>f.computed(key, value)</h2>
-<p>
-  A derived, read-only key: it appears in state and snapshots (marked
-  <code>isComputed</code>), participates in the diff, but accepts no input and stores no intent.
-  Prices, ceilings, derived totals.
-</p>
-
-<pre>{`const dimKg = Math.round((l * w * h) / 5000);
-return { ...base, dimKg: f.computed('dimKg', dimKg) };`}</pre>
-
-<h2>f.note(note)</h2>
-<p>
-  A free-form resolution note for anything worth surfacing that isn't a correction.
-  <code>f.correct</code> writes its own note; reach for <code>f.note</code> directly only for
-  advisory messages.
-</p>
-
-<h2>Rules of the collector</h2>
-<ul>
-  <li>Each key at most once per pass — a duplicate declaration throws.</li>
-  <li>
-    Field keys cannot contain <code>&#64;</code> <code>/</code> <code>[</code> <code>]</code>
-    <code>%</code> — reserved by the intent-address grammar.
-  </li>
-  <li>
-    Order is data flow: a field whose options depend on another field's value must be declared
-    after it. The resolver is a plain function — there is no dependency graph to get wrong,
-    only reading a variable before it exists.
-  </li>
-</ul>

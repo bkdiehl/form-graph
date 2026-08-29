@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { codec, defineFieldKit } from '../../core/index.js';
+import { codec } from '../../core/index.js';
+import { defineFieldKit } from '../../core/field-kit.js';
 
 /**
  * Port of quantityNode. v1 rebuilds the schema per ecosystem/limits change to

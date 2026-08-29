@@ -12,18 +12,14 @@ import type { Codec, Schema, SchemaLike } from './types.js';
  *   Defaults to `undefined` when controls need nothing computed; inferred from
  *   `meta` when the literal provides one and the caller annotates it.
  */
-export function codec<T, M = undefined, C = never, O extends SchemaLike<T> = SchemaLike<T>>(
-  def: Codec<T, M, C> & { output: O }
-): Codec<T, M, C> & { output: O } {
+export function codec<T, M = undefined, O extends SchemaLike<T> = SchemaLike<T>>(
+  def: Codec<T, M> & { output: O }
+): Codec<T, M> & { output: O } {
   return def;
 }
 
-export type InferCodecValue<C> = C extends Codec<infer T, infer _M, infer _C> ? T : never;
-export type InferCodecMeta<C> = C extends Codec<infer _T, infer M, infer _C> ? M : never;
-/** The constraint vocabulary a codec accepts via the `constrain:` field option. */
-export type InferCodecConstraint<X> =
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  X extends Codec<infer _T, infer _M, infer C> ? C : never;
+export type InferCodecValue<C> = C extends Codec<infer T, infer _M> ? T : never;
+export type InferCodecMeta<C> = C extends Codec<infer _T, infer M> ? M : never;
 
 /**
  * The per-key inference pattern: the app declares one registry object mapping

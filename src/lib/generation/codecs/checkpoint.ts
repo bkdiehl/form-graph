@@ -1,11 +1,6 @@
 import { z } from 'zod';
-import {
-  codec,
-  defineFieldKit,
-  type FieldOptions,
-  type Rule,
-  type Scope,
-} from '../../core/index.js';
+import { codec, type FieldOptions, type Rule, type Scope } from '../../core/index.js';
+import { defineFieldKit } from '../../core/field-kit.js';
 import { resourceSchema, type ResourceData, type ResourceValue } from './resources.js';
 import {
   buildVersionMappings,

@@ -52,24 +52,28 @@ ${'<'}/script>
 
 <pre>{`const state = formState(store); // whole-snapshot reactivity — prefer field() for controls`}</pre>
 
-<h2>Typed fields — from the form, not a registry export</h2>
+<h2>Typed fields — from the graph, not a registry export</h2>
 <p>
-  Declare the codecs once, on the form. The store carries the registry's type, and
-  <code>typedFields(store)</code> reads it back — the page imports nothing but the form:
+  The graph's registry types every key — function-defined (conditional) fields included — and
+  <code>typedFields(store)</code> reads it back; the page imports nothing but the form:
 </p>
 
 <pre>{`// my-form.ts
+const graph = defineGraph()
+  .field('aspectRatio', enumOf({ ... }))
+  .field('steps', (ctx) => (ctx.mode === 'create' ? slider({ min: 1, max: 50 }) : null));
+
 export const form = defineForm({
-  codecs: { steps: STEPS, aspectRatio: ASPECT },
-  resolve,
+  codecs: graph.codecs,
+  resolve: (f) => graph.resolve(f, undefined as void),
 });
 
 // +page.svelte
-const store = form.createStore({ ext });
+const store = form.createStore();
 const f = typedFields(store);
 
 f.steps.current
-// FieldSnapshot<number, NumberMeta> | null — inferred, no annotation`}</pre>
+// FieldSnapshot<number, SliderDefMeta> | null — inferred, no annotation`}</pre>
 
 <h2>&lt;Field&gt; — the form drives visibility</h2>
 <p>

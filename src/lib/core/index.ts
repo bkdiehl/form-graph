@@ -20,11 +20,11 @@ export {
   type CodecRegistry,
   type InferCodecValue,
   type InferCodecMeta,
-  type InferCodecConstraint,
   type RegistryMetas,
   type RegistryValues,
 } from './codec.js';
-export { defineFieldKit, type FieldKit, type FieldKitSpec } from './field-kit.js';
+export { defineGraph, type Graph, type FieldDef, type AnyFieldDef } from './graph.js';
+export { slider, enumOf, textOf, boolOf, type EnumDefOption, type EnumDefMeta, type SliderDefMeta } from './def-helpers.js';
 export {
   defineForm,
   defineSection,

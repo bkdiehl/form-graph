@@ -10,6 +10,8 @@ import {
   type InferCodecs,
 } from '../index.js';
 import { enumCodec, numberCodec } from '../../codecs/basic.js';
+import { enumOf } from '../def-helpers.js';
+import { defineGraph } from '../graph.js';
 import { defineFieldKit } from '../field-kit.js';
 
 const STEPS = codec({
@@ -152,83 +154,46 @@ describe('meta override receives the codec base', () => {
   });
 });
 
-describe('constrain: one declaration in the codec vocabulary, both halves', () => {
-  const CLS = enumCodec({
-    options: [
-      { value: 'standard', label: 'Standard' },
-      { value: 'glacier', label: 'Glacier' },
-    ],
-    default: 'standard',
-  });
-  const TOKYO = codec({ input: z.boolean().optional(), output: z.boolean(), default: false });
-
+describe('enumOf gate: one declaration, both halves (helper-level)', () => {
+  const graph = defineGraph<{ tokyo: boolean }>().field('cls', (_ctx, ext) =>
+    enumOf({
+      options: [
+        { value: 'standard', label: 'Standard' },
+        { value: 'glacier', label: 'Glacier' },
+      ],
+      default: 'standard',
+      gate: { glacier: ext.tokyo && 'unavailable_in_region' },
+    })
+  );
   const form = defineForm({
-    codecs: { tokyo: TOKYO, cls: CLS },
-    resolve: (f) => {
-      const tokyo = f.field('tokyo');
-      return {
-        tokyo,
-        cls: f.field('cls', {
-          constrain: { glacier: tokyo && 'unavailable_in_region' },
-        }),
-      };
-    },
+    codecs: graph.codecs,
+    resolve: (f: Fields, ext: { tokyo: boolean }) => graph.resolve(f, ext),
   });
 
-  it('open constraint: option enabled, value untouched, no note', () => {
-    const store = form.createStore({ defaults: { cls: 'glacier' } });
+  it('open gate: value untouched, option enabled, no note', () => {
+    const store = form.createStore({ ext: { tokyo: false }, defaults: { cls: 'glacier' } });
     expect(store.getState().cls).toBe('glacier');
     expect(store.getNotes()).toEqual([]);
   });
 
-  it('closed constraint: option disabled AND value corrected with the reason', () => {
-    const store = form.createStore({ defaults: { cls: 'glacier', tokyo: true } });
+  it('closed gate: option disabled AND value corrected with the reason', () => {
+    const store = form.createStore({ ext: { tokyo: true }, defaults: { cls: 'glacier' } });
     expect(store.getState().cls).toBe('standard');
     expect(store.getNotes()).toEqual([
-      {
-        key: 'cls',
-        kind: 'unavailable_in_region',
-        detail: { from: 'glacier', to: 'standard', gated: 'glacier' },
-      },
+      { key: 'cls', kind: 'unavailable_in_region', detail: { from: 'glacier', to: 'standard', gated: 'glacier' } },
     ]);
     const meta = store.getField('cls')!.meta as { options: { value: string; disabled?: boolean }[] };
     expect(meta.options[1]).toMatchObject({ value: 'glacier', disabled: true });
   });
 
-  it('reopening restores the remembered choice', () => {
-    const store = form.createStore({ defaults: { cls: 'glacier', tokyo: true } });
-    store.set({ tokyo: false });
+  it('reopening the gate restores the remembered choice', () => {
+    const store = form.createStore({ ext: { tokyo: true }, defaults: { cls: 'glacier' } });
+    expect(store.getState().cls).toBe('standard');
+    store.setExt({ tokyo: false });
     expect(store.getState().cls).toBe('glacier');
     expect(store.getNotes()).toEqual([]);
   });
-
-  it('numberCodec bounds: meta tightens and the value clamps with the reason', () => {
-    const VCPUS = numberCodec({ min: 2, max: 64, step: 2, default: 8 });
-    const nform = defineForm({
-      codecs: { vcpus: VCPUS },
-      resolve: (f) => ({
-        vcpus: f.field('vcpus', { constrain: { max: 16, reason: 'tier_limit' } }),
-      }),
-    });
-    const store = nform.createStore({ defaults: { vcpus: 40 } });
-    expect(store.getState().vcpus).toBe(16);
-    expect(store.getNotes()).toEqual([
-      { key: 'vcpus', kind: 'tier_limit', detail: { from: 40, to: 16, min: 2, max: 16 } },
-    ]);
-    expect(store.getField('vcpus')!.meta).toEqual({ min: 2, max: 16, step: 2 });
-  });
-
-  it('throws when constraining a codec with no vocabulary', () => {
-    const bare = codec({ input: z.string().optional(), output: z.string(), default: '' });
-    const bad = defineForm({
-      codecs: { plain: bare },
-      // @ts-expect-error — constrain is never for codecs without a vocabulary
-      resolve: (f) => ({ plain: f.field('plain', { constrain: { x: 'nope' } }) }),
-    });
-    expect(() => bad.createStore()).toThrow(/defines no constraint vocabulary/);
-  });
 });
-
 describe('codecFamily', () => {
   it('memoizes per parameter list — same args, same instance', () => {
     let builds = 0;
@@ -252,7 +217,6 @@ describe('codecFamily', () => {
     store.set({ n: 3 });
     store.set({ n: 99 });
     expect(store.getState().n).toBe(7);
-    expect(store.getCodecChurn()).toEqual([]);
   });
 });
 

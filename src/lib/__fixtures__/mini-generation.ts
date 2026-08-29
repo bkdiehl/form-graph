@@ -98,7 +98,6 @@ export function numberCodec(opts: { min: number; max: number; step?: number; def
 /**
  * Codecs are built ONCE, at module scope. Building them inside a resolver makes
  * every pass construct fresh zod schemas — measured at 152x the keystroke cost.
- * The store's `getCodecChurn()` guard catches regressions of this.
  */
 const FLUX_STEPS = numberCodec({ min: 1, max: 50, default: 25 });
 const SD_STEPS = numberCodec({ min: 1, max: 150, default: 20 });

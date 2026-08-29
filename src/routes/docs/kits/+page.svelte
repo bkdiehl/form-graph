@@ -1,71 +1,64 @@
-<h1>Field kits</h1>
+<h1>Reusable definitions</h1>
 
 <p>
-  A field kit packages one complex field's whole anatomy — key, codec, per-pass options, its
-  correction policy, and the patch rules that must travel with it — so every complex field in an
-  app has the same shape instead of each one hand-rolling helpers. Simple fields don't need
-  kits; reach for one when a field carries config, rules, or corrections.
+  There is no reuse machinery — definitions and graphs are ordinary values, so reuse is
+  ordinary code. Three patterns cover everything the demos and the generation-scale ports
+  needed:
 </p>
 
-<pre>{`import { defineFieldKit } from 'form-graph';
+<h2>1. Definition factories</h2>
+<p>A function returning a definition, parameterized by whatever varies:</p>
 
-const createPlanKit = defineFieldKit<PlanConfig, PlanArgs, PlanValue, PlanMeta>({
-  key: 'plan',
+<pre>{`const toppingsDef = (budget: number) => ({
+  input: z.array(z.string()).optional(),
+  output: z.array(z.string()),
+  default: [] as string[],
+  meta: { budget },
+  correct: (picked: string[]) => trimToBudget(picked, budget),
+});
 
-  // static, or derived once from config — never rebuilt per pass
-  codec: (config) => planCodec(config.catalog),
+.field('toppings', (ctx) => toppingsDef(SIZES[ctx.size].budget))`}</pre>
 
-  // per-pass field options from bound config + the resolver's args
-  options: (config, args) => ({
-    meta: { options: config.catalog.filter((p) => p.tier <= args.tier) },
-  }),
-
-  // per-pass correction, applied via f.correct with the returned reason
-  correct: (value, config, args) =>
-    value && !config.catalog.some((p) => p.id === value.id)
-      ? { value: config.catalog[0], reason: 'plan_retired' }
-      : undefined,
-
-  // patch rules owned by this field — same record shape as defineRules
-  rules: (config) => ({
-    plan: (plan, { state }) =>
-      plan?.id === config.premiumId && state.billing !== 'annual'
-        ? { billing: 'annual' }
-        : undefined,
-  }),
-});`}</pre>
-
-<h2>Two stages: spec, then instance</h2>
-<pre>{`// bind app config ONCE per module — catalogs, tables, injected functions
-const plan = createPlanKit({ catalog, premiumId });
-
-// in the resolver: args are the values THIS PASS computed
-const value = plan.field(f, { tier: ext.user.tier });
-
-// on the form: the kit's rules ride its reconciler; its codec registers by key
-defineForm({
-  codecs: { plan },                 // kits are accepted directly — codec unwrapped
-  resolve,
-  reconcile: [plan],
-});`}</pre>
-
-<h2>What the factory enforces (not just documents)</h2>
-<ul>
-  <li>
-    The codec resolves ONCE, at kit creation — a config-parameterised codec cannot be rebuilt
-    per pass, so the no-churn rule holds structurally.
-  </li>
-  <li>The field key is declared, not buried in a helper body.</li>
-  <li>
-    <code>reconciler</code> is always present (identity when the spec has no rules), so
-    <code>reconcile</code> arrays compose uniformly.
-  </li>
-</ul>
-
-<h2>Config vs Args</h2>
 <p>
-  <code>Config</code> is what the APP binds once per kit instance: catalogs, version tables,
-  injected compatibility functions — how a kit stays library-generic while the app stays
-  concrete. <code>Args</code> is what the RESOLVER passes on every pass: values it just
-  computed, per-pass toggles. Use <code>void</code> when nothing is dynamic.
+  Helpers used inside a factory keep their automatic schema caching; a factory that hand-builds
+  zod pays construction per distinct call — wrap the schema part in
+  <code>codecFamily</code> if it's ever hot.
+</p>
+
+<h2>2. Sections: Graph → Graph functions</h2>
+<p>
+  A section appends its fields to whatever chain it's given and hands the chain back — ctx
+  flows through, so cross-section conditions are plain reads:
+</p>
+
+<pre>{`export const withContact = <C extends object, D extends Record<string, AnyFieldDef>>(
+  g: Graph<C, void, D>
+) =>
+  g
+    .field('email', EMAIL)
+    .field('isBusiness', boolOf())
+    .field('company', (ctx) => (ctx.isBusiness ? COMPANY : null));
+
+// later, another section reads what contact declared:
+export const withPayment = (g) =>
+  g.field('paymentMethod', (ctx) => enumOf({
+    options: METHODS,
+    default: 'card',
+    gate: { invoice: !ctx.isBusiness && 'invoice_requires_business' },
+  }));`}</pre>
+
+<h2>3. The same section, mounted more than once</h2>
+<p>
+  Field keys are unique form-wide, so a re-mountable section takes a key PREFIX — and an
+  optional <code>when</code> makes the whole mount conditional (keys go optional):
+</p>
+
+<pre>{`withAddress(g, 'shipping');                                    // required keys
+withAddress(g, 'billing', (ctx) => !ctx.billingSameAsShipping); // optional keys`}</pre>
+
+<p>
+  The checkout demo composes all three patterns into one chain; the LTX/Wan generation ports
+  compose shared prefixes and suffixes across five version graphs. Effects that belong to a
+  section attach with <code>.effect(unit)</code> and ride into the form's
+  <code>reconcile</code> via <code>graph.effects</code>.
 </p>

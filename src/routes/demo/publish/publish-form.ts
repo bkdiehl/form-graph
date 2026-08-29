@@ -1,19 +1,17 @@
-import { defineForm, type Fields, type InferState } from '$lib/index.js';
-import { enumCodec } from '$lib/codecs/index.js';
-import { RETRIES } from './shared.js';
-import { s3Destination } from './s3.js';
-import { emailDestination } from './email.js';
-import { webhookDestination } from './webhook.js';
+import { defineForm, type Fields } from '$lib/index.js';
+import { enumOf } from '$lib/codecs/index.js';
+import { s3Graph, s3Meta } from './s3.js';
+import { emailGraph, emailMeta } from './email.js';
+import { webhookGraph, webhookMeta } from './webhook.js';
 
-// The HUB: separately-defined destination forms tied together by one
-// discriminator. The discriminator's option list is BUILT from the modules,
-// so adding a destination is one import plus one array entry — and the
-// switch below is what makes the state a discriminated union: each case
-// returns that destination's shape, tagged with the discriminator.
+// The HUB: separately-defined destination graphs tied together by one
+// discriminator. The switch is the only resolver logic in the whole form —
+// and it's the one thing a graph can't express: producing a
+// destination-DISCRIMINATED union of shapes.
 
-const DESTINATIONS = [s3Destination, emailDestination, webhookDestination];
+const DESTINATIONS = [s3Meta, emailMeta, webhookMeta];
 
-const DESTINATION = enumCodec({
+const DESTINATION = enumOf({
   options: DESTINATIONS.map((d) => ({ value: d.key, label: d.label })),
   default: 's3',
 });
@@ -21,24 +19,21 @@ const DESTINATION = enumCodec({
 export const publishForm = defineForm({
   codecs: {
     destination: DESTINATION,
-    ...s3Destination.codecs,
-    ...emailDestination.codecs,
-    ...webhookDestination.codecs,
-    retries: RETRIES,
+    ...s3Graph.codecs,
+    ...emailGraph.codecs,
+    ...webhookGraph.codecs,
   },
-
   resolve: (f: Fields) => {
     const destination = f.field('destination', DESTINATION);
-
     switch (destination) {
       case 's3':
-        return { destination, ...s3Destination.resolve(f) };
+        return { destination, ...s3Graph.resolve(f, undefined as void) };
       case 'email':
-        return { destination, ...emailDestination.resolve(f) };
+        return { destination, ...emailGraph.resolve(f, undefined as void) };
       case 'webhook':
-        return { destination, ...webhookDestination.resolve(f) };
+        return { destination, ...webhookGraph.resolve(f, undefined as void) };
     }
   },
 });
 
-export type PublishState = InferState<typeof publishForm>;
+export type PublishState = ReturnType<typeof publishForm.resolve>['state'];

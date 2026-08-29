@@ -17,11 +17,11 @@
     {
       title: 'Reference',
       pages: [
-        { href: '/docs/codecs', label: 'Codecs' },
-        { href: '/docs/fields', label: 'Fields API' },
+        { href: '/docs/fields', label: 'The graph' },
+        { href: '/docs/codecs', label: 'Definitions' },
         { href: '/docs/store', label: 'The store' },
-        { href: '/docs/rules', label: 'Rules' },
-        { href: '/docs/kits', label: 'Field kits' },
+        { href: '/docs/rules', label: 'Effects' },
+        { href: '/docs/kits', label: 'Reuse' },
         { href: '/docs/storage', label: 'Storage' },
         { href: '/docs/introspection', label: 'Introspection' },
       ],

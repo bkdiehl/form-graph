@@ -67,11 +67,7 @@
       {@render enumButtons('shipmentType', f.shipmentType.current.value, f.shipmentType.current.meta.options)}
     {/if}
     {#if f.service.current?.meta}
-      {@render enumButtons(
-        'service',
-        f.service.current.value,
-        f.service.current.meta.options.map((value) => ({ value, label: value }))
-      )}
+      {@render enumButtons('service', f.service.current.value, f.service.current.meta.options)}
     {/if}
     {#if f.destination.current?.meta}
       {@render enumButtons('destination', f.destination.current.value, f.destination.current.meta.options)}

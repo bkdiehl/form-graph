@@ -87,7 +87,7 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
    * find them by key — scope buckets are a store concern, invisible here.
    */
   resolve(valuesByKey: Intent, ext: Ext): Resolution<State> {
-    return resolve(this.config.resolve, new Map(), ext, new WeakMap(), valuesByKey, undefined, this.codecs);
+    return resolve(this.config.resolve, new Map(), ext, new WeakMap(), valuesByKey, this.codecs);
   }
 
   /**

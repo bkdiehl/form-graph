@@ -1,11 +1,9 @@
 import { z } from 'zod';
 import { codec, type Codec } from '../core/index.js';
-import type { EnumConstraint } from './basic.js';
 
 /**
- * A closed string-option field: input projects unknown values to the
- * default, output is the exact enum. Meta carries the option list for the
- * control.
+ * Legacy closed string-option codec — INTERNAL to the generation demo corpus.
+ * New code uses `enumOf`.
  */
 
 export interface SelectMeta {
@@ -15,12 +13,12 @@ export interface SelectMeta {
 export function selectCodec(opts: {
   options: readonly string[];
   default?: string;
-}): Codec<string, SelectMeta, EnumConstraint<string>> {
+}): Codec<string, SelectMeta> {
   const values = opts.options;
   const resolvedDefault =
     opts.default && values.includes(opts.default) ? opts.default : values[0]!;
 
-  return codec<string, SelectMeta, EnumConstraint<string>>({
+  return codec<string, SelectMeta>({
     input: z
       .string()
       .optional()
@@ -29,19 +27,5 @@ export function selectCodec(opts: {
     default: resolvedDefault,
     coerce: (raw) => (values.includes(raw as string) ? (raw as string) : resolvedDefault),
     meta: { options: values.map((s) => ({ label: s, value: s })) },
-    constrain: ({ value, meta, constraint }) => {
-      const options = (meta?.options ?? []).map((o) =>
-        typeof constraint[o.value] === 'string' ? { ...o, disabled: true } : o
-      );
-      const reason = constraint[value];
-      if (typeof reason !== 'string') return { value, meta: { options } };
-      const target = options.find((o) => !o.disabled);
-      return {
-        value: target ? target.value : value,
-        meta: { options },
-        reason,
-        detail: { gated: value },
-      };
-    },
   });
 }

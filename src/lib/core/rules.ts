@@ -106,10 +106,25 @@ export function compileRules<State, Ext>(
  * `defineFieldKit` — the spec's slots consume them, so inference has nothing
  * to infer from. See {@link RulesSpec} for what each one means.
  */
+/**
+ * With no Config there is nothing to bind, so the returned factory is ALSO
+ * the unit itself — `defineRules({ ... })` drops straight into a form's
+ * `reconcile` array (or a graph's `.effect`), no trailing `()`. Config-bound
+ * rules still call the factory with their config.
+ */
 export function defineRules<Config = void, State = { [key: string]: unknown }, Ext = unknown>(
   spec: RulesSpec<Config, State, Ext>
-): (config: Config) => RuleUnit<State, Ext> {
-  return (config) => ({
+): ((config: Config) => RuleUnit<State, Ext>) & ([Config] extends [void] ? RuleUnit<State, Ext> : unknown) {
+  const factory = (config: Config): RuleUnit<State, Ext> => ({
     reconciler: compileRules(spec.rules(config), spec.scope),
   });
+  let lazy: RuleUnit<State, Ext> | undefined;
+  Object.defineProperty(factory, 'reconciler', {
+    get() {
+      lazy ??= factory(undefined as Config);
+      return lazy.reconciler;
+    },
+  });
+  return factory as ((config: Config) => RuleUnit<State, Ext>) &
+    ([Config] extends [void] ? RuleUnit<State, Ext> : unknown);
 }

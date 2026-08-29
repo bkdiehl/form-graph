@@ -83,9 +83,7 @@ describe('refine: the output contract narrowed per pass, in zod vocabulary', () 
             s.refine((value) => !ext.gated.includes(value), {
               message: 'Mode is gated',
               params: { kind: 'gated' },
-            }),
-          refineDeps: [ext.gated.join('|')],
-        }
+            }),        }
       );
       return { mode };
     },
@@ -119,35 +117,35 @@ describe('refine: the output contract narrowed per pass, in zod vocabulary', () 
     expect(store.validate().success).toBe(true);
   });
 
-  it('schema construction is deps-cached: keystrokes do not rebuild', () => {
-    const build = vi.fn((max: number) => z.number().max(max));
+  it('refinements are never stale: the closure sees current values every pass', () => {
     const NUM = codec<number>({
       input: z.coerce.number().optional(),
       output: z.number(),
       default: 1,
     });
-    const TEXT = codec<string>({
-      input: z.string().optional(),
-      output: z.string(),
-      default: '',
+    const CAP = codec<number>({
+      input: z.coerce.number().optional(),
+      output: z.number(),
+      default: 10,
     });
-    const cachedForm = defineForm<{ max: number }>()({
-      resolve: (f: Fields, ext) => ({
-        n: f.field('n', NUM, {
-          refine: () => build(ext.max),
-          refineDeps: [ext.max],
-        }),
-        prompt: f.field('prompt', TEXT),
-      }),
+    const form = defineForm({
+      resolve: (f: Fields) => {
+        const cap = f.field('cap', CAP);
+        return {
+          cap,
+          n: f.field('n', NUM, {
+            // no deps to declare — rebuilt per pass, always over the live cap
+            refine: (s) => s.refine((v) => v <= cap, { message: 'over cap' }),
+          }),
+        };
+      },
     });
 
-    const store = cachedForm.createStore({ ext: { max: 10 } });
-    expect(build).toHaveBeenCalledTimes(1);
-    store.set({ prompt: 'a' });
-    store.set({ prompt: 'ab' });
-    store.set({ prompt: 'abc' });
-    expect(build).toHaveBeenCalledTimes(1); // typing never reconstructs
-    store.setExt({ max: 5 });
-    expect(build).toHaveBeenCalledTimes(2); // the dep moved — one rebuild
+    const store = form.createStore({ defaults: { n: 8 } });
+    expect(store.getField('n')?.error).toBeUndefined();
+    store.set({ cap: 5 });
+    expect(store.getField('n')?.error?.message).toBe('over cap');
+    store.set({ cap: 20 });
+    expect(store.getField('n')?.error).toBeUndefined();
   });
 });

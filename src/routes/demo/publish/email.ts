@@ -1,46 +1,34 @@
 import { z } from 'zod';
-import { codec, defineSection } from '$lib/index.js';
-import { enumCodec } from '$lib/codecs/index.js';
-import { retriesField } from './shared.js';
+import { defineGraph } from '$lib/index.js';
+import { boolOf, enumOf, slider } from '$lib/codecs/index.js';
 
-export const emailDestination = defineSection({
-  key: 'email',
-  label: 'Email',
+export const emailGraph = defineGraph()
+  .field('recipients', {
+    input: z.string().optional(),
+    output: z
+      .string()
+      .min(1, 'At least one recipient')
+      .refine(
+        (s) => s.split(',').every((part) => z.string().email().safeParse(part.trim()).success),
+        'Comma-separated email addresses'
+      ),
+    default: '',
+  })
+  .field('digest', boolOf())
+  .field('digestFrequency', (ctx) =>
+    ctx.digest
+      ? enumOf({
+          options: [
+            { value: 'immediate', label: 'Immediate' },
+            { value: 'daily', label: 'Daily digest' },
+            { value: 'weekly', label: 'Weekly digest' },
+          ],
+          default: 'daily',
+        })
+      : null
+  )
+  // Same `retries` key as the webhook destination — scope keeps each
+  // destination's remembered value separate.
+  .field('retries', { ...slider({ min: 0, max: 10, default: 3 }), scope: 'email' });
 
-  codecs: {
-    recipients: codec({
-      input: z.string().optional(),
-      output: z
-        .string()
-        .min(1, 'At least one recipient')
-        .refine(
-          (s) => s.split(',').every((part) => z.string().email().safeParse(part.trim()).success),
-          'Comma-separated email addresses'
-        ),
-      default: '',
-    }),
-    digest: codec({
-      input: z.boolean().optional(),
-      output: z.boolean(),
-      default: false,
-    }),
-    digestFrequency: enumCodec({
-      options: [
-        { value: 'immediate', label: 'Immediate' },
-        { value: 'daily', label: 'Daily digest' },
-        { value: 'weekly', label: 'Weekly digest' },
-      ],
-      default: 'daily',
-    }),
-  },
-
-  resolve: (f) => {
-    const digest = f.field('digest');
-    return {
-      recipients: f.field('recipients'),
-      digest,
-      ...(digest ? { digestFrequency: f.field('digestFrequency') } : {}),
-      retries: retriesField(f, 'email'),
-    };
-  },
-});
+export const emailMeta = { key: 'email', label: 'Email' } as const;

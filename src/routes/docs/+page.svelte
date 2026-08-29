@@ -11,101 +11,82 @@
 
 <pre>{`pnpm add form-graph zod`}</pre>
 
-<h2>1. Define codecs</h2>
+<h2>1. A field is one definition</h2>
 <p>
-  A codec is one field's contract: a lenient <code>input</code> schema for untrusted boundaries
-  (storage, URLs, raw server input), a strict <code>output</code> schema for submit, a default, and
-  optional UI metadata.
+  Everything about a field lives in one object: a lenient <code>input</code> schema for
+  untrusted boundaries (storage, URLs, raw server input), a strict <code>output</code> schema
+  for submit, a default, UI meta, and — when the field needs them — its memory scope and
+  correction policy. The helpers build common definitions and cache their schemas
+  automatically:
 </p>
 
-<pre>{`import { z } from 'zod';
-import { codec } from 'form-graph';
+<pre>{`import { defineGraph, defineForm } from 'form-graph';
+import { slider, enumOf, textOf, boolOf } from 'form-graph/codecs';
+import { z } from 'zod';
 
-// Types are INFERRED from the schemas — no annotations needed:
-// this codec's value type is number, its meta type { min: number; max: number }.
-const STEPS = codec({
-  input: z.coerce.number().optional(),
-  output: z.number().int().min(1).max(50),
-  default: 25,
-  meta: { min: 1, max: 50 },
-});`}</pre>
+const graph = defineGraph()
+  .field('mode', enumOf({
+    options: [
+      { value: 'create', label: 'Create' },
+      { value: 'upscale', label: 'Upscale' },
+    ],
+    default: 'create',
+  }))
+  .field('prompt', {
+    input: z.string().optional(),
+    output: z.string().min(1, 'Prompt is required'),   // full zod, yours
+    default: '',
+  })
+  // CONDITIONAL fields are functions of (ctx, ext): return the definition,
+  // or null when the field does not exist this pass. ctx holds the fields
+  // declared ABOVE — referencing a later field is a compile error.
+  .field('steps', (ctx) => (ctx.mode === 'create' ? slider({ min: 1, max: 50, default: 25 }) : null))
+  .field('scale', (ctx) => (ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null))
+  .computed('summary', (ctx) => \`\${ctx.mode} · \${ctx.prompt.length} chars\`);`}</pre>
 
-<p>Annotate the generics (<code>codec&lt;T, M&gt;</code>) only in three cases:</p>
-<ul>
-  <li>
-    you want the value typed as a <em>named</em> interface (<code>ResourceData</code>) instead of
-    the anonymous zod-inferred shape — better tooltips and error messages for big objects;
-  </li>
-  <li>
-    the meta type has no carrier on the codec (the meta is supplied per-pass at the
-    <code>f.field</code> call site), so <code>M</code> must be declared;
-  </li>
-  <li>
-    you deliberately want a wider type than the schema infers (<code>string</code> instead of a
-    literal union) — the factory then checks the schemas against your assertion.
-  </li>
-</ul>
+<h2>2. Mount it</h2>
+<pre>{`export const form = defineForm({
+  codecs: graph.codecs,   // the registry — what types every binding
+  resolve: (f) => graph.resolve(f, undefined as void),
+});
 
-<h2>2. Write the resolver</h2>
+// Client: a live store — per-field subscriptions, persistent scoped memory.
+const store = form.createStore();
+
+// Server: the same pipeline over raw input. One behavior, both sides.
+const result = form.parse(rawBody, undefined);`}</pre>
+
 <p>
-  The resolver is a pure function from declared fields (plus external context) to the form's state.
-  Branching is a plain <code>switch</code> — each arm returns a different shape, and the inferred
-  return type is your discriminated union. No type annotations, no schema unions.
+  External context (limits, permissions — facts the form reads but the user doesn't edit) is
+  the graph's type parameter, and every definition function receives it:
 </p>
 
-<pre>{`import { defineForm, type Fields } from 'form-graph';
+<pre>{`const g = defineGraph<{ maxSteps: number }>()
+  .field('steps', (_ctx, ext) => slider({ min: 1, max: ext.maxSteps, default: 25 }));
 
-interface Ext {
-  limits: { maxQuantity: number };
-}
+const form = defineForm({
+  codecs: g.codecs,
+  resolve: (f, ext: { maxSteps: number }) => g.resolve(f, ext),
+});
+const store = form.createStore({ ext: { maxSteps: 50 } });
+store.setExt({ maxSteps: 30 });   // the whole form re-resolves`}</pre>
 
-export const form = defineForm({
-  // The registry, inline: what lets typedFields()/<Field>/typed controllers
-  // derive every key's value and meta types from the form itself.
-  codecs: { mode: MODE, prompt: PROMPT, steps: STEPS, scale: SCALE },
-  // Annotating ext here is what types the form's external context.
-  resolve: (f: Fields, ext: Ext) => {
-    const mode = f.field('mode', MODE); // 'create' | 'upscale'
-    const base = { mode, prompt: f.field('prompt', PROMPT) };
-
-    switch (mode) {
-      case 'upscale':
-        return { ...base, mode, scale: f.field('scale', SCALE) };
-      default:
-        return {
-          ...base,
-          steps: f.field('steps', STEPS),
-          quantity: f.field('quantity', quantityCodec(ext.limits.maxQuantity)),
-        };
-    }
-  },
-});`}</pre>
-
-<h2>3. Drive a client</h2>
-
-<pre>{`// persistedStorage: JSON localStorage backend, debounced writes,
-// pagehide flush, SSR-safe. Pass { session: true } for sessionStorage.
-const store = form.createStore({ ext, storage: persistedStorage('my-form') });
-
-store.set({ prompt: 'a cat' });   // one resolve pass; only changed fields notify
-store.getField('steps');           // { value, meta, error, isComputed } | null
-store.subscribe('steps', cb);      // per-field subscription
-store.output();                    // strict-validated data — THROWS if invalid
-store.validate();                  // the checked sibling: { success, data | errors }`}</pre>
-
+<h2>3. Render it</h2>
 <p>
-  Bindings for <a href="{base}/docs/svelte">Svelte</a> and <a href="{base}/docs/react">React</a> wrap those
-  three calls into idiomatic reactivity — nothing else lives in them.
+  The graph's registry types every key exactly — conditional fields included — so the bindings
+  need no annotations (see the <a href="{base}/docs/svelte">Svelte</a> and
+  <a href="{base}/docs/react">React</a> pages):
 </p>
 
-<h2>4. Parse on the server</h2>
-
-<pre>{`const result = form.parse(rawBody, ext);
-if (result.success) {
-  // result.data: the SAME discriminated union, strict-validated
-}`}</pre>
+<pre>{`<Field {store} name="steps">
+  {#snippet children(snap, setValue)}
+    <input type="range" min={snap.meta.min} max={snap.meta.max}
+           value={snap.value} oninput={(e) => setValue(Number(e.currentTarget.value))} />
+  {/snippet}
+</Field>`}</pre>
 
 <p>
-  See <a href="{base}/docs/server">Server parsing</a> for errors, substitution notes, and
-  <code>computedKeys</code>.
+  From here: <a href="{base}/docs/concepts">Core concepts</a> for the ideas underneath
+  (intent, scoped memory, corrections), <a href="{base}/docs/codecs">Definitions</a> for the
+  full anatomy, and the <a href="{base}/demo">demos</a> — every one shows its own source.
 </p>

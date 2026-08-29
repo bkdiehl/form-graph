@@ -14,7 +14,8 @@
 		"typecheck": "tsc --noEmit -p tsconfig.lib.json",
 		"typecheck:v1": "tsc --noEmit -p tsconfig.v1.json",
 		"prepublishOnly": "pnpm run typecheck && pnpm run check && vitest run",
-		"docs:api": "typedoc"
+		"docs:api": "typedoc",
+		"check:types-budget": "node scripts/type-budget.mjs"
 	},
 	"files": [
 		"dist",

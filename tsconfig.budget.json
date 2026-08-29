@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.lib.json",
+  "include": [],
+  "files": [
+    "src/lib/index.ts",
+    "src/lib/codecs/index.ts",
+    "src/lib/svelte/index.ts",
+    "src/lib/react/useForm.ts",
+    "src/lib/react/useField.ts",
+    "src/lib/react/Controller.ts",
+    "src/lib/react/createTypedController.ts",
+    "src/lib/react/context.ts"
+  ]
+}
