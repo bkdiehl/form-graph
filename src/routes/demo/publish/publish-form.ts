@@ -1,13 +1,13 @@
-import { defineForm, type Fields } from '$lib/index.js';
+import { branchOn, defineForm } from '$lib/index.js';
 import { enumOf } from '$lib/codecs/index.js';
 import { s3Graph, s3Meta } from './s3.js';
 import { emailGraph, emailMeta } from './email.js';
 import { webhookGraph, webhookMeta } from './webhook.js';
 
 // The HUB: separately-defined destination graphs tied together by one
-// discriminator. The switch is the only resolver logic in the whole form —
-// and it's the one thing a graph can't express: producing a
-// destination-DISCRIMINATED union of shapes.
+// discriminator FIELD. `branchOn` declares that field itself, merges the
+// member registries and effects, and resolves to a destination-discriminated
+// union — `Extract<PublishState, { destination: 's3' }>` is exactly the s3 shape.
 
 const DESTINATIONS = [s3Meta, emailMeta, webhookMeta];
 
@@ -16,24 +16,16 @@ const DESTINATION = enumOf({
   default: 's3',
 });
 
+const publish = branchOn('destination', DESTINATION, {
+  s3: s3Graph,
+  email: emailGraph,
+  webhook: webhookGraph,
+});
+
 export const publishForm = defineForm({
-  codecs: {
-    destination: DESTINATION,
-    ...s3Graph.codecs,
-    ...emailGraph.codecs,
-    ...webhookGraph.codecs,
-  },
-  resolve: (f: Fields) => {
-    const destination = f.field('destination', DESTINATION);
-    switch (destination) {
-      case 's3':
-        return { destination, ...s3Graph.resolve(f, undefined as void) };
-      case 'email':
-        return { destination, ...emailGraph.resolve(f, undefined as void) };
-      case 'webhook':
-        return { destination, ...webhookGraph.resolve(f, undefined as void) };
-    }
-  },
+  codecs: publish.codecs,
+  resolve: (f) => publish.resolve(f, undefined as void),
+  reconcile: [...publish.effects],
 });
 
 export type PublishState = ReturnType<typeof publishForm.resolve>['state'];

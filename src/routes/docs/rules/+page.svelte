@@ -27,7 +27,10 @@ export const coupling = defineRules<void, { ecosystem?: string; workflow?: strin
 <p>
   A void-config unit is usable directly — attach it to a graph
   (<code>.effect(coupling)</code>, surfaced as <code>graph.effects</code>) or list it in
-  <code>defineForm(&#123; reconcile: [...] &#125;)</code>. Rules that need app config
+  <code>defineForm(&#123; reconcile: [...] &#125;)</code>. A hub built with
+  <code>branch</code>/<code>branchOn</code> merges its members' effects and takes its own as a
+  final argument, so <code>reconcile: [...hub.effects]</code> carries every coupling the
+  definition declared — nothing is imported and listed by hand. Rules that need app config
   (catalogs, tables) declare a Config type and call the factory:
   <code>defineRules&lt;Cfg, State&gt;(&#123;...&#125;)(cfg)</code>.
 </p>

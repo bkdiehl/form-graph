@@ -155,3 +155,122 @@ export function defineGraph<Ext = void>(): Graph<Record<never, never>, Ext> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return make([], []) as any;
 }
+
+/** What a graph exposes to composition — a hub produces the same shape. */
+export interface GraphLike<
+  Ctx,
+  Ext,
+  Defs extends Record<string, AnyFieldDef> = Record<string, AnyFieldDef>,
+> {
+  readonly codecs: Defs;
+  // Ext-agnostic on purpose: a hub is usually mounted by a form whose Ext
+  // differs (the resolver adapts ext before delegating), and the form still
+  // needs to spread the hub's effects into its own reconcile list.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly effects: readonly RuleUnit<any, any>[];
+  resolve(f: Fields, ext: Ext): Ctx;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CtxOf<G> = G extends GraphLike<infer C, any, any> ? C : never;
+
+type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (
+  x: infer I
+) => void
+  ? I
+  : never;
+
+/** Every member's registry merged — what typedFields/<Field> read off a hub. */
+type DefsOf<Members> =
+  UnionToIntersection<
+    { [M in keyof Members]: Members[M] extends { codecs: infer D } ? D : never }[keyof Members]
+  > extends infer Merged extends Record<string, AnyFieldDef>
+    ? Merged
+    : Record<string, AnyFieldDef>;
+
+const mergeMembers = <Ext>(
+  members: Record<string, GraphLike<object, Ext>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extraEffects: readonly RuleUnit<any, any>[]
+) => {
+  const codecs: Record<string, AnyFieldDef> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const effects: RuleUnit<any, any>[] = [...extraEffects];
+  for (const g of Object.values(members)) {
+    Object.assign(codecs, g.codecs);
+    effects.push(...g.effects);
+  }
+  return { codecs, effects };
+};
+
+/**
+ * A HUB that dispatches on a value derived from the external context — the
+ * shape of a version-family form (the wan graph picks its version subgraph
+ * from the ecosystem). The member graphs' registries and effects merge and
+ * ride the hub, so a form mounting it inherits everything; each member's own
+ * literal computed key is what discriminates the state union.
+ *
+ *   export const wan = branch((ext: WanExt) => ext.wanVersion, {
+ *     'v2.1': v21, 'v2.2': v22, ...
+ *   }, [wanCoupling]);
+ */
+export function branch<Ext, const Members extends Record<string, GraphLike<object, Ext>>>(
+  pick: (ext: Ext) => keyof Members,
+  members: Members,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  effects: readonly RuleUnit<any, any>[] = []
+): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>> {
+  const merged = mergeMembers(members, effects);
+  return {
+    ...merged,
+    resolve(f: Fields, ext: Ext) {
+      return members[pick(ext)]!.resolve(f, ext) as CtxOf<Members[keyof Members]>;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+/**
+ * A HUB that dispatches on a DISCRIMINATOR FIELD it declares itself — the
+ * shape of a destination/workflow picker. The state union is discriminated by
+ * that key: each arm is tagged with the narrowed literal, so
+ * `Extract<State, { destination: 's3' }>` is the exact member shape.
+ *
+ *   export const publish = branchOn('destination', DESTINATION, {
+ *     s3: s3Graph, email: emailGraph, webhook: webhookGraph,
+ *   });
+ */
+export function branchOn<
+  Ext,
+  K extends string,
+  const Members extends Record<string, GraphLike<object, Ext>>,
+  D extends AnyFieldDef = FieldDef<keyof Members & string, unknown>,
+>(
+  key: K,
+  def: D & { output: SchemaLike<keyof Members & string> },
+  members: Members,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  effects: readonly RuleUnit<any, any>[] = []
+): GraphLike<
+  { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
+  Ext,
+  DefsOf<Members> & Record<K, D>
+> {
+  const merged = mergeMembers(members, effects);
+  merged.codecs[key] = def as AnyFieldDef;
+  return {
+    ...merged,
+    resolve(f: Fields, ext: Ext) {
+      const picked = f.field(
+        key,
+        def as Codec<keyof Members & string, unknown> & { output: SchemaLike<keyof Members & string> }
+      );
+      const member = members[picked];
+      if (!member) throw new Error(`branchOn "${key}": no member graph for "${String(picked)}"`);
+      return { [key]: picked, ...member.resolve(f, ext) } as {
+        [M in keyof Members]: Record<K, M> & CtxOf<Members[M]>;
+      }[keyof Members];
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}

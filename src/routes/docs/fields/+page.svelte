@@ -43,26 +43,39 @@ const full = withPromptBlock(v23);
 // the same section twice, under key prefixes (see the checkout demo)
 withAddress(g, 'shipping'); withAddress(g, 'billing', (ctx) => !ctx.sameAsShipping);`}</pre>
 
-<h2>Alternative shapes: the resolver switch</h2>
+<h2>Alternative shapes: hubs</h2>
 <p>
   The one thing a chain deliberately does not express: branches that produce DIFFERENT shapes
   with a discriminated union between them (a hub's destinations, a generator's version
-  subgraphs). That stays a <code>switch</code> composing whole graphs — each arm's return is
-  tagged by the narrowed discriminant, so <code>Extract&lt;State, &#123; version: 'v23'
-  &#125;&gt;</code> gives the exact branch shape:
+  subgraphs). Two combinators structure that hub. <code>branchOn</code> declares the
+  discriminator FIELD itself and dispatches on it:
 </p>
 
-<pre>{`resolve: (f, ext) => {
-  const destination = f.field('destination', DESTINATION);
-  switch (destination) {
-    case 's3':      return { destination, ...s3Graph.resolve(f, ext) };
-    case 'email':   return { destination, ...emailGraph.resolve(f, ext) };
-    case 'webhook': return { destination, ...webhookGraph.resolve(f, ext) };
-  }
-}`}</pre>
+<pre>{`const publish = branchOn('destination', DESTINATION, {
+  s3: s3Graph, email: emailGraph, webhook: webhookGraph,
+});
+// State = { destination: 's3' } & S3Ctx | { destination: 'email' } & EmailCtx | ...
+// Extract<State, { destination: 's3' }> is exactly the s3 shape`}</pre>
 
 <p>
-  Rule of thumb: <code>null</code> for fields that come and go within one shape; a switch
+  <code>branch</code> dispatches on a value DERIVED from external context instead — the shape
+  of a version-family form, where the ecosystem picks the subgraph:
+</p>
+
+<pre>{`const wan = branch((ext: WanExt) => ext.wanVersion, {
+  'v2.1': v21, 'v2.2': v22, 'v2.5': v25,
+}, [wanCoupling]);   // effects attach AT the definition`}</pre>
+
+<p>
+  Either way the hub is the same shape a graph is: <code>codecs</code> holds every member's
+  registry merged (type-complete, so the bindings know every key), <code>effects</code> holds
+  every member's rule units plus the hub's own, and <code>resolve</code> returns the
+  discriminated union. A hand-written <code>switch</code> composing whole graphs remains the
+  escape hatch when dispatch is more than one key.
+</p>
+
+<p>
+  Rule of thumb: <code>null</code> for fields that come and go within one shape; a hub
   between different shapes. Within a graph, conditional keys are optional; between graphs, the
   union discriminates.
 </p>

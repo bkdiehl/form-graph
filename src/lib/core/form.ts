@@ -51,8 +51,11 @@ export interface FormConfig<Ext, State, Codecs extends CodecsInput = CodecRegist
 
 type ReconcileEntry<State, Ext> = PatchReconciler<State, Ext> | RuleUnit<State, Ext>;
 
+// A void-config defineRules unit is a FUNCTION carrying a `reconciler`
+// getter, so "is a function" can't mean "is a bare reconciler" — the
+// property wins whenever it exists.
 const toRule = <State, Ext>(entry: ReconcileEntry<State, Ext>): PatchReconciler<State, Ext> =>
-  typeof entry === 'function' ? entry : entry.reconciler;
+  'reconciler' in entry ? entry.reconciler : entry;
 
 function composeReconcilers<State, Ext>(
   reconcile: FormConfig<Ext, State>['reconcile']
