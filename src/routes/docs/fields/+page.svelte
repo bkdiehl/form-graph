@@ -62,9 +62,12 @@ withAddress(g, 'shipping'); withAddress(g, 'billing', (ctx) => !ctx.sameAsShippi
   of a version-family form, where the ecosystem picks the subgraph:
 </p>
 
-<pre>{`const wan = branch((ext: WanExt) => ext.wanVersion, {
-  'v2.1': v21, 'v2.2': v22, 'v2.5': v25,
-}, [wanCoupling]);   // effects attach AT the definition`}</pre>
+<pre>{`export const wan = branch(
+  (ext: WanExt) => versionOf(ext.ecosystem),   // derive the branch key here
+  { 'v2.1': v21, 'v2.2': v22, 'v2.5': v25 },
+  [defineRules({ ... })]                       // the family's coupling, inline
+);
+// the ONE export: a parent mounts wan.resolve(f, ext) and ...wan.effects`}</pre>
 
 <p>
   Either way the hub is the same shape a graph is: <code>codecs</code> holds every member's
