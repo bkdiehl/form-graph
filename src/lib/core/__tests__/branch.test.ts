@@ -148,6 +148,57 @@ describe('branch', () => {
   });
 });
 
+describe('member-effect scoping reads the tag, not pick(ext)', () => {
+  type HubExt = { eco: string };
+  const a = defineGraph<HubExt>()
+    .field('x', slider({ min: 0, max: 99, default: 1 }))
+    .effect({ x: (x) => (x === 9 ? { x: 1 } : undefined) });
+  const b = defineGraph<HubExt>().field('x', slider({ min: 0, max: 99, default: 2 }));
+  const hub = branch('member', (ext: HubExt) => (ext.eco.startsWith('A') ? 'a' : 'b'), { a, b });
+
+  it("fires under a mounting form whose ext ISN'T the hub's ext", () => {
+    // the video-hub shape: the form's ext lacks what pick reads; the
+    // resolver adapts it. Scoping must come from the stamped tag in state.
+    const form = defineForm({
+      defs: hub.defs,
+      reconcile: [...hub.effects],
+      resolve: (f: Fields, ext: { region: string }) =>
+        hub.resolve(f, { eco: ext.region === 'us' ? 'A1' : 'B1' }),
+    });
+    const store = form.createStore({ ext: { region: 'us' } });
+    store.set({ x: 9 });
+    expect(store.getState()).toEqual({ member: 'a', x: 1 }); // a's rule fired
+
+    const other = form.createStore({ ext: { region: 'eu' } });
+    other.set({ x: 9 });
+    expect(other.getState()).toEqual({ member: 'b', x: 9 }); // scoped out
+  });
+});
+
+describe('branchOn scopes on the EFFECTIVE discriminator', () => {
+  it("a patch that switches member fires the TARGET member's rules", () => {
+    const KIND = enumOf({
+      options: [
+        { value: 's3', label: 'S3' },
+        { value: 'email', label: 'Email' },
+      ],
+      default: 's3',
+    });
+    const s3m = defineGraph().field('bucket', textOf({ default: 'assets' }));
+    const emailm = defineGraph()
+      .field('recipient', textOf({ default: '' }))
+      .effect({
+        recipient: (r) => (r === 'ceo' ? { recipient: 'ceo@example.com' } : undefined),
+      });
+    const hub = branchOn('kind', KIND, { s3: s3m, email: emailm });
+    const store = hub.createStore();
+    // one patch: switch member AND edit its field — the incoming member's
+    // rule must see it (pre-patch state still says s3)
+    store.set({ kind: 'email', recipient: 'ceo' });
+    expect(store.getState()).toEqual({ kind: 'email', recipient: 'ceo@example.com' });
+  });
+});
+
 describe('branchOn failure path', () => {
   it('names the key and the unmatched value', () => {
     const GHOST = {

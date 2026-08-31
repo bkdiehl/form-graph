@@ -368,7 +368,11 @@ type DefsOf<Members> =
  */
 const mergeMembers = <Ext>(
   members: Record<string, GraphSource<object, Ext>>,
-  activeMember: (state: Record<string, unknown>, ext: Ext) => string | undefined
+  activeMember: (
+    patch: Readonly<Record<string, unknown>>,
+    state: Record<string, unknown>,
+    ext: Ext
+  ) => string | undefined
 ) => {
   const defs: Record<string, AnyFieldDef> = {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -384,7 +388,7 @@ const mergeMembers = <Ext>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const effects: RuleUnit<any, any>[] = [...owners.entries()].map(([unit, names]) => ({
     reconciler: (patch, state, ext) => {
-      const active = activeMember(state as Record<string, unknown>, ext as Ext);
+      const active = activeMember(patch, state as Record<string, unknown>, ext as Ext);
       return active !== undefined && names.has(active)
         ? unit.reconciler(patch, state, ext)
         : patch;
@@ -448,7 +452,18 @@ export function branch(...args: any[]): any {
   const [key, pick, members] =
     typeof args[0] === 'string' ? args : [undefined, args[0], args[1]];
   return chainable({
-    ...mergeMembers(members, (_state: Record<string, unknown>, ext: unknown) => String(pick(ext))),
+    ...mergeMembers(
+      members,
+      key !== undefined
+        ? // Tagged: the stamped key in state is the truth, read EFFECTIVELY
+          // (patch over state). pick(ext) would lie here — a mounting form's
+          // ext is not the hub's ext (the resolver adapts it), and reconcile
+          // only ever sees the form's.
+          (patch: Readonly<Record<string, unknown>>, state: Record<string, unknown>) =>
+            ({ ...state, ...patch })[key] as string | undefined
+        : (_patch: Readonly<Record<string, unknown>>, _state: Record<string, unknown>, ext: unknown) =>
+            String(pick(ext))
+    ),
     resolve(f: Fields, ext: unknown) {
       const picked = pick(ext) as string;
       const member = members[picked];
@@ -484,7 +499,10 @@ export function branchOn<
   DefsOf<Members> & Record<K, D>
 > {
   // active member = the discriminator's value in the pre-patch state
-  const merged = mergeMembers(members, (state) => state[key] as string | undefined);
+  const merged = mergeMembers(
+    members,
+    (patch, state) => ({ ...state, ...patch })[key] as string | undefined
+  );
   merged.defs[key] = def as AnyFieldDef;
   return chainable({
     ...merged,
