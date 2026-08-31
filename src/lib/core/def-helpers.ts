@@ -130,7 +130,8 @@ export function textOf(
   return { ...schemas, default: cfg.default ?? '' };
 }
 
-export function boolOf(def = false): FieldDef<boolean> {
+export function boolOf(cfg: { default?: boolean } = {}): FieldDef<boolean> {
+  const def = cfg.default ?? false;
   const schemas = memo('bool', () => ({
     input: z.boolean().optional(),
     output: z.boolean(),

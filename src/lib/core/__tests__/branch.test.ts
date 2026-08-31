@@ -36,7 +36,7 @@ describe('branchOn', () => {
 
   const form = defineForm({
     codecs: hub.codecs,
-    resolve: (f) => hub.resolve(f, undefined as void),
+    resolve: (f) => hub.resolve(f),
   });
 
   it('declares the discriminator and resolves the picked member', () => {
@@ -148,7 +148,7 @@ describe('branchOn failure path', () => {
     });
     const form = defineForm({
       codecs: hub.codecs,
-      resolve: (f) => hub.resolve(f, undefined as void),
+      resolve: (f) => hub.resolve(f),
     });
     expect(() => form.createStore()).toThrow('branchOn "kind": no member graph for "ghost"');
   });

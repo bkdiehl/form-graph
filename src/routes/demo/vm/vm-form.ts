@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph, type Fields } from '$lib/index.js';
+import { defineForm, defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 3: the hardest mechanisms together, each field ONE
@@ -182,7 +182,4 @@ const graph = defineGraph<VmExt>()
     ctx.vcpus >= 32 ? '25 Gbps' : ctx.vcpus >= 16 ? '10 Gbps' : '5 Gbps'
   );
 
-export const vmForm = defineForm({
-  codecs: graph.codecs,
-  resolve: (f: Fields, ext: VmExt) => graph.resolve(f, ext),
-});
+export const vmForm = defineForm(graph);

@@ -36,12 +36,12 @@
 const base = defineGraph<Ext>().field('images', ...).field('model', ...);
 const v23 = base.computed('version', () => 'v23' as const).field('resolution', ...);
 
-// shared section: a plain Graph -> Graph function
-const withPromptBlock = (g) => g.field('prompt', ...).field('negativePrompt', ...);
-const full = withPromptBlock(v23);
+// shared section: another graph, mounted with .use (see Reuse)
+const promptBlock = defineGraph<Needs>().field('prompt', ...).field('negativePrompt', ...);
+const full = v23.use(promptBlock);
 
-// the same section twice, under key prefixes (see the checkout demo)
-withAddress(g, 'shipping'); withAddress(g, 'billing', (ctx) => !ctx.sameAsShipping);`}</pre>
+// the same section twice, under key prefixes (a function via .use — see the checkout demo)
+g.use((g) => withAddress(g, 'shipping'));`}</pre>
 
 <h2>Alternative shapes: hubs</h2>
 <p>
@@ -65,8 +65,8 @@ withAddress(g, 'shipping'); withAddress(g, 'billing', (ctx) => !ctx.sameAsShippi
 <pre>{`export const wan = branch(
   (ext: WanExt) => versionOf(ext.ecosystem),   // derive the branch key here
   { 'v2.1': v21, 'v2.2': v22, 'v2.5': v25 }
-).effect(wanCoupling);                         // same chain section as a graph
-// the ONE export: a parent mounts wan.resolve(f, ext) and ...wan.effects`}</pre>
+).effect(({ patch, state, next }) => { ... }); // the family's coupling, inline
+// the ONE export — a parent .use()s it, or defineForm(wan) mounts it whole`}</pre>
 
 <p>
   Either way the hub is the same shape a graph is: <code>codecs</code> holds every member's
@@ -83,14 +83,12 @@ withAddress(g, 'shipping'); withAddress(g, 'billing', (ctx) => !ctx.sameAsShippi
 </p>
 
 <h2>Mounting</h2>
-<pre>{`export const form = defineForm({
-  codecs: graph.codecs,                 // TYPE-complete registry for the bindings
-  reconcile: [...graph.effects],        // the rules units the graph carries
-  resolve: (f, ext: Ext) => graph.resolve(f, ext),
-});`}</pre>
+<pre>{`export const form = defineForm(graph);   // registry, effects, resolver — all wired`}</pre>
 <p>
-  <code>graph.resolve</code> is an ordinary resolver fragment — a graph can be a whole form, a
-  branch of a hub, or mounted standalone for tests. Underneath, every entry compiles to
+  Hubs mount the same way: <code>defineForm(publish)</code>. The config-object form
+  (<code>defineForm(&#123; codecs, reconcile, resolve &#125;)</code>) remains for forms whose
+  resolver is hand-written — a custom dispatch the hub combinators can't express — or that
+  list reconcile entries beyond what the graph carries. Underneath, every entry compiles to
   <code>f.field(key, def, options)</code> on the engine; nothing about intent, scoping,
   corrections, the diff, or server <code>parse</code> is graph-specific.
 </p>

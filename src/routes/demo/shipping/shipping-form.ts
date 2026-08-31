@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph, type Fields } from '$lib/index.js';
+import { defineForm, defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider, textOf } from '$lib/codecs/index.js';
 import type { ZodType } from 'zod';
 
@@ -155,7 +155,4 @@ const graph = defineGraph()
         : 5
   );
 
-export const shippingForm = defineForm({
-  codecs: graph.codecs,
-  resolve: (f: Fields) => graph.resolve(f, undefined as void),
-});
+export const shippingForm = defineForm(graph);

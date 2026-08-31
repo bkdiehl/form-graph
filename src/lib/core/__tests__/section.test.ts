@@ -18,12 +18,38 @@ const caption = defineGraph<{ nsfw?: boolean }>().field('caption', (_ctx, ext) =
   ext.nsfw ? null : textOf({ default: '' })
 );
 
+describe('defineForm(graph): the direct mount', () => {
+  it('wires codecs, effects, and the resolver from the graph', () => {
+    const graph = defineGraph()
+      .field('steps', slider({ min: 1, max: 50, default: 25 }))
+      .effect({
+        steps: (steps) => (typeof steps === 'number' && steps > 40 ? { steps: 40 } : undefined),
+      });
+    const form = defineForm(graph);
+    expect(form.codecs).toEqual(graph.codecs);
+    const store = form.createStore();
+    store.set({ steps: 50 });
+    // the graph's effect ran — nothing was hand-wired
+    expect(store.getState()).toEqual({ steps: 40 });
+  });
+
+  it('flows ext through, typed', () => {
+    type Ext = { max: number };
+    const graph = defineGraph<Ext>().field('steps', (_ctx, ext) =>
+      slider({ min: 1, max: ext.max, default: 1 })
+    );
+    const form = defineForm(graph);
+    const store = form.createStore({ ext: { max: 7 } });
+    expect(store.getField('steps')?.meta).toMatchObject({ max: 7 });
+  });
+});
+
 describe('mounting a graph with .use', () => {
   const graph = defineGraph().field('nsfw', boolOf()).use(sampling).use(caption);
 
   const form = defineForm({
     codecs: graph.codecs,
-    resolve: (f: Fields) => graph.resolve(f, undefined as void),
+    resolve: (f: Fields) => graph.resolve(f),
   });
 
   it("appends the child's fields; its needs are satisfied by prior ctx", () => {
@@ -75,7 +101,7 @@ describe('mounting a graph with .use', () => {
     const capped = defineForm({
       codecs: parent.codecs,
       reconcile: [...parent.effects],
-      resolve: (f: Fields) => parent.resolve(f, undefined as void),
+      resolve: (f: Fields) => parent.resolve(f),
     });
     const store = capped.createStore();
     store.set({ steps: 50 });

@@ -1,4 +1,4 @@
-import { defineForm, defineGraph, type Fields } from '$lib/index.js';
+import { defineForm, defineGraph } from '$lib/index.js';
 import { boolOf } from '$lib/codecs/index.js';
 import { contact } from './contact.js';
 import { withAddress } from './address.js';
@@ -16,7 +16,7 @@ const SHIPPING_COST = { US: 5, DE: 12, JP: 18 } as const;
 const graph = defineGraph()
   .use(contact)
   .use((g) => withAddress(g, 'shipping'))
-  .field('billingSameAsShipping', boolOf(true))
+  .field('billingSameAsShipping', boolOf({ default: true }))
   .use((g) =>
     withAddress(
       g,
@@ -39,8 +39,4 @@ const graph = defineGraph()
   .computed('paymentFee', (ctx) => Math.round(ITEM_TOTAL * FEE_RATE[ctx.paymentMethod] * 100) / 100)
   .computed('total', (ctx) => ITEM_TOTAL + ctx.shippingCost + ctx.paymentFee);
 
-export const checkoutForm = defineForm({
-  codecs: graph.codecs,
-  reconcile: [...graph.effects],
-  resolve: (f: Fields) => graph.resolve(f, undefined as void),
-});
+export const checkoutForm = defineForm(graph);

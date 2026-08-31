@@ -27,7 +27,6 @@ export { defineGraph, branch, branchOn, type Graph, type GraphLike, type FieldDe
 export { slider, enumOf, textOf, boolOf, type EnumDefOption, type EnumDefMeta, type SliderDefMeta } from './def-helpers.js';
 export {
   defineForm,
-  defineSection,
   type CodecsInput,
   type CreateStoreArgs,
   type FormDefinition,

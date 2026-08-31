@@ -45,10 +45,12 @@ const graph = defineGraph()
   .computed('summary', (ctx) => \`\${ctx.mode} · \${ctx.prompt.length} chars\`);`}</pre>
 
 <h2>2. Mount it</h2>
-<pre>{`export const form = defineForm({
-  codecs: graph.codecs,   // the registry — what types every binding
-  resolve: (f) => graph.resolve(f, undefined as void),
-});
+<p>
+  A graph IS a form definition — hand it to <code>defineForm</code> and its fields, rules,
+  and resolver are wired for you:
+</p>
+
+<pre>{`export const form = defineForm(graph);
 
 // Client: a live store — per-field subscriptions, persistent scoped memory.
 const store = form.createStore();
@@ -64,10 +66,7 @@ const result = form.parse(rawBody, undefined);`}</pre>
 <pre>{`const g = defineGraph<{ maxSteps: number }>()
   .field('steps', (_ctx, ext) => slider({ min: 1, max: ext.maxSteps, default: 25 }));
 
-const form = defineForm({
-  codecs: g.codecs,
-  resolve: (f, ext: { maxSteps: number }) => g.resolve(f, ext),
-});
+const form = defineForm(g);
 const store = form.createStore({ ext: { maxSteps: 50 } });
 store.setExt({ maxSteps: 30 });   // the whole form re-resolves`}</pre>
 

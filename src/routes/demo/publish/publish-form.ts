@@ -22,10 +22,6 @@ const publish = branchOn('destination', DESTINATION, {
   webhook: webhookGraph,
 });
 
-export const publishForm = defineForm({
-  codecs: publish.codecs,
-  resolve: (f) => publish.resolve(f, undefined as void),
-  reconcile: [...publish.effects],
-});
+export const publishForm = defineForm(publish);
 
 export type PublishState = ReturnType<typeof publishForm.resolve>['state'];

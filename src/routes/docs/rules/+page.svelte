@@ -53,7 +53,7 @@
   <li>
     <strong>On a graph</strong>: the rules travel with it — into a parent via
     <code>.use()</code>, into a hub as a member, into a form via
-    <code>reconcile: [...graph.effects]</code>.
+    <code>defineForm(graph)</code>.
   </li>
   <li>
     <strong>On a hub member</strong>: AUTO-SCOPED. A rule attached to the <code>v2.5</code>

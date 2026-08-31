@@ -92,7 +92,7 @@ export interface Graph<
   readonly codecs: Defs;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, Ext>[];
-  resolve(f: Fields, ext: Ext): Ctx;
+  resolve(f: Fields, ...ext: [void] extends [Ext] ? [ext?: Ext] : [ext: Ext]): Ctx;
 
   field<K extends string, D extends AnyDef | null>(
     key: K,
@@ -254,7 +254,7 @@ export interface GraphLike<
   // needs to spread the hub's effects into its own reconcile list.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, any>[];
-  resolve(f: Fields, ext: Ext): Ctx;
+  resolve(f: Fields, ...ext: [void] extends [Ext] ? [ext?: Ext] : [ext: Ext]): Ctx;
   /**
    * Attach rules — same chain section as a graph's `.effect`. Hub-level rules
    * usually trigger on fields owned elsewhere, so the map is loosely typed:

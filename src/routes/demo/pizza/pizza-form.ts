@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph, type Fields } from '$lib/index.js';
+import { defineForm, defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider, textOf } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 1: every core mechanism on a form anyone can read. Each
@@ -140,7 +140,4 @@ const graph = defineGraph()
     ) / 100
   );
 
-export const pizzaForm = defineForm({
-  codecs: graph.codecs,
-  resolve: (f: Fields) => graph.resolve(f, undefined as void),
-});
+export const pizzaForm = defineForm(graph);

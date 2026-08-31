@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph, type Fields } from '$lib/index.js';
+import { defineForm, defineGraph } from '$lib/index.js';
 import { enumOf } from '$lib/codecs/index.js';
 
 // One DESTINATION: a complete graph in its own module. Each field is one
@@ -34,7 +34,4 @@ export const s3Meta = { key: 's3', label: 'S3' } as const;
 
 // A destination is mountable ALONE — the graph and the standalone form are
 // the same code. The hub is one consumer of it, not its owner.
-export const s3Form = defineForm({
-  codecs: s3Graph.codecs,
-  resolve: (f: Fields) => s3Graph.resolve(f, undefined as void),
-});
+export const s3Form = defineForm(s3Graph);

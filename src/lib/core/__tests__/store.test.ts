@@ -158,7 +158,7 @@ describe('store: reconciler', () => {
     const form = defineForm({
       codecs: graph.codecs,
       reconcile: [...graph.effects],
-      resolve: (f: Fields) => graph.resolve(f, undefined as void),
+      resolve: (f: Fields) => graph.resolve(f),
     });
     const store = form.createStore();
     store.set({ workflow: 'img2vid', resolution: '720p' });
@@ -207,7 +207,7 @@ describe('store: reconciler', () => {
     const form = defineForm({
       codecs: graph.codecs,
       reconcile: [...graph.effects],
-      resolve: (f: Fields) => graph.resolve(f, undefined as void),
+      resolve: (f: Fields) => graph.resolve(f),
     });
     const store = form.createStore();
     store.set({ workflow: 'img2vid', resolution: '720p' });

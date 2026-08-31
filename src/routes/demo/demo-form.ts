@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph, type Fields } from '$lib/index.js';
+import { defineForm, defineGraph } from '$lib/index.js';
 import { enumOf, slider } from '$lib/codecs/index.js';
 
 // A compact form authored right next to the page that consumes it. Each field
@@ -37,9 +37,6 @@ const graph = defineGraph()
       : null
   );
 
-export const demoForm = defineForm({
-  codecs: graph.codecs,
-  resolve: (f: Fields) => graph.resolve(f, undefined as void),
-});
+export const demoForm = defineForm(graph);
 
 export type DemoState = ReturnType<typeof demoForm.resolve>['state'];

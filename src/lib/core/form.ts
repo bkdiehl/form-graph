@@ -169,6 +169,22 @@ export type CreateStoreArgs<Ext> = [void] extends [Ext]
   ? [options?: Omit<StoreOptions<Ext>, 'ext'> & { ext?: Ext }]
   : [options: StoreOptions<Ext>];
 
+/**
+ * The common case: mount a graph (or hub) DIRECTLY — its registry, effects,
+ * and resolver are the form. The config-object form remains for forms whose
+ * resolver is hand-written (a custom dispatch the hub combinators can't
+ * express) or that need reconcile entries beyond what the graph carries.
+ */
+export function defineForm<
+  Ctx extends object,
+  Ext,
+  Defs extends CodecsInput,
+>(graph: {
+  codecs: Defs;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  effects: readonly RuleUnit<any, any>[];
+  resolve(f: Fields<NormalizeCodecs<Defs>>, ext: Ext): Ctx;
+}): FormDefinition<Ctx, Ext, NormalizeCodecs<Defs>>;
 export function defineForm<State, Ext = void, Codecs extends CodecsInput = CodecRegistry>(
   config: FormConfig<Ext, State, Codecs>
 ): FormDefinition<State, Ext, NormalizeCodecs<Codecs>>;
@@ -176,42 +192,22 @@ export function defineForm<Ext = void>(): <State, Codecs extends CodecsInput = C
   config: FormConfig<Ext, State, Codecs>
 ) => FormDefinition<State, Ext, NormalizeCodecs<Codecs>>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function defineForm(config?: FormConfig<any, any, CodecsInput>): any {
+export function defineForm(arg?: FormConfig<any, any, CodecsInput> | Record<string, any>): any {
   const build = (c: FormConfig<unknown, unknown, CodecsInput>) => new FormDefinition(c);
-  return config === undefined ? build : build(config);
-}
-
-/**
- * `defineSection({ codecs, resolve })` — a reusable form FRAGMENT: codecs plus
- * a resolver piece, defined without a form. An identity function, exactly like
- * `codec()`: its only job is typing — `resolve`'s `f` is contextually typed
- * from the `codecs` beside it, so `f.field('bucket')` is fully typed with no
- * `Fields<typeof codecs>` annotation.
- *
- * Extra arguments on `resolve` (cross-section facts the parent passes down)
- * are inferred from their annotations, like `ext` on `defineForm`. Extra
- * properties on the section (a discriminator key, a label, a rules unit) pass
- * through with their literal types preserved.
- *
- * A parent form mounts a section by spreading `codecs` into its own registry
- * and calling `resolve(f, ...)` — and a section is itself mountable alone:
- * `defineForm({ codecs: section.codecs, resolve: section.resolve })`.
- */
-export function defineSection<
-  Codecs extends CodecsInput,
-  State,
-  Args extends readonly unknown[],
-  const Extra extends object,
->(
-  section: Extra & {
-    codecs: Codecs;
-    resolve: (f: Fields<NormalizeCodecs<Codecs>>, ...args: Args) => State;
+  if (arg === undefined) return build;
+  if ('effects' in arg && typeof arg.resolve === 'function' && 'codecs' in arg) {
+    const graph = arg as {
+      codecs: CodecsInput;
+      effects: readonly RuleUnit[];
+      resolve: (f: Fields, ext: unknown) => unknown;
+    };
+    return build({
+      codecs: graph.codecs,
+      reconcile: [...graph.effects],
+      resolve: (f, ext) => graph.resolve(f, ext),
+    });
   }
-): Extra & {
-  codecs: Codecs;
-  resolve: (f: Fields<NormalizeCodecs<Codecs>>, ...args: Args) => State;
-} {
-  return section;
+  return build(arg as FormConfig<unknown, unknown, CodecsInput>);
 }
 
 export type InferState<F> =
