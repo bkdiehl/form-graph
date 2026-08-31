@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { z } from 'zod';
 import { field, formState, typedFields } from '../index.js';
-import { codec, defineForm, type Fields } from '../../core/index.js';
+import { codec } from '../../core/codec.js';
+import { defineForm } from '../../core/form.js';
+import { type Fields } from '../../core/resolve.js';
 import { defaultExt, miniForm } from '../../__fixtures__/mini-generation.js';
 
 /**

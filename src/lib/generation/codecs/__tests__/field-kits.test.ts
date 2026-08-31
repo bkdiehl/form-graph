@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defineForm, type Fields } from '../../../core/index.js';
+import { defineForm } from '../../../core/form.js';
+import { type Fields } from '../../../core/resolve.js';
 import { createUpscalerKit, createVaeKit } from '../aux-resources.js';
 import { textCodec } from '../../../codecs/basic.js';
 import { createControlNetsKit } from '../controlnets.js';

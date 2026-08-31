@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { miniForm, type MiniState } from '../__fixtures__/mini-generation.js';
-import type { Fields, InferExt, InferFieldValue, InferState } from '../core/index.js';
-import { defineForm, codec } from '../core/index.js';
+import type { InferFieldValue } from '../core/index.js';
+import type { Fields } from '../core/resolve.js';
+import type { InferExt, InferState } from '../core/form.js';
+import { defineForm } from '../core/form.js';
+import { codec } from '../core/codec.js';
 import { z } from 'zod';
 /**
  * Type-level assertions. These carry no runtime weight — the value is that

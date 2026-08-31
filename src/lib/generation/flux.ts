@@ -1,4 +1,5 @@
-import { type Fields, type RuleMap } from '../core/index.js';
+import { type RuleMap } from '../core/index.js';
+import { type Fields } from '../core/resolve.js';
 import {
   aspectRatioCodec,
   createControlNetsKit,

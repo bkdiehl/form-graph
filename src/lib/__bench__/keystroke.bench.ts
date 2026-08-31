@@ -1,6 +1,9 @@
 import { bench, describe } from 'vitest';
 import { z } from 'zod';
-import { codec, defineForm, enumerateBranches, hasField, type Fields } from '../core/index.js';
+import { enumerateBranches, hasField } from '../core/index.js';
+import { codec } from '../core/codec.js';
+import { defineForm } from '../core/form.js';
+import { type Fields } from '../core/resolve.js';
 import { defaultExt, miniForm } from '../__fixtures__/mini-generation.js';
 
 /**

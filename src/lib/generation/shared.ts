@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { codec, type Fields, type RuleMap } from '../core/index.js';
+import { type RuleMap } from '../core/index.js';
+import { codec } from '../core/codec.js';
+import { type Fields } from '../core/resolve.js';
 import {
   createCheckpointKit,
   createResourcesKit,

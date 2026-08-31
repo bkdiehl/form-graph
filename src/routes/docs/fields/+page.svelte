@@ -89,9 +89,8 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 const result = graph.parse(rawBody);      // server — the same pipeline`}</pre>
 <p>
   Hubs carry the same runtime: <code>publish.createStore()</code>. Underneath, every entry
-  compiles to <code>f.field(key, def, options)</code> on the engine; nothing about intent,
-  scoping, corrections, the diff, or server <code>parse</code> is graph-specific.
-  (<code>defineForm(&#123; defs, reconcile, resolve &#125;)</code> is the engine-level path —
-  writing that resolver by hand. Every form in this repo, the generation-scale hub included,
-  is expressible as a graph; reach for the engine only if you find one that isn't.)
+  compiles onto a resolver engine; nothing about intent, scoping, corrections, the diff, or
+  server <code>parse</code> is graph-specific. The engine itself is not exported — every form,
+  the generation-scale hub included, is expressible as a graph (proven by the differential
+  parity suite), so graphs are the only authoring surface.
 </p>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { defineForm, defineGraph, type Fields } from '../core/index.js';
+import { defineGraph } from '../core/index.js';
+import { defineForm } from '../core/form.js';
+import { type Fields } from '../core/resolve.js';
 import { boolOf, enumOf, slider, textOf } from '../core/def-helpers.js';
 
 /**

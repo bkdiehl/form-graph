@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { codec, type FieldOptions, type Rule, type Scope } from '../../core/index.js';
+import { type Rule, type Scope } from '../../core/index.js';
+import { codec } from '../../core/codec.js';
+import { type FieldOptions } from '../../core/resolve.js';
 import { defineFieldKit } from '../../core/field-kit.js';
 import { resourceSchema, type ResourceData, type ResourceValue } from './resources.js';
 import {

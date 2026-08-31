@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { codec, type Scope } from '../../core/index.js';
+import { type Scope } from '../../core/index.js';
+import { codec } from '../../core/codec.js';
 import { defineFieldKit } from '../../core/field-kit.js';
 
 /**

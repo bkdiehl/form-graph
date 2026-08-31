@@ -1,11 +1,6 @@
 import { createSubscriber } from 'svelte/reactivity';
-import type {
-  CodecRegistry,
-  FieldSnapshot,
-  FormStore,
-  InferDefMeta,
-  InferDefValue,
-} from '../core/index.js';
+import type { FieldSnapshot, FormStore, InferDefMeta, InferDefValue } from '../core/index.js';
+import type { CodecRegistry } from '../core/codec.js';
 
 /**
  * Svelte 5 binding. Same contract as the React one, expressed in Svelte's

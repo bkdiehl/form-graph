@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defineForm, type Fields } from '../../../core/index.js';
+import { defineForm } from '../../../core/form.js';
+import { type Fields } from '../../../core/resolve.js';
 import { textCodec } from '../../../codecs/basic.js';
 import { createCheckpointKit, type CheckpointCatalog } from '../checkpoint.js';
 import { createResourcesKit, type ResourceData, type ResourceValue } from '../resources.js';

@@ -1,11 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import type {
-  CodecRegistry,
-  FieldSnapshot,
-  FormStore,
-  InferDefMeta,
-  InferDefValue,
-} from '../core/index.js';
+import type { FieldSnapshot, FormStore, InferDefMeta, InferDefValue } from '../core/index.js';
+import type { CodecRegistry } from '../core/codec.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyStore = FormStore<any, any>;

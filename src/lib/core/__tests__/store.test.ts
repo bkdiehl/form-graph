@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultExt, miniForm, type MiniExt } from '../../__fixtures__/mini-generation.js';
 import type { StorageAdapter } from '../index.js';
-import { defineForm, type Fields } from '../index.js';
+import { defineForm } from '../form.js';
+import { type Fields } from '../resolve.js';
 import { defineGraph } from '../graph.js';
 import { enumOf } from '../def-helpers.js';
 

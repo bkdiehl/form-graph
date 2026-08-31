@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec } from '../core/index.js';
+import { codec } from '../core/codec.js';
 
 /**
  * Legacy codec primitives — INTERNAL to the generation demo corpus, no longer

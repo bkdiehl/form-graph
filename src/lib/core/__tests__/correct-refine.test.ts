@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { codec, defineForm, type Fields } from '../index.js';
+import { codec } from '../codec.js';
+import { defineForm } from '../form.js';
+import { type Fields } from '../resolve.js';
 
 const STEPS = codec<number>({
   input: z.coerce.number().optional(),

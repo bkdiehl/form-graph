@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { codec, type Fields } from '../index.js';
+import { codec } from '../codec.js';
+import { type Fields } from '../resolve.js';
 import { intentFromRaw, trustedEntry, type ParseCache } from '../intent.js';
 import { resolve } from '../resolve.js';
 import { defaultExt, miniForm } from '../../__fixtures__/mini-generation.js';

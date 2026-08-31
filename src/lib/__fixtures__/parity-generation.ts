@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { codec, defineForm, type Fields } from '../core/index.js';
+import { codec } from '../core/codec.js';
+import { defineForm } from '../core/form.js';
+import { type Fields } from '../core/resolve.js';
 
 /**
  * A fixture shaped after the graphs v1's tests actually exercise, so the parity

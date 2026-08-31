@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { codec, type Codec } from '../core/index.js';
+import { codec } from '../core/codec.js';
+import { type Codec } from '../core/types.js';
 
 /**
  * Legacy closed string-option codec — INTERNAL to the generation demo corpus.

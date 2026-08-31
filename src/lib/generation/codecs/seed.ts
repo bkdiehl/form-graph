@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec } from '../../core/index.js';
+import { codec } from '../../core/codec.js';
 
 // Port of seedNode: null (UI clear) and numeric strings (URLs) normalise.
 export const MAX_SEED = 4294967967;

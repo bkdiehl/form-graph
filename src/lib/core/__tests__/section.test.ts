@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defineForm, type Fields } from '../index.js';
+import { defineForm } from '../form.js';
+import { type Fields } from '../resolve.js';
 import { boolOf, enumOf, slider, textOf } from '../def-helpers.js';
 import { branchOn, defineGraph } from '../graph.js';
 

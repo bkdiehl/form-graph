@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defineForm, type Fields } from '../../core/index.js';
+import { defineForm } from '../../core/form.js';
+import { type Fields } from '../../core/resolve.js';
 import { aspectRatioCodec } from '../../generation/codecs/aspect-ratio.js';
 import { enumCodec, numberCodec } from '../basic.js';
 import { seedCodec } from '../../generation/codecs/seed.js';

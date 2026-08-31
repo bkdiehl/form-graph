@@ -1,44 +1,42 @@
 /**
- * The public surface. Three tiers, deliberately small:
+ * The public surface — the GRAPH MODEL and its runtime, deliberately small:
  *
- * - Authoring: defineGraph / branch / branchOn (the runtime lives on the
- *   definitions; the runtime lives on them), plus the types an
- *   author writes against.
+ * - Authoring: defineGraph / branch / branchOn (the runtime — createStore,
+ *   parse — lives on the definitions), the def helpers via `form-graph/defs`,
+ *   defFamily, and the types an author writes against.
  * - Runtime: store types and storage adapters. `FormStore` is type-only —
- *   stores are created via `form.createStore()`, never constructed directly.
+ *   stores are created via `graph.createStore()`, never constructed directly.
  * - Introspection & migration: branch enumeration and the persisted-intent
  *   readers.
  *
- * Engine internals (resolve, compileRules, runSchema, validateResolution,
- * diffSnapshot, the intent entry constructors, deepEqual) are NOT exported:
- * every published signature is frozen at the first release, and consumers
- * reach all of them through the form definition. Package-internal code imports
- * them from their modules directly.
+ * The ENGINE is not exported at all — defineForm, FormDefinition, codec(),
+ * Fields/FieldOptions, the resolver internals. Every form is expressible as a
+ * graph (the generation-scale hub included, proven by the parity suite), so
+ * the engine is an implementation layer: package-internal code and the
+ * corpus import it from its modules directly; the exports map makes it
+ * unreachable for consumers.
  */
+export { defFamily, type InferDefValue, type InferDefMeta } from './codec.js';
 export {
-  codec,
-  defFamily,
-  type CodecRegistry,
-  type InferDefValue,
-  type InferDefMeta,
-  type RegistryMetas,
-  type RegistryValues,
-} from './codec.js';
-export { defineGraph, branch, branchOn, type Graph, type GraphLike,
-  type GraphSource, type FieldDef, type AnyFieldDef } from './graph.js';
-export { slider, enumOf, textOf, boolOf, type EnumDefOption, type EnumDefMeta, type SliderDefMeta } from './def-helpers.js';
+  defineGraph,
+  branch,
+  branchOn,
+  type Graph,
+  type GraphLike,
+  type GraphSource,
+  type FieldDef,
+  type AnyFieldDef,
+} from './graph.js';
 export {
-  defineForm,
-  type DefsInput,
-  type CreateStoreArgs,
-  type FormDefinition,
-  type FormConfig,
-  type NormalizeDefs,
-  type InferState,
-  type InferExt,
-  type InferDefs,
-  type InferFieldValue,
-} from './form.js';
+  slider,
+  enumOf,
+  textOf,
+  boolOf,
+  type EnumDefOption,
+  type EnumDefMeta,
+  type SliderDefMeta,
+} from './def-helpers.js';
+export { type InferDefs, type InferFieldValue } from './form.js';
 export type { Intent, IntentEntry } from './intent.js';
 export {
   allPossibleKeys,
@@ -51,21 +49,12 @@ export {
   type BranchDescription,
   type Pins,
 } from './introspect.js';
-export type { Fields, FieldOptions, Resolver, Resolution } from './resolve.js';
 export type { FormStore, StorageAdapter, StoreOptions } from './store.js';
-export {
-  type Rule,
-  type RuleCtx,
-  type RuleMap,
-  type EffectFn,
-  type RuleUnit,
-} from './rules.js';
+export { type Rule, type RuleCtx, type RuleMap, type EffectFn, type RuleUnit } from './rules.js';
 export { debouncedStorage, persistedStorage, type DebouncedStorageAdapter } from './storage.js';
 export { readIntentBuckets, readIntentValue, type Scope, type ScopeValue } from './scope.js';
 export type {
-  Codec,
   FieldError,
-  Refinable,
   ResolutionNote,
   FieldRecord,
   FieldSnapshot,

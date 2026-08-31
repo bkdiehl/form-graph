@@ -3,13 +3,8 @@
   generics="Codecs extends CodecRegistry, K extends keyof Codecs & string"
 >
   import type { Snippet } from 'svelte';
-  import type {
-    CodecRegistry,
-    FieldSnapshot,
-    FormStore,
-    InferDefMeta,
-    InferDefValue,
-  } from '../core/index.js';
+  import type { FieldSnapshot, FormStore, InferDefMeta, InferDefValue } from '../core/index.js';
+import type { CodecRegistry } from '../core/codec.js';
   import { field } from './index.js';
 
   type Snap = FieldSnapshot<InferDefValue<Codecs[K]>, InferDefMeta<Codecs[K]>>;

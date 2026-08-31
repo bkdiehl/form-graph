@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { codec, defineForm, type Fields } from '../core/index.js';
+import { codec } from '../core/codec.js';
+import { defineForm } from '../core/form.js';
+import { type Fields } from '../core/resolve.js';
 import { parityExt, parityForm, versionIds, type ParityExt } from '../__fixtures__/parity-generation.js';
 
 /**

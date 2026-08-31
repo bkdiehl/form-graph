@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { z } from 'zod';
-import { codec, defineForm, type Fields, type RegistryMetas, type RegistryValues } from '../../core/index.js';
+import { codec, type RegistryMetas, type RegistryValues } from '../../core/codec.js';
+import { defineForm } from '../../core/form.js';
+import { type Fields } from '../../core/resolve.js';
 import { createTypedController, FormProvider } from '../index.js';
 
 /**

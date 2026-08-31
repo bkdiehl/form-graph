@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import {
-  codec,
-  defFamily,
-  defineForm,
-  type Fields,
-  type InferDefMeta,
-  type InferDefValue,
-  type InferDefs,
-} from '../index.js';
+import { defFamily, type InferDefMeta, type InferDefValue, type InferDefs } from '../index.js';
+import { codec } from '../codec.js';
+import { defineForm } from '../form.js';
+import { type Fields } from '../resolve.js';
 import { enumCodec, numberCodec } from '../../codecs/basic.js';
 import { enumOf } from '../def-helpers.js';
 import { defineGraph } from '../graph.js';

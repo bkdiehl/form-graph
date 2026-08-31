@@ -1,4 +1,4 @@
-import type { Fields } from '../core/index.js';
+import type { Fields } from '../core/resolve.js';
 import type { GenerationExt } from './config.js';
 import { fluxResolver } from './flux.js';
 import {

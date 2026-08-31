@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { codec, defineForm, hasField, type Fields, type StorageAdapter } from '../index.js';
+import { hasField, type StorageAdapter } from '../index.js';
+import { codec } from '../codec.js';
+import { defineForm } from '../form.js';
+import { type Fields } from '../resolve.js';
 import { scopedAddress } from '../scope.js';
 
 /**

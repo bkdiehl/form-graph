@@ -1,11 +1,7 @@
 import { createElement, type ReactElement } from 'react';
-import type {
-  CodecRegistry,
-  FormDefinition,
-  FormStore,
-  InferDefMeta,
-  InferDefValue,
-} from '../core/index.js';
+import type { FormStore, InferDefMeta, InferDefValue } from '../core/index.js';
+import type { CodecRegistry } from '../core/codec.js';
+import type { FormDefinition } from '../core/form.js';
 import { Controller, type ControllerProps, type ControllerRenderProps } from './Controller.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

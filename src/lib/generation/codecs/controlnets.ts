@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec } from '../../core/index.js';
+import { codec } from '../../core/codec.js';
 import { defineFieldKit } from '../../core/field-kit.js';
 
 /**

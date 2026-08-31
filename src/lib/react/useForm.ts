@@ -1,15 +1,17 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import type { FormDefinition, FormStore, StoreOptions } from '../core/index.js';
+import type { FormStore, StoreOptions } from '../core/index.js';
+
 import { deepEqual } from '../core/deep-equal.js';
 
 /**
- * Creates (once) and returns a store for a form definition.
+ * Creates (once) and returns a store for a definition — a graph, a hub, or
+ * anything else carrying `createStore`.
  *
  * The store is stable across renders; `ext` is pushed in only when it actually
  * differs, so callers can pass a fresh object literal every render.
  */
 export function useForm<State, Ext>(
-  definition: FormDefinition<State, Ext>,
+  definition: { createStore(options: StoreOptions<Ext>): FormStore<State, Ext> },
   options: StoreOptions<Ext>
 ): FormStore<State, Ext> {
   const storeRef = useRef<FormStore<State, Ext> | null>(null);
