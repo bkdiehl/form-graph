@@ -1,5 +1,16 @@
 // Convenience for the generation modules: the generic primitives too.
 export * from '../../codecs/index.js';
+// The pre-graph primitives the corpus is built on — pulled from their module
+// paths, since the public barrel deliberately stopped re-exporting them.
+export {
+  enumCodec,
+  numberCodec,
+  textCodec,
+  type EnumMeta,
+  type EnumOption,
+  type NumberMeta,
+} from '../../codecs/basic.js';
+export { selectCodec, type SelectMeta } from '../../codecs/select.js';
 export { aspectRatioCodec, type AspectRatioMeta, type AspectRatioOption, type AspectRatioValue } from './aspect-ratio.js';
 export { createUpscalerKit, createVaeKit, type AuxResourceMeta } from './aux-resources.js';
 export {
