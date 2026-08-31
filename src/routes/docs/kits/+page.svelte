@@ -25,45 +25,51 @@
   <code>codecFamily</code> if it's ever hot.
 </p>
 
-<h2>2. Sections: <code>section()</code> + <code>.use()</code></h2>
+<h2>2. Sections are just graphs, mounted with <code>.use()</code></h2>
 <p>
-  A section appends its fields to whatever chain it's given and hands the chain back — ctx
-  flows through, so cross-section conditions are plain reads. <code>section()</code> owns the
-  generic threading (hand-written sections that forget the Defs generic silently erase the
-  caller's registry types): state what the section NEEDS from prior ctx, and its own additions
-  are inferred from the build function.
+  There is no section concept to learn: a reusable section IS a <code>defineGraph</code>. If
+  it needs facts from wherever it gets mounted, it declares them as its <code>Ext</code> — at
+  the mount point, the parent's ext with the ctx-so-far merged over it is what the child
+  receives, so a need is satisfied by a prior field or by the parent's own ext. Its fields,
+  registry, and effects join the chain.
 </p>
 
-<pre>{`export const withContact = section()((g) =>
-  g
-    .field('email', EMAIL)
-    .field('isBusiness', boolOf())
-    .field('company', (ctx) => (ctx.isBusiness ? COMPANY : null))
-);
+<pre>{`export const contact = defineGraph()
+  .field('email', EMAIL)
+  .field('isBusiness', boolOf())
+  .field('company', (ctx) => (ctx.isBusiness ? COMPANY : null))
+  .effect(contactRules);   // the section's own coupling rides the mount
 
-// another section reads what contact declared — a NEEDS declaration:
-export const withPayment = section<{ isBusiness: boolean }>()((g) =>
-  g.field('paymentMethod', (ctx) => enumOf({
+// another graph NEEDS what contact declares — that's its Ext:
+export const payment = defineGraph<{ isBusiness: boolean }>()
+  .field('paymentMethod', (_ctx, ext) => enumOf({
     options: METHODS,
     default: 'card',
-    gate: { invoice: !ctx.isBusiness && 'invoice_requires_business' },
-  }))
-);
+    gate: { invoice: !ext.isBusiness && 'invoice_requires_business' },
+  }));
 
-// application is chain-linear, not nested inside-out:
+// mounting is chain-linear; payment's need is met by contact's field:
 const graph = defineGraph()
-  .use(withContact)
+  .use(contact)
   .field('billingSameAsShipping', boolOf(true))
-  .use(withPayment);`}</pre>
+  .use(payment);`}</pre>
+
+<p>
+  A missing REQUIRED need is a type error at the mount point naming the key; optional needs
+  read as <code>undefined</code> when nothing upstream declares them. Hubs mount the same way
+  — <code>.use()</code> accepts anything graph-shaped.
+</p>
 
 <h2>3. The same section, mounted more than once</h2>
 <p>
-  Field keys are unique form-wide, so a re-mountable section takes a key PREFIX — and an
-  optional <code>when</code> makes the whole mount conditional (keys go optional):
+  Field keys are unique form-wide, so mounting one section twice needs a key PREFIX — a
+  transform a standalone graph can't express. For that, <code>.use()</code> also takes a plain
+  function (<code>use(fn)</code> is <code>fn(g)</code>), and an optional <code>when</code>
+  makes the whole mount conditional (keys go optional):
 </p>
 
-<pre>{`withAddress(g, 'shipping');                                    // required keys
-withAddress(g, 'billing', (ctx) => !ctx.billingSameAsShipping); // optional keys`}</pre>
+<pre>{`g.use((g) => withAddress(g, 'shipping'));                       // required keys
+g.use((g) => withAddress(g, 'billing', (ctx) => !ctx.billingSameAsShipping));`}</pre>
 
 <p>
   The checkout demo composes all three patterns into one chain; the LTX/Wan generation ports
