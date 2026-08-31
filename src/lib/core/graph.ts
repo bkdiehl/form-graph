@@ -423,14 +423,40 @@ const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): 
 export function branch<Ext, const Members extends Record<string, GraphSource<object, Ext>>>(
   pick: (ext: Ext) => keyof Members,
   members: Members
-): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>> {
+): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>>;
+/**
+ * Tagged: name a key and the picked MEMBER KEY lands in state under it, as a
+ * computed — the derived counterpart of `branchOn`'s field. The state union
+ * discriminates on it (`Extract<State, { wanVersion: 'v2.5' }>`), so members
+ * never re-declare which member they are.
+ */
+export function branch<
+  K extends string,
+  Ext,
+  const Members extends Record<string, GraphSource<object, Ext>>,
+>(
+  key: K,
+  pick: (ext: Ext) => keyof Members,
+  members: Members
+): GraphLike<
+  { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
+  Ext,
+  DefsOf<Members>
+>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function branch(...args: any[]): any {
+  const [key, pick, members] =
+    typeof args[0] === 'string' ? args : [undefined, args[0], args[1]];
   return chainable({
-    ...mergeMembers(members, (_state, ext) => String(pick(ext))),
-    resolve(f: Fields, ext: Ext) {
-      return members[pick(ext)]!.resolve(f, ext) as CtxOf<Members[keyof Members]>;
+    ...mergeMembers(members, (_state: Record<string, unknown>, ext: unknown) => String(pick(ext))),
+    resolve(f: Fields, ext: unknown) {
+      const picked = pick(ext) as string;
+      const member = members[picked];
+      if (!member) throw new Error(`branch${key ? ` "${key}"` : ''}: no member graph for "${picked}"`);
+      const resolved = member.resolve(f, ext);
+      return key === undefined ? resolved : { [key]: f.computed(key, picked), ...resolved };
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as any;
+  });
 }
 
 /**

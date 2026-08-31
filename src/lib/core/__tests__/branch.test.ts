@@ -125,6 +125,18 @@ describe('branch', () => {
     expect(store.getState()).toEqual({ steps: 40, seed: 7 });
   });
 
+  it('tagged: stamps the picked member key into state as a computed', () => {
+    const tagged = branch('tier', (ext: Ext) => ext.tier, { free, pro });
+    const store = tagged.createStore({ ext: { tier: 'pro' } });
+    expect(store.getState()).toEqual({ tier: 'pro', steps: 25, seed: 0 });
+    expect(store.getComputedKeys()).toContain('tier');
+
+    type State = ReturnType<typeof tagged.resolve>;
+    type Pro = Extract<State, { tier: 'pro' }>;
+    type _proKeys = Assert<Equals<keyof Pro, 'tier' | 'steps' | 'seed'>>;
+    type _free = Assert<Equals<Extract<State, { tier: 'free' }>['steps'], number>>;
+  });
+
   it('merges a shared prefix effect ONCE across members', () => {
     const shared = defineGraph<Ext>()
       .field('steps', slider({ min: 1, max: 50, default: 25 }))

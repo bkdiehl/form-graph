@@ -63,10 +63,12 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 </p>
 
 <pre>{`export const wan = branch(
-  (ext: WanExt) => versionOf(ext.ecosystem),   // derive the branch key here
+  'wanVersion',                                // tag: the picked MEMBER KEY lands
+  (ext: WanExt) => versionOf(ext.ecosystem),   //   in state under this key
   { 'v2.1': v21, 'v2.2': v22, 'v2.5': v25 }
 ).effect(({ patch, state, next }) => { ... }); // the family's coupling, inline
-// the ONE export — a parent .use()s it, or defineForm(wan) mounts it whole`}</pre>
+// Extract<State, { wanVersion: 'v2.5' }> is exactly that member's shape —
+// no member re-declares which member it is. Omit the tag for an untagged hub.`}</pre>
 
 <p>
   Either way the hub is the same shape a graph is: <code>codecs</code> holds every member's
