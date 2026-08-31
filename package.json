@@ -1,6 +1,6 @@
 {
 	"name": "form-graph",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build && npm run prepack",
@@ -26,7 +26,8 @@
 		"!dist/__bench__",
 		"!dist/__stress__",
 		"!dist/__fixtures__",
-		"!dist/generation"
+		"!dist/generation",
+		"!dist/codecs"
 	],
 	"sideEffects": [
 		"**/*.css"
@@ -48,9 +49,9 @@
 			"types": "./dist/react/index.d.ts",
 			"import": "./dist/react/index.js"
 		},
-		"./codecs": {
-			"types": "./dist/codecs/index.d.ts",
-			"import": "./dist/codecs/index.js"
+		"./defs": {
+			"types": "./dist/defs/index.d.ts",
+			"import": "./dist/defs/index.js"
 		}
 	},
 	"peerDependencies": {
