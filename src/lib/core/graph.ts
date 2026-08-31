@@ -368,11 +368,14 @@ type DefsOf<Members> =
  */
 const mergeMembers = <Ext>(
   members: Record<string, GraphSource<object, Ext>>,
-  activeMember: (
-    patch: Readonly<Record<string, unknown>>,
-    state: Record<string, unknown>,
-    ext: Ext
-  ) => string | undefined
+  /** null = no auto-scoping: member effects pass through unwrapped. */
+  activeMember:
+    | ((
+        patch: Readonly<Record<string, unknown>>,
+        state: Record<string, unknown>,
+        ext: Ext
+      ) => string | undefined)
+    | null
 ) => {
   const defs: Record<string, AnyFieldDef> = {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -386,14 +389,17 @@ const mergeMembers = <Ext>(
     }
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const effects: RuleUnit<any, any>[] = [...owners.entries()].map(([unit, names]) => ({
-    reconciler: (patch, state, ext) => {
-      const active = activeMember(patch, state as Record<string, unknown>, ext as Ext);
-      return active !== undefined && names.has(active)
-        ? unit.reconciler(patch, state, ext)
-        : patch;
-    },
-  }));
+  const effects: RuleUnit<any, any>[] =
+    activeMember === null
+      ? [...owners.keys()]
+      : [...owners.entries()].map(([unit, names]) => ({
+          reconciler: (patch, state, ext) => {
+            const active = activeMember(patch, state as Record<string, unknown>, ext as Ext);
+            return active !== undefined && names.has(active)
+              ? unit.reconciler(patch, state, ext)
+              : patch;
+          },
+        }));
   return { defs, effects };
 };
 
@@ -461,8 +467,10 @@ export function branch(...args: any[]): any {
           // only ever sees the form's.
           (patch: Readonly<Record<string, unknown>>, state: Record<string, unknown>) =>
             ({ ...state, ...patch })[key] as string | undefined
-        : (_patch: Readonly<Record<string, unknown>>, _state: Record<string, unknown>, ext: unknown) =>
-            String(pick(ext))
+        : // Untagged: no state-resident discriminator exists, and pick(ext)
+          // lies under any mounting form — so no auto-scoping. Rules on
+          // untagged members must self-guard; tag the hub to get scoping.
+          null
     ),
     resolve(f: Fields, ext: unknown) {
       const picked = pick(ext) as string;

@@ -99,12 +99,24 @@ describe('branch', () => {
     expect(store.getState()).toEqual({ steps: 50, seed: 7 });
   });
 
-  it("AUTO-SCOPES a member's effects to that member being picked", () => {
+  it('auto-scopes member effects when TAGGED; untagged passes them through', () => {
     // Rules see the RAW patch (reconcile runs before codecs), so steps: 50
-    // would trigger pro's rule — but free is active, so it must not fire.
-    const store = form.createStore({ ext: { tier: 'free' } });
-    store.set({ steps: 50 });
-    expect(store.getIntent()).not.toHaveProperty('seed');
+    // triggers pro's rule. Tagged: the tag scopes it out on the free tier.
+    const tagged = branch('tier', (ext: Ext) => ext.tier, { free, pro });
+    const taggedForm = defineForm({
+      defs: tagged.defs,
+      reconcile: [...tagged.effects],
+      resolve: (f: Fields, ext: Ext) => tagged.resolve(f, ext),
+    });
+    const scoped = taggedForm.createStore({ ext: { tier: 'free' } });
+    scoped.set({ steps: 50 });
+    expect(scoped.getIntent()).not.toHaveProperty('seed');
+
+    // Untagged: no state-resident discriminator, so no auto-scoping — the
+    // rule fires (self-guarding is the member author's job).
+    const unscoped = form.createStore({ ext: { tier: 'free' } });
+    unscoped.set({ steps: 50 });
+    expect(unscoped.getIntent()).toHaveProperty('seed');
   });
 
   it('chains its own effects with .effect, like a graph', () => {
