@@ -19,7 +19,7 @@
 
 <pre>{`defineGraph<Ext>()
   .field('mode', enumOf({ ... }))
-  .field('steps', (ctx, ext) => (ctx.mode === 'create' ? slider({ max: ext.maxSteps }) : null))`}</pre>
+  .field('steps', (c) => (c.mode === 'create' ? slider({ max: c._ext.maxSteps }) : null))`}</pre>
 
 <p>
   Graphs are immutable values: continuing one with <code>.field()</code> makes a new graph, so a
@@ -37,7 +37,7 @@
   bare key, so unscoped writes (raw server input, remixes) still land.
 </p>
 
-<pre>{`.field('model', (ctx) => ({ ...checkpointDef(ctx), scope: ctx.ecosystemGroup }))`}</pre>
+<pre>{`.field('model', (c) => ({ ...checkpointDef(c), scope: c.ecosystemGroup }))`}</pre>
 
 <h2>Dual schemas and trust</h2>
 <p>
@@ -72,23 +72,23 @@
   </li>
 </ul>
 
-<pre>{`.field('storageClass', (ctx) => enumOf({
+<pre>{`.field('storageClass', (c) => enumOf({
   options: CLASSES,
   default: 'standard',
-  gate: { glacier: ctx.region === 'ap-northeast-1' && 'unavailable_in_region' },
+  gate: { glacier: c.region === 'ap-northeast-1' && 'unavailable_in_region' },
 }))
 
-.field('vcpus', (ctx, ext) => ({
+.field('vcpus', (c) => ({
   ...slider({ min: 2, max: 64, step: 2 }),
-  meta: { min: 2, max: ext.tier === 'pro' ? 64 : 16, step: 2 },
-  correct: (v) => (v > 16 && ext.tier !== 'pro'
+  meta: { min: 2, max: c._ext.tier === 'pro' ? 64 : 16, step: 2 },
+  correct: (v) => (v > 16 && c._ext.tier !== 'pro'
     ? { value: 16, reason: 'tier_limit' }
     : undefined),
 }))
 
-.field('hazmatClass', (ctx) => ({
+.field('hazmatClass', (c) => ({
   ...HAZMAT,
-  output: hazmatOutput.refine((v) => !(v === '1.4' && ctx.service === 'air'), {
+  output: hazmatOutput.refine((v) => !(v === '1.4' && c.service === 'air'), {
     message: 'Class 1.4 explosives cannot ship by air',
   }),
 }))`}</pre>

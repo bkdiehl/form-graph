@@ -32,7 +32,7 @@ export function withAddress<C extends object, D extends Record<string, AnyFieldD
 export function withAddress<C extends object, D extends Record<string, AnyFieldDef>, P extends string>(
   g: Graph<C, void, D>,
   prefix: P,
-  when: (ctx: C) => boolean
+  when: (c: C) => boolean
 ): Graph<
   C & Partial<Record<`${P}Street` | `${P}City`, string> & Record<`${P}Country`, Country>>,
   void,
@@ -42,7 +42,7 @@ export function withAddress(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   g: Graph<any, void, any>,
   prefix: string,
-  when?: (ctx: object) => boolean
+  when?: (c: object) => boolean
 ) {
   if (when === undefined) {
     return g
@@ -51,7 +51,7 @@ export function withAddress(
       .field(`${prefix}Country`, COUNTRY);
   }
   return g
-    .field(`${prefix}Street`, (ctx: object) => (when(ctx) ? TEXT('Street is required') : null))
-    .field(`${prefix}City`, (ctx: object) => (when(ctx) ? TEXT('City is required') : null))
-    .field(`${prefix}Country`, (ctx: object) => (when(ctx) ? COUNTRY : null));
+    .field(`${prefix}Street`, (c) => (when(c) ? TEXT('Street is required') : null))
+    .field(`${prefix}City`, (c) => (when(c) ? TEXT('City is required') : null))
+    .field(`${prefix}Country`, (c) => (when(c) ? COUNTRY : null));
 }

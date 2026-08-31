@@ -2,28 +2,29 @@
 
 <p>
   <code>defineGraph&lt;Ext&gt;()</code> starts a chain of field definitions. Each entry is the
-  whole field; each definition function sees the accumulated context of the fields declared
-  above it, plus the external context:
+  whole field; each definition function receives ONE bag — the fields declared above it,
+  spread at top level so you destructure exactly what you read, plus the external context
+  under the reserved key <code>_ext</code>:
 </p>
 
 <pre>{`const graph = defineGraph<Ext>()
   .field('mode', enumOf({ ... }))                    // static definition
-  .field('steps', (ctx, ext) =>                      // conditional: a function
-    ctx.mode === 'create' ? slider({ min: 1, max: ext.maxSteps }) : null)
-  .computed('price', (ctx) => ...)                   // derived, read-only key
+  .field('steps', ({ mode, _ext }) =>                // conditional: a function
+    mode === 'create' ? slider({ min: 1, max: _ext.maxSteps }) : null)
+  .computed('price', ({ size, toppings }) => ...)    // derived, read-only key
   .effect(coupling);                                 // a rules unit riding the graph`}</pre>
 
 <h2>Existence: return null</h2>
 <p>
   A definition function returning <code>null</code> means the field does not exist this pass —
   no record, no snapshot, gone from the page (the bindings' <code>&lt;Field&gt;</code> renders
-  nothing). The key types optional in <code>ctx</code> and in the state. Intent survives
+  nothing). The key types optional in <code>c</code> and in the state. Intent survives
   deactivation, so the value returns when the field does.
 </p>
 
 <h2>Dependencies are the chain</h2>
 <p>
-  <code>ctx</code> contains exactly the fields declared above — statically. You cannot
+  <code>c</code> contains exactly the fields declared above — statically. You cannot
   reference a later field, a misspelled field, or a field from another branch; the compiler
   enforces what a dependency graph would, with no dependency graph. Order is visible, cycles
   are unrepresentable.
@@ -64,7 +65,7 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 
 <pre>{`export const wan = branch(
   'wanVersion',                                // tag: the picked MEMBER KEY lands
-  (ext: WanExt) => versionOf(ext.ecosystem),   //   in state under this key
+  (ext: WanExt) => versionOf(c._ext.ecosystem),   //   in state under this key
   { 'v2.1': v21, 'v2.2': v22, 'v2.5': v25 }
 ).effect(({ patch, state, next }) => { ... }); // the family's coupling, inline
 // Extract<State, { wanVersion: 'v2.5' }> is exactly that member's shape —

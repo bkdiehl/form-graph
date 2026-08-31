@@ -35,7 +35,7 @@ export const shippingForm = defineGraph()
     ],
     default: 'parcel',
   }))
-  .field('service', (ctx) =>
+  .field('service', (c) =>
     // Ocean is freight-only: gated — disabled in the options AND corrected
     // (with the note the page shows) when the type changes under you.
     enumOf<Service>({
@@ -45,7 +45,7 @@ export const shippingForm = defineGraph()
         { value: 'ocean', label: 'ocean' },
       ],
       default: 'ground',
-      gate: { ocean: ctx.shipmentType !== 'freight' && 'service_unavailable_for_type' },
+      gate: { ocean: c.shipmentType !== 'freight' && 'service_unavailable_for_type' },
     })
   )
   .field('destination', enumOf({
@@ -55,8 +55,8 @@ export const shippingForm = defineGraph()
     ],
     default: 'domestic',
   }))
-  .field('emergencyContact', (ctx) =>
-    ctx.shipmentType === 'hazmat'
+  .field('emergencyContact', (c) =>
+    c.shipmentType === 'hazmat'
       ? {
           input: z.string().optional(),
           output: z
@@ -66,29 +66,29 @@ export const shippingForm = defineGraph()
         }
       : null
   )
-  .field('hazmatClass', (ctx) =>
-    ctx.shipmentType === 'hazmat'
+  .field('hazmatClass', (c) =>
+    c.shipmentType === 'hazmat'
       ? {
           ...HAZMAT,
           // Explosives exist as a legal choice — but not on a plane. REFUSES
           // (live error + failed submit): the output contract, narrowed
           // inline in zod's own vocabulary.
-          output: hazmatOutput.refine((value) => !(value === '1.4' && ctx.service === 'air'), {
+          output: hazmatOutput.refine((value) => !(value === '1.4' && c.service === 'air'), {
             message: 'Class 1.4 explosives cannot ship by air',
             params: { kind: 'hazmat_air_forbidden' },
           }),
         }
       : null
   )
-  .field('residential', (ctx) =>
-    ctx.shipmentType === 'freight' && ctx.service === 'ground' ? boolOf() : null
+  .field('residential', (c) =>
+    c.shipmentType === 'freight' && c.service === 'ground' ? boolOf() : null
   )
   .field('lengthCm', cm(200, 40))
   .field('widthCm', cm(200, 30))
   .field('heightCm', cm(200, 20))
   .field('actualKg', slider({ min: 1, max: 500, default: 10 }))
-  .field('contents', (ctx) =>
-    ctx.destination === 'international'
+  .field('contents', (c) =>
+    c.destination === 'international'
       ? {
           input: z.string().optional(),
           output: z.string().min(1, 'Customs needs a contents description'),
@@ -96,11 +96,11 @@ export const shippingForm = defineGraph()
         }
       : null
   )
-  .field('declaredValue', (ctx) =>
-    ctx.destination === 'international' ? slider({ min: 0, max: 10000, step: 50, default: 100 }) : null
+  .field('declaredValue', (c) =>
+    c.destination === 'international' ? slider({ min: 0, max: 10000, step: 50, default: 100 }) : null
   )
-  .field('incoterms', (ctx) =>
-    ctx.destination === 'international'
+  .field('incoterms', (c) =>
+    c.destination === 'international'
       ? enumOf({
           options: [
             { value: 'DAP', label: 'DAP — Delivered at place' },
@@ -111,46 +111,46 @@ export const shippingForm = defineGraph()
         })
       : null
   )
-  .field('insurance', (ctx) =>
-    ctx.destination === 'international'
+  .field('insurance', (c) =>
+    c.destination === 'international'
       ? {
           ...boolOf(),
           // High-value shipments MUST be insured: the field corrects ITSELF,
           // with the note telling the page why the box flipped on.
           correct: (value: boolean) =>
-            (ctx.declaredValue ?? 0) >= 5000 && !value
+            (c.declaredValue ?? 0) >= 5000 && !value
               ? {
                   value: true,
                   reason: 'high_value_requires_insurance',
-                  detail: { declaredValue: ctx.declaredValue },
+                  detail: { declaredValue: c.declaredValue },
                 }
               : undefined,
         }
       : null
   )
-  .field('signatureRequired', (ctx) =>
-    ctx.destination === 'international' && ctx.insurance === true ? boolOf() : null
+  .field('signatureRequired', (c) =>
+    c.destination === 'international' && c.insurance === true ? boolOf() : null
   )
-  .computed('dimKg', (ctx) =>
-    Math.round(((ctx.lengthCm * ctx.widthCm * ctx.heightCm) / 5000) * 10) / 10
+  .computed('dimKg', (c) =>
+    Math.round(((c.lengthCm * c.widthCm * c.heightCm) / 5000) * 10) / 10
   )
-  .computed('billableKg', (ctx) => Math.max(ctx.actualKg, ctx.dimKg))
-  .computed('surcharges', (ctx) =>
-    (ctx.shipmentType === 'hazmat' ? 45 : 0) +
-    (ctx.residential === true ? 28 : 0) +
-    (ctx.destination === 'international' ? 15 : 0) +
-    (ctx.insurance === true ? Math.max(5, Math.round((ctx.declaredValue ?? 0) * 0.01)) : 0) +
-    (ctx.signatureRequired === true ? 6 : 0)
+  .computed('billableKg', (c) => Math.max(c.actualKg, c.dimKg))
+  .computed('surcharges', (c) =>
+    (c.shipmentType === 'hazmat' ? 45 : 0) +
+    (c.residential === true ? 28 : 0) +
+    (c.destination === 'international' ? 15 : 0) +
+    (c.insurance === true ? Math.max(5, Math.round((c.declaredValue ?? 0) * 0.01)) : 0) +
+    (c.signatureRequired === true ? 6 : 0)
   )
-  .computed('price', (ctx) =>
-    Math.round((ctx.billableKg * RATE[ctx.service] + ctx.surcharges) * 100) / 100
+  .computed('price', (c) =>
+    Math.round((c.billableKg * RATE[c.service] + c.surcharges) * 100) / 100
   )
-  .computed('transitDays', (ctx) =>
-    ctx.service === 'air'
-      ? ctx.destination === 'international'
+  .computed('transitDays', (c) =>
+    c.service === 'air'
+      ? c.destination === 'international'
         ? 3
         : 1
-      : ctx.service === 'ocean'
+      : c.service === 'ocean'
         ? 28
         : 5
   );

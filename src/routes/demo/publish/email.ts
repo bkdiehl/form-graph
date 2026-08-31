@@ -15,8 +15,8 @@ export const emailGraph = defineGraph()
     default: '',
   })
   .field('digest', boolOf())
-  .field('digestFrequency', (ctx) =>
-    ctx.digest
+  .field('digestFrequency', (c) =>
+    c.digest
       ? enumOf({
           options: [
             { value: 'immediate', label: 'Immediate' },

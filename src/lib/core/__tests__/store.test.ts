@@ -111,7 +111,7 @@ describe('store: reconciler', () => {
     expect(store.getState()).toMatchObject({ workflow: 'image:create', model: 'flux-standard' });
   });
 
-  it('ctx.next gives the effective PAIR when both triggers land in one patch', () => {
+  it('c.next gives the effective PAIR when both triggers land in one patch', () => {
     const retargets: string[] = [];
     const graph = defineGraph()
       .field(

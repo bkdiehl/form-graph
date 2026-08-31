@@ -29,10 +29,10 @@ const graph = defineGraph<{ tier: 'free' | 'pro' }>()
   })
   .field('negativePrompt', textOf({ maxLength: 2000 }))
   .field('seedLock', boolOf())
-  .field('quality', (ctx, ext) =>
-    ctx.mode === 'create' ? slider({ min: 1, max: ext.tier === 'pro' ? 100 : 50, default: 25 }) : null
+  .field('quality', (c) =>
+    c.mode === 'create' ? slider({ min: 1, max: c._ext.tier === 'pro' ? 100 : 50, default: 25 }) : null
   )
-  .field('strength', (ctx) => (ctx.mode === 'edit' ? slider({ min: 0, max: 1, step: 0.05, default: 0.6 }) : null))
+  .field('strength', (c) => (c.mode === 'edit' ? slider({ min: 0, max: 1, step: 0.05, default: 0.6 }) : null))
   .field('format', enumOf({
     options: [
       { value: 'png', label: 'PNG' },
@@ -42,7 +42,7 @@ const graph = defineGraph<{ tier: 'free' | 'pro' }>()
     default: 'png',
     gate: {},
   }))
-  .computed('summary', (ctx) => `${ctx.mode}:${ctx.prompt.length}`);
+  .computed('summary', (c) => `${c.mode}:${c.prompt.length}`);
 
 // widen to ~25 fields with a run of sliders
 let wide = graph;

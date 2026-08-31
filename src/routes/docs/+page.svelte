@@ -37,12 +37,12 @@ const graph = defineGraph()
     output: z.string().min(1, 'Prompt is required'),   // full zod, yours
     default: '',
   })
-  // CONDITIONAL fields are functions of (ctx, ext): return the definition,
-  // or null when the field does not exist this pass. ctx holds the fields
-  // declared ABOVE — referencing a later field is a compile error.
-  .field('steps', (ctx) => (ctx.mode === 'create' ? slider({ min: 1, max: 50, default: 25 }) : null))
-  .field('scale', (ctx) => (ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null))
-  .computed('summary', (ctx) => \`\${ctx.mode} · \${ctx.prompt.length} chars\`);`}</pre>
+  // CONDITIONAL fields are FUNCTIONS of one bag: the fields declared ABOVE
+  // (destructure exactly what you read — a later field is a compile error)
+  // plus the external context under _ext. Return null for "absent this pass".
+  .field('steps', ({ mode }) => (mode === 'create' ? slider({ min: 1, max: 50, default: 25 }) : null))
+  .field('scale', ({ mode }) => (mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null))
+  .computed('summary', ({ mode, prompt }) => \`\${mode} · \${prompt.length} chars\`);`}</pre>
 
 <h2>2. Use it</h2>
 <p>
@@ -61,7 +61,7 @@ const result = graph.parse(rawBody);`}</pre>
 </p>
 
 <pre>{`const g = defineGraph<{ maxSteps: number }>()
-  .field('steps', (_ctx, ext) => slider({ min: 1, max: ext.maxSteps, default: 25 }));
+  .field('steps', ({ _ext }) => slider({ min: 1, max: _ext.maxSteps, default: 25 }));
 
 const store = g.createStore({ ext: { maxSteps: 50 } });
 store.setExt({ maxSteps: 30 });   // the whole form re-resolves`}</pre>

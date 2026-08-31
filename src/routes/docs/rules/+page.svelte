@@ -18,7 +18,7 @@
 
 <pre>{`export const contact = defineGraph()
   .field('isBusiness', boolOf())
-  .field('company', (ctx) => (ctx.isBusiness ? COMPANY : null))
+  .field('company', (c) => (c.isBusiness ? COMPANY : null))
   .effect({
     // switching OFF business clears the business-only intent
     isBusiness: (value) =>
@@ -100,7 +100,7 @@ wan.effect({
     parameter is what the caller passed, not the snapped/validated value.
   </li>
   <li>
-    <code>ctx.next</code> is the state with the accumulated patch overlaid — the effective
+    <code>c.next</code> is the state with the accumulated patch overlaid — the effective
     values. A decision reading several fields reads <code>next</code>, because any of them may
     be in this very patch and <code>state</code> alone is a stale-read bug.
   </li>

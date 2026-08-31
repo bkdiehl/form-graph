@@ -61,7 +61,14 @@ export interface FieldDef<T, M = undefined> {
 type AnyDef = FieldDef<any, any>;
 export type AnyFieldDef = FieldDef<any, any>;
 type DefValue<D> = D extends FieldDef<infer T, infer _M> ? T : never;
-type DefArg<Ctx, Ext> = AnyDef | ((ctx: Ctx, ext: Ext) => AnyDef | null);
+/**
+ * What a definition (or computed) function receives: the prior fields spread
+ * at top level — destructure exactly what you read — with the external
+ * context under the one reserved key, `_ext`. `_ext` cannot be a field name.
+ */
+export type DefBag<Ctx, Ext> = Ctx & { _ext: Ext };
+
+type DefArg<Ctx, Ext> = AnyDef | ((c: DefBag<Ctx, Ext>) => AnyDef | null);
 
 /**
  * Rules typed FROM the graph: triggers are its own keys, each rule's value
@@ -80,7 +87,7 @@ interface Entry {
   kind: 'field' | 'computed' | 'graph';
   key: string;
   def?: DefArg<unknown, unknown>;
-  calc?: (ctx: unknown, ext: unknown) => unknown;
+  calc?: (c: Record<string, unknown>) => unknown;
   graph?: GraphLike<object, unknown>;
 }
 
@@ -116,9 +123,9 @@ export interface Graph<
   readonly effects: readonly RuleUnit<any, Ext>[];
   resolve(f: Fields, ...ext: ExtArg<Ext>): Ctx;
 
-  field<K extends string, D extends AnyDef | null>(
-    key: K,
-    def: (ctx: Ctx, ext: Ext) => D
+  field<K extends Exclude<string, '_ext'>, D extends AnyDef | null>(
+    key: K & (K extends '_ext' ? never : K),
+    def: (c: DefBag<Ctx, Ext>) => D
   ): Graph<
     Ctx &
       ([Extract<D, null>] extends [never]
@@ -133,8 +140,8 @@ export interface Graph<
   ): Graph<Ctx & Record<K, DefValue<D>>, Ext, Defs & Record<K, D>>;
 
   computed<K extends string, T>(
-    key: K,
-    calc: (ctx: Ctx, ext: Ext) => T
+    key: K & (K extends '_ext' ? never : K),
+    calc: (c: DefBag<Ctx, Ext>) => T
   ): Graph<Ctx & Record<K, T>, Ext, Defs>;
 
   /**
@@ -221,16 +228,21 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
 
     resolve(f: Fields, ext: Ext): Ctx {
       const ctx: Record<string, unknown> = {};
+      // the bag mirrors ctx plus the one reserved key; ctx itself stays clean
+      // (it is returned as state)
+      const bag: Record<string, unknown> = { _ext: ext };
       for (const e of entries) {
         if (e.kind === 'graph') {
-          Object.assign(ctx, e.graph!.resolve(f, { ...(ext as object), ...ctx }));
+          const mounted = e.graph!.resolve(f, { ...(ext as object), ...ctx });
+          Object.assign(ctx, mounted);
+          Object.assign(bag, mounted);
           continue;
         }
         if (e.kind === 'computed') {
-          ctx[e.key] = f.computed(e.key, e.calc!(ctx, ext));
+          bag[e.key] = ctx[e.key] = f.computed(e.key, e.calc!(bag));
           continue;
         }
-        const def = typeof e.def === 'function' ? e.def(ctx, ext) : e.def;
+        const def = typeof e.def === 'function' ? e.def(bag as never) : e.def;
         if (def == null) continue;
         const codec = {
           input: def.input,
@@ -243,17 +255,19 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
         if (def.scope !== undefined) opts.scope = def.scope;
         if (def.meta !== undefined) opts.meta = def.meta as FieldOptions<unknown, unknown>['meta'];
         if (def.correct !== undefined) opts.correct = def.correct as FieldOptions<unknown, unknown>['correct'];
-        ctx[e.key] = f.field(e.key, codec, opts);
+        bag[e.key] = ctx[e.key] = f.field(e.key, codec, opts);
       }
       return ctx as Ctx;
     },
 
     field(key: string, def: unknown) {
+      if (key === '_ext') throw new Error('"_ext" is reserved: it carries the external context in definition functions.');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return make([...entries, { kind: 'field', key, def: def as Entry['def'] }], effects) as any;
     },
 
     computed(key: string, calc: unknown) {
+      if (key === '_ext') throw new Error('"_ext" is reserved: it carries the external context in definition functions.');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return make([...entries, { kind: 'computed', key, calc: calc as Entry['calc'] }], effects) as any;
     },

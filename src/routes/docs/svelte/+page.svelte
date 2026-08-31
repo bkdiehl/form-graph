@@ -61,7 +61,7 @@ ${'<'}/script>
 <pre>{`// my-form.ts
 export const form = defineGraph()
   .field('aspectRatio', enumOf({ ... }))
-  .field('steps', (ctx) => (ctx.mode === 'create' ? slider({ min: 1, max: 50 }) : null));
+  .field('steps', (c) => (c.mode === 'create' ? slider({ min: 1, max: 50 }) : null));
 
 // +page.svelte
 const store = form.createStore();

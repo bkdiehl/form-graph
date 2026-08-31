@@ -150,14 +150,14 @@ describe('meta override receives the codec base', () => {
 });
 
 describe('enumOf gate: one declaration, both halves (helper-level)', () => {
-  const graph = defineGraph<{ tokyo: boolean }>().field('cls', (_ctx, ext) =>
+  const graph = defineGraph<{ tokyo: boolean }>().field('cls', (c) =>
     enumOf({
       options: [
         { value: 'standard', label: 'Standard' },
         { value: 'glacier', label: 'Glacier' },
       ],
       default: 'standard',
-      gate: { glacier: ext.tokyo && 'unavailable_in_region' },
+      gate: { glacier: c._ext.tokyo && 'unavailable_in_region' },
     })
   );
   const form = defineForm({

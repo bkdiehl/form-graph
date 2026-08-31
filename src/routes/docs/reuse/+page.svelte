@@ -17,7 +17,7 @@
   correct: (picked: string[]) => trimToBudget(picked, budget),
 });
 
-.field('toppings', (ctx) => toppingsDef(SIZES[ctx.size].budget))`}</pre>
+.field('toppings', (c) => toppingsDef(SIZES[c.size].budget))`}</pre>
 
 <p>
   Helpers used inside a factory keep their automatic schema caching; a factory that hand-builds
@@ -29,23 +29,23 @@
 <p>
   There is no section concept to learn: a reusable section IS a <code>defineGraph</code>. If
   it needs facts from wherever it gets mounted, it declares them as its <code>Ext</code> — at
-  the mount point, the parent's ext with the ctx-so-far merged over it is what the child
-  receives, so a need is satisfied by a prior field or by the parent's own ext. Its fields,
+  the mount point, the parent's ext with the c-so-far merged over it is what the child
+  receives, so a need is satisfied by a prior field or by the parent's own c._ext. Its fields,
   registry, and effects join the chain.
 </p>
 
 <pre>{`export const contact = defineGraph()
   .field('email', EMAIL)
   .field('isBusiness', boolOf())
-  .field('company', (ctx) => (ctx.isBusiness ? COMPANY : null))
+  .field('company', (c) => (c.isBusiness ? COMPANY : null))
   .effect(contactRules);   // the section's own coupling rides the mount
 
 // another graph NEEDS what contact declares — that's its Ext:
 export const payment = defineGraph<{ isBusiness: boolean }>()
-  .field('paymentMethod', (_ctx, ext) => enumOf({
+  .field('paymentMethod', (c) => enumOf({
     options: METHODS,
     default: 'card',
-    gate: { invoice: !ext.isBusiness && 'invoice_requires_business' },
+    gate: { invoice: !c._ext.isBusiness && 'invoice_requires_business' },
   }));
 
 // mounting is chain-linear; payment's need is met by contact's field:
@@ -69,7 +69,7 @@ const graph = defineGraph()
 </p>
 
 <pre>{`g.use((g) => withAddress(g, 'shipping'));                       // required keys
-g.use((g) => withAddress(g, 'billing', (ctx) => !ctx.billingSameAsShipping));`}</pre>
+g.use((g) => withAddress(g, 'billing', (c) => !c.billingSameAsShipping));`}</pre>
 
 <p>
   The checkout demo composes all three patterns into one chain; the LTX/Wan generation ports

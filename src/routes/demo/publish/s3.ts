@@ -19,14 +19,14 @@ export const s3Graph = defineGraph()
     ],
     default: 'us-east-1',
   }))
-  .field('storageClass', (ctx) =>
+  .field('storageClass', (c) =>
     enumOf({
       options: [
         { value: 'standard', label: 'Standard' },
         { value: 'glacier', label: 'Glacier' },
       ],
       default: 'standard',
-      gate: { glacier: ctx.region === 'ap-northeast-1' && 'class_unavailable_in_region' },
+      gate: { glacier: c.region === 'ap-northeast-1' && 'class_unavailable_in_region' },
     })
   );
 

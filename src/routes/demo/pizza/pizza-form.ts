@@ -3,7 +3,7 @@ import { defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider, textOf } from '$lib/defs/index.js';
 
 // Demo ladder, rung 1: every core mechanism on a form anyone can read. Each
-// field is ONE function of (ctx, ext) returning its whole definition — or
+// field is ONE function of (c, ext) returning its whole definition — or
 // null when it doesn't exist this pass. Conditional options, gates, budgets:
 // just computed.
 
@@ -71,8 +71,8 @@ export const pizzaForm = defineGraph()
     default: 'medium',
   }))
   .field('glutenFree', boolOf())
-  .field('crust', (ctx) => {
-    if (ctx.style === 'calzone') return null;
+  .field('crust', (c) => {
+    if (c.style === 'calzone') return null;
     // The whole crust node, computed: options, memory scope, and the
     // availability rule — gate disables AND corrects with the reason.
     return {
@@ -84,58 +84,58 @@ export const pizzaForm = defineGraph()
         ],
         default: 'hand-tossed',
         gate: {
-          thin: !ctx.glutenFree && ctx.style === 'deep-dish' && 'deep_dish_needs_structure',
-          'hand-tossed': ctx.glutenFree && 'gluten_free_forces_thin',
+          thin: !c.glutenFree && c.style === 'deep-dish' && 'deep_dish_needs_structure',
+          'hand-tossed': c.glutenFree && 'gluten_free_forces_thin',
           stuffed:
-            (ctx.glutenFree && 'gluten_free_forces_thin') ||
-            (ctx.size === 'small' && 'not_available_for_size'),
+            (c.glutenFree && 'gluten_free_forces_thin') ||
+            (c.size === 'small' && 'not_available_for_size'),
         },
       }),
       // Remembered per size: your large stuffed pick survives trying a small.
-      scope: ctx.size,
+      scope: c.size,
     };
   })
-  .field('extraSauce', (ctx) => (ctx.style === 'deep-dish' ? boolOf() : null))
-  .field('halfAndHalf', (ctx) => (ctx.style !== 'calzone' ? boolOf() : null))
-  .field('toppings', (ctx) => {
-    if (ctx.halfAndHalf) return null;
-    const budget = ctx.style === 'calzone' ? Math.max(2, SIZES[ctx.size].budget - 1) : SIZES[ctx.size].budget;
+  .field('extraSauce', (c) => (c.style === 'deep-dish' ? boolOf() : null))
+  .field('halfAndHalf', (c) => (c.style !== 'calzone' ? boolOf() : null))
+  .field('toppings', (c) => {
+    if (c.halfAndHalf) return null;
+    const budget = c.style === 'calzone' ? Math.max(2, SIZES[c.size].budget - 1) : SIZES[c.size].budget;
     return toppingsDef(budget);
   })
-  .field('toppingsLeft', (ctx) =>
-    ctx.halfAndHalf ? toppingsDef(Math.max(2, Math.floor(SIZES[ctx.size].budget / 2))) : null
+  .field('toppingsLeft', (c) =>
+    c.halfAndHalf ? toppingsDef(Math.max(2, Math.floor(SIZES[c.size].budget / 2))) : null
   )
-  .field('toppingsRight', (ctx) =>
-    ctx.halfAndHalf ? toppingsDef(Math.max(2, Math.floor(SIZES[ctx.size].budget / 2))) : null
+  .field('toppingsRight', (c) =>
+    c.halfAndHalf ? toppingsDef(Math.max(2, Math.floor(SIZES[c.size].budget / 2))) : null
   )
-  .computed('budgetUsed', (ctx) =>
-    weightOf([...(ctx.toppings ?? []), ...(ctx.toppingsLeft ?? []), ...(ctx.toppingsRight ?? [])])
+  .computed('budgetUsed', (c) =>
+    weightOf([...(c.toppings ?? []), ...(c.toppingsLeft ?? []), ...(c.toppingsRight ?? [])])
   )
-  .computed('budgetTotal', (ctx) => {
-    const base = ctx.style === 'calzone' ? Math.max(2, SIZES[ctx.size].budget - 1) : SIZES[ctx.size].budget;
-    return ctx.halfAndHalf ? Math.max(2, Math.floor(SIZES[ctx.size].budget / 2)) * 2 : base;
+  .computed('budgetTotal', (c) => {
+    const base = c.style === 'calzone' ? Math.max(2, SIZES[c.size].budget - 1) : SIZES[c.size].budget;
+    return c.halfAndHalf ? Math.max(2, Math.floor(SIZES[c.size].budget / 2)) * 2 : base;
   })
-  .computed('calories', (ctx) => {
-    const all = [...(ctx.toppings ?? []), ...(ctx.toppingsLeft ?? []), ...(ctx.toppingsRight ?? [])];
+  .computed('calories', (c) => {
+    const all = [...(c.toppings ?? []), ...(c.toppingsLeft ?? []), ...(c.toppingsRight ?? [])];
     return (
-      SIZES[ctx.size].baseCalories +
-      Math.round(caloriesOf(all) * (ctx.halfAndHalf ? 0.5 : 1)) +
-      (ctx.extraSauce === true ? 80 : 0)
+      SIZES[c.size].baseCalories +
+      Math.round(caloriesOf(all) * (c.halfAndHalf ? 0.5 : 1)) +
+      (c.extraSauce === true ? 80 : 0)
     );
   })
-  .computed('bakeMinutes', (ctx) =>
+  .computed('bakeMinutes', (c) =>
     9 +
-    (ctx.crust === 'stuffed' ? 3 : 0) +
-    (ctx.style === 'deep-dish' ? 8 : ctx.style === 'calzone' ? 4 : 0) +
-    Math.ceil((ctx.budgetUsed ?? 0) / 2)
+    (c.crust === 'stuffed' ? 3 : 0) +
+    (c.style === 'deep-dish' ? 8 : c.style === 'calzone' ? 4 : 0) +
+    Math.ceil((c.budgetUsed ?? 0) / 2)
   )
-  .computed('price', (ctx) =>
+  .computed('price', (c) =>
     Math.round(
-      (SIZES[ctx.size].basePrice +
-        (ctx.budgetUsed ?? 0) * 1.25 +
-        (ctx.crust === 'stuffed' ? 2 : 0) +
-        (ctx.style === 'deep-dish' ? 3 : 0) +
-        (ctx.extraSauce === true ? 1 : 0)) *
+      (SIZES[c.size].basePrice +
+        (c.budgetUsed ?? 0) * 1.25 +
+        (c.crust === 'stuffed' ? 2 : 0) +
+        (c.style === 'deep-dish' ? 3 : 0) +
+        (c.extraSauce === true ? 1 : 0)) *
         100
     ) / 100
   );

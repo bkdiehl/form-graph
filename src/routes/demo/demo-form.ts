@@ -19,13 +19,13 @@ export const demoForm = defineGraph()
     output: z.string().min(1, 'Prompt is required'),
     default: '',
   })
-  .field('scale', (ctx) => (ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null))
-  .field('steps', (ctx) => (ctx.mode === 'create' ? slider({ min: 1, max: 50, default: 25 }) : null))
-  .field('cfgScale', (ctx) =>
-    ctx.mode === 'create' ? slider({ min: 1, max: 20, step: 0.5, default: 7 }) : null
+  .field('scale', (c) => (c.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null))
+  .field('steps', (c) => (c.mode === 'create' ? slider({ min: 1, max: 50, default: 25 }) : null))
+  .field('cfgScale', (c) =>
+    c.mode === 'create' ? slider({ min: 1, max: 20, step: 0.5, default: 7 }) : null
   )
-  .field('aspectRatio', (ctx) =>
-    ctx.mode === 'create'
+  .field('aspectRatio', (c) =>
+    c.mode === 'create'
       ? enumOf({
           options: [
             { label: 'Square', value: '1:1' },

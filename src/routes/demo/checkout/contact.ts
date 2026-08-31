@@ -9,11 +9,11 @@ import { boolOf, textOf } from '$lib/defs/index.js';
 export const contact = defineGraph()
   .field('email', textOf({ output: z.string().email('A valid email is required') }))
   .field('isBusiness', boolOf())
-  .field('company', (ctx) =>
-    ctx.isBusiness ? textOf({ output: z.string().min(1, 'Company name is required') }) : null
+  .field('company', ({ isBusiness }) =>
+    isBusiness ? textOf({ output: z.string().min(1, 'Company name is required') }) : null
   )
-  .field('vatId', (ctx) =>
-    ctx.isBusiness
+  .field('vatId', ({ isBusiness }) =>
+    isBusiness
       ? textOf({ output: z.string().regex(/^[A-Z]{2}[0-9A-Z]{6,12}$/, 'VAT id looks like DE812526315') })
       : null
   )

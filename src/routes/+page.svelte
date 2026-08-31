@@ -24,7 +24,7 @@ const create = defineGraph<{ maxSteps: number }>()
     output: z.string().min(1, 'Prompt is required'),
     default: '',
   })
-  .field('steps', (_ctx, ext) => slider({ min: 1, max: ext.maxSteps, default: 25 }));
+  .field('steps', ({ _ext }) => slider({ min: 1, max: _ext.maxSteps, default: 25 }));
 
 const upscale = defineGraph<{ maxSteps: number }>()
   .field('scale', slider({ min: 2, max: 4, default: 2 }));

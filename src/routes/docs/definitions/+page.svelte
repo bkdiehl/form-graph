@@ -58,10 +58,10 @@ boolOf(true)`}</pre>
   cache entries exist for the two step values below, built once each:
 </p>
 
-<pre>{`.field('steps', (ctx) => slider({
+<pre>{`.field('steps', (c) => slider({
   min: 1, max: 50,
-  step: ctx.draft ? 4 : 1,
-  presets: ctx.draft ? DRAFT_PRESETS : PRESETS,
+  step: c.draft ? 4 : 1,
+  presets: c.draft ? DRAFT_PRESETS : PRESETS,
 }))`}</pre>
 
 <h2>Custom zod, inline</h2>
@@ -70,9 +70,9 @@ boolOf(true)`}</pre>
   schemas stay cached; only your wrapper builds per pass (a few µs):
 </p>
 
-<pre>{`.field('hazmatClass', (ctx) => ({
+<pre>{`.field('hazmatClass', (c) => ({
   ...HAZMAT,
-  output: hazmatOutput.refine((v) => !(v === '1.4' && ctx.service === 'air'), {
+  output: hazmatOutput.refine((v) => !(v === '1.4' && c.service === 'air'), {
     message: 'Class 1.4 explosives cannot ship by air',
   }),
 }))`}</pre>

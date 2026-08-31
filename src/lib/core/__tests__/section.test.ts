@@ -15,8 +15,8 @@ const sampling = defineGraph()
   .field('steps', slider({ min: 1, max: 50, default: 25 }))
   .field('seed', slider({ min: 0, max: 100, default: 0 }));
 
-const caption = defineGraph<{ nsfw?: boolean }>().field('caption', (_ctx, ext) =>
-  ext.nsfw ? null : textOf({ default: '' })
+const caption = defineGraph<{ nsfw?: boolean }>().field('caption', (c) =>
+  c._ext.nsfw ? null : textOf({ default: '' })
 );
 
 describe('the graph IS the form: runtime on the definition', () => {
@@ -40,8 +40,8 @@ describe('the graph IS the form: runtime on the definition', () => {
 
   it('flows ext through, typed', () => {
     type Ext = { max: number };
-    const graph = defineGraph<Ext>().field('steps', (_ctx, ext) =>
-      slider({ min: 1, max: ext.max, default: 1 })
+    const graph = defineGraph<Ext>().field('steps', (c) =>
+      slider({ min: 1, max: c._ext.max, default: 1 })
     );
     const store = graph.createStore({ ext: { max: 7 } });
     expect(store.getField('steps')?.meta).toMatchObject({ max: 7 });
@@ -77,14 +77,14 @@ describe('mounting a graph with .use', () => {
     resolve: (f: Fields) => graph.resolve(f),
   });
 
-  it("appends the child's fields; its needs are satisfied by prior ctx", () => {
+  it("appends the child's fields; its needs are satisfied by prior c", () => {
     const store = form.createStore();
     expect(store.getState()).toEqual({ nsfw: false, steps: 25, seed: 0, caption: '' });
     store.set({ nsfw: true });
     expect(store.getState()).toEqual({ nsfw: true, steps: 25, seed: 0 });
   });
 
-  it('preserves the upstream ctx and merges the registries', () => {
+  it('preserves the upstream c and merges the registries', () => {
     type State = ReturnType<typeof graph.resolve>;
     type _upstream = Assert<Equals<State['nsfw'], boolean>>;
     type _added = Assert<Equals<State['steps'], number>>;
@@ -105,8 +105,8 @@ describe('mounting a graph with .use', () => {
   });
 
   it('rejects a parent missing a REQUIRED need, at the type level', () => {
-    const needsFlag = defineGraph<{ flag: boolean }>().field('extra', (_ctx, ext) =>
-      ext.flag ? textOf({ default: '' }) : null
+    const needsFlag = defineGraph<{ flag: boolean }>().field('extra', (c) =>
+      c._ext.flag ? textOf({ default: '' }) : null
     );
     // @ts-expect-error — nothing upstream declares `flag`, and the need is required
     defineGraph().use(needsFlag);
@@ -135,8 +135,8 @@ describe('mounting a graph with .use', () => {
 
   it("the parent's own ext also satisfies a child's needs", () => {
     type Ext = { limit: number };
-    const child = defineGraph<{ limit: number }>().field('quantity', (_ctx, ext) =>
-      slider({ min: 1, max: ext.limit, default: 1 })
+    const child = defineGraph<{ limit: number }>().field('quantity', (c) =>
+      slider({ min: 1, max: c._ext.limit, default: 1 })
     );
     const parent = defineGraph<Ext>().use(child);
     const form = defineForm({

@@ -80,7 +80,7 @@ describe('v1 parity: per-workflow checkpoint options (mage-flow-graph.test.ts)',
     store.set({ model: versionIds.txt2imgStandard });
 
     // Intent kept 40; only the projection clamped it. v1 loses this — the
-    // clamped value is written back into ctx.
+    // clamped value is written back into c.
     expect(store.getField('steps')?.value).toBe(40);
   });
 });

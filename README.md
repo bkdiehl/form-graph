@@ -13,7 +13,7 @@ import { defineGraph } from 'form-graph';
 import { slider, enumOf } from 'form-graph/defs';
 
 // A field is ONE definition — schemas, default, meta, conditions, together.
-// Conditional fields are functions of (ctx, ext); null = doesn't exist this pass.
+// Conditional fields are functions of (c, ext); null = doesn't exist this pass.
 const graph = defineGraph<{ maxSteps: number }>()
   .field('mode', enumOf({
     options: [
@@ -27,10 +27,10 @@ const graph = defineGraph<{ maxSteps: number }>()
     output: z.string().min(1, 'Prompt is required'), // strict: submit / server parse
     default: '',
   })
-  .field('steps', (ctx, ext) =>
-    ctx.mode === 'create' ? slider({ min: 1, max: ext.maxSteps, default: 25 }) : null)
-  .field('scale', (ctx) =>
-    ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null);
+  .field('steps', ({ mode, _ext }) =>
+    mode === 'create' ? slider({ min: 1, max: _ext.maxSteps, default: 25 }) : null)
+  .field('scale', ({ mode }) =>
+    mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null);
 
 // The graph IS the form — the runtime lives on the definition.
 const store = graph.createStore({ ext: { maxSteps: 50 } });
