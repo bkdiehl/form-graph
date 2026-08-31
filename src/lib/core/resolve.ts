@@ -1,5 +1,5 @@
 import { readEntry, type Intent, type ParseCache, type PendingValues } from './intent.js';
-import type { CodecRegistry, InferCodecMeta, InferCodecValue } from './codec.js';
+import type { CodecRegistry, InferDefMeta, InferDefValue } from './codec.js';
 import { runSchema } from './run-schema.js';
 import { scopedAddress, type Scope } from './scope.js';
 import { toFieldError } from './intent.js';
@@ -81,11 +81,11 @@ export interface Fields<Codecs extends CodecRegistry = CodecRegistry> {
   field<K extends keyof Codecs & string>(
     key: K,
     opts?: FieldOptions<
-      InferCodecValue<Codecs[K]>,
-      InferCodecMeta<Codecs[K]>,
-      SchemaLike<InferCodecValue<Codecs[K]>>
+      InferDefValue<Codecs[K]>,
+      InferDefMeta<Codecs[K]>,
+      SchemaLike<InferDefValue<Codecs[K]>>
     >
-  ): InferCodecValue<Codecs[K]>;
+  ): InferDefValue<Codecs[K]>;
   computed<T>(key: string, value: T): T;
   /**
    * Replaces an already-declared field's value and records why — correction

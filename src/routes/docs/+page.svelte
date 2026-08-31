@@ -21,7 +21,7 @@
 </p>
 
 <pre>{`import { defineGraph } from 'form-graph';
-import { slider, enumOf, textOf, boolOf } from 'form-graph/codecs';
+import { slider, enumOf, textOf, boolOf } from 'form-graph/defs';
 import { z } from 'zod';
 
 const graph = defineGraph()
@@ -82,6 +82,6 @@ store.setExt({ maxSteps: 30 });   // the whole form re-resolves`}</pre>
 
 <p>
   From here: <a href="{base}/docs/concepts">Core concepts</a> for the ideas underneath
-  (intent, scoped memory, corrections), <a href="{base}/docs/codecs">Definitions</a> for the
+  (intent, scoped memory, corrections), <a href="{base}/docs/definitions">Definitions</a> for the
   full anatomy, and the <a href="{base}/demo">demos</a> — every one shows its own source.
 </p>

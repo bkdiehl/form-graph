@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { boolOf, enumOf, slider } from '$lib/codecs/index.js';
+import { boolOf, enumOf, slider } from '$lib/defs/index.js';
 
 // Demo ladder, rung 3: the hardest mechanisms together, each field ONE
 // definition. Scoped memory per preset, a catalog gated by tier AND fleet

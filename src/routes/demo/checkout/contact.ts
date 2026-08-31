@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { boolOf } from '$lib/codecs/index.js';
+import { boolOf } from '$lib/defs/index.js';
 
 // A reusable section is just a GRAPH: define it standalone, mount it into a
 // parent chain with `.use(contact)`. Its fields, registry, and effects join

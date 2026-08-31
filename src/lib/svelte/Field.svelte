@@ -7,12 +7,12 @@
     CodecRegistry,
     FieldSnapshot,
     FormStore,
-    InferCodecMeta,
-    InferCodecValue,
+    InferDefMeta,
+    InferDefValue,
   } from '../core/index.js';
   import { field } from './index.js';
 
-  type Snap = FieldSnapshot<InferCodecValue<Codecs[K]>, InferCodecMeta<Codecs[K]>>;
+  type Snap = FieldSnapshot<InferDefValue<Codecs[K]>, InferDefMeta<Codecs[K]>>;
 
   // The v1-controller contract: place this flat on the page; the FORM decides
   // whether it renders. The snippet receives the typed snapshot plus a typed
@@ -25,11 +25,11 @@
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     store: FormStore<any, any, Codecs>;
     name: K;
-    children: Snippet<[Snap, (value: InferCodecValue<Codecs[K]>) => void]>;
+    children: Snippet<[Snap, (value: InferDefValue<Codecs[K]>) => void]>;
   } = $props();
 
-  const handle = $derived(field<InferCodecValue<Codecs[K]>, InferCodecMeta<Codecs[K]>>(store, name));
-  const setValue = (value: InferCodecValue<Codecs[K]>) => store.set({ [name]: value });
+  const handle = $derived(field<InferDefValue<Codecs[K]>, InferDefMeta<Codecs[K]>>(store, name));
+  const setValue = (value: InferDefValue<Codecs[K]>) => store.set({ [name]: value });
 </script>
 
 {#if handle.current}

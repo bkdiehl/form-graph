@@ -71,7 +71,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
     private readonly resolver: Resolver<Ext, State>,
     private readonly reconciler: PatchReconciler<State, Ext> | undefined,
     private readonly options: StoreOptions<Ext>,
-    private readonly codecs?: Codecs
+    private readonly defs?: Codecs
   ) {
     this.ext = options.ext;
 
@@ -88,7 +88,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
       if (value !== undefined) pending.set(key, boundaryEntry(value));
     }
 
-    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.codecs as CodecRegistry | undefined);
+    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.defs as CodecRegistry | undefined);
     this.commitPending(pending);
     this.snapshot = diffSnapshot(null, this.resolution, this.errors).snapshot;
   }
@@ -285,7 +285,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
   }
 
   private recompute(pending?: ReadonlyMap<string, IntentEntry>): boolean {
-    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.codecs as CodecRegistry | undefined);
+    this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.defs as CodecRegistry | undefined);
     if (pending) this.commitPending(pending);
     this.trackCodecChurn();
 

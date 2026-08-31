@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { enumOf } from '$lib/codecs/index.js';
+import { enumOf } from '$lib/defs/index.js';
 
 // Payment section: an ordinary graph. Its Ext declares what it NEEDS from
 // upstream — `isBusiness` from the contact section — and the mount point

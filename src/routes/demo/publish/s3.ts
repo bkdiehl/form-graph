@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { enumOf } from '$lib/codecs/index.js';
+import { enumOf } from '$lib/defs/index.js';
 
 // One DESTINATION: a complete graph in its own module. Each field is one
 // definition; the availability rule is one gate declaration whose condition

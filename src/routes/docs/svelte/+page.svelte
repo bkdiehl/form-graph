@@ -64,7 +64,7 @@ const graph = defineGraph()
   .field('steps', (ctx) => (ctx.mode === 'create' ? slider({ min: 1, max: 50 }) : null));
 
 export const form = defineForm({
-  codecs: graph.codecs,
+  defs: graph.defs,
   resolve: (f) => graph.resolve(f, undefined as void),
 });
 

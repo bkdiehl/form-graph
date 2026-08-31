@@ -5,9 +5,9 @@ import {
   codecFamily,
   defineForm,
   type Fields,
-  type InferCodecMeta,
-  type InferCodecValue,
-  type InferCodecs,
+  type InferDefMeta,
+  type InferDefValue,
+  type InferDefs,
 } from '../index.js';
 import { enumCodec, numberCodec } from '../../codecs/basic.js';
 import { enumOf } from '../def-helpers.js';
@@ -28,24 +28,24 @@ const stepsKit = defineFieldKit<{ max: number }, void, number>({
 describe('codecs slot accepts kits', () => {
   const form = defineForm({
     // A kit registers directly — no `.codec` repetition.
-    codecs: { steps: stepsKit },
+    defs: { steps: stepsKit },
     resolve: (f: Fields) => ({ steps: stepsKit.field(f, undefined) }),
   });
 
   it('unwraps the kit to its codec at runtime', () => {
-    expect(form.codecs.steps).toBe(STEPS);
+    expect(form.defs.steps).toBe(STEPS);
   });
 
   it('and at the type level', () => {
-    type Registry = InferCodecs<typeof form>;
+    type Registry = InferDefs<typeof form>;
     type Assert<T extends true> = T;
     type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
       ? true
       : false;
     // The kit's declared codec type survives (value/meta — what typedFields
     // and <Field> derive from), not the concrete literal type.
-    type _value = Assert<Equals<InferCodecValue<Registry['steps']>, number>>;
-    type _meta = Assert<Equals<InferCodecMeta<Registry['steps']>, undefined>>;
+    type _value = Assert<Equals<InferDefValue<Registry['steps']>, number>>;
+    type _meta = Assert<Equals<InferDefMeta<Registry['steps']>, undefined>>;
     expect(true).toBe(true);
   });
 });
@@ -98,7 +98,7 @@ describe('registry-backed f.field (codec omitted)', () => {
 
   it('resolves a registered key without repeating the codec, fully typed', () => {
     const form = defineForm({
-      codecs: { count: NUM },
+      defs: { count: NUM },
       resolve: (f) => ({ count: f.field('count') }),
     });
     const store = form.createStore();
@@ -110,7 +110,7 @@ describe('registry-backed f.field (codec omitted)', () => {
 
   it('still accepts an explicit codec, with options in either position', () => {
     const form = defineForm({
-      codecs: { count: NUM },
+      defs: { count: NUM },
       resolve: (f) => ({ count: f.field('count', { default: 7 }) }),
     });
     expect(form.createStore().getState().count).toBe(7);
@@ -134,7 +134,7 @@ describe('meta override receives the codec base', () => {
 
   it('patches instead of retyping, and re-derives on correction', () => {
     const form = defineForm({
-      codecs: { size: SIZE },
+      defs: { size: SIZE },
       resolve: (f) => {
         let size = f.field('size', {
           meta: (_v, base) => ({
@@ -166,7 +166,7 @@ describe('enumOf gate: one declaration, both halves (helper-level)', () => {
     })
   );
   const form = defineForm({
-    codecs: graph.codecs,
+    defs: graph.defs,
     resolve: (f: Fields, ext: { tokyo: boolean }) => graph.resolve(f, ext),
   });
 
@@ -233,7 +233,7 @@ describe('meta: codec contributes, field patches — each fact once', () => {
 
   it('a fully conditional prop lives only at the field', () => {
     const form = defineForm({
-      codecs: { email: EMAIL, business: BUSINESS },
+      defs: { email: EMAIL, business: BUSINESS },
       resolve: (f) => {
         const business = f.field('business');
         return {
@@ -258,7 +258,7 @@ describe('meta: codec contributes, field patches — each fact once', () => {
 
   it('default-with-exception patches only the exception — empty else keeps the codec value', () => {
     const form = defineForm({
-      codecs: { email: EMAIL, business: BUSINESS },
+      defs: { email: EMAIL, business: BUSINESS },
       resolve: (f) => {
         const business = f.field('business');
         return {
@@ -275,7 +275,7 @@ describe('meta: codec contributes, field patches — each fact once', () => {
 
   it('the function form still replaces (full control, base is the codec contribution)', () => {
     const form = defineForm({
-      codecs: { email: EMAIL },
+      defs: { email: EMAIL },
       resolve: (f) => ({
         email: f.field('email', {
           meta: (_v, base) => ({ placeholder: 'fixed', maxLength: (base?.maxLength ?? 0) / 2 }),

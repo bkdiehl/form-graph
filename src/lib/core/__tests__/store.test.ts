@@ -156,7 +156,7 @@ describe('store: reconciler', () => {
       return { target };
     }
     const form = defineForm({
-      codecs: graph.codecs,
+      defs: graph.defs,
       reconcile: [...graph.effects],
       resolve: (f: Fields) => graph.resolve(f),
     });
@@ -205,7 +205,7 @@ describe('store: reconciler', () => {
         return { target: next.workflow === 'img2vid' ? `i2v_${next.resolution}` : 'none' };
       });
     const form = defineForm({
-      codecs: graph.codecs,
+      defs: graph.defs,
       reconcile: [...graph.effects],
       resolve: (f: Fields) => graph.resolve(f),
     });

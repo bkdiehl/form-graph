@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { type AnyFieldDef, type FieldDef, type Graph } from '$lib/index.js';
-import { enumOf } from '$lib/codecs/index.js';
+import { enumOf } from '$lib/defs/index.js';
 
 // The same section mounted more than once: field keys must be unique
 // form-wide, so the caller names a PREFIX. Without `when` the fields are

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { boolOf, enumOf, slider, textOf } from '$lib/codecs/index.js';
+import { boolOf, enumOf, slider, textOf } from '$lib/defs/index.js';
 import type { ZodType } from 'zod';
 
 // Demo ladder, rung 2: a real-world shape. Chained computed fields

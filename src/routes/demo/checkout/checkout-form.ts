@@ -1,5 +1,5 @@
 import { defineGraph } from '$lib/index.js';
-import { boolOf } from '$lib/codecs/index.js';
+import { boolOf } from '$lib/defs/index.js';
 import { contact } from './contact.js';
 import { withAddress } from './address.js';
 import { payment, FEE_RATE } from './payment.js';

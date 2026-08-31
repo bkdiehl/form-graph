@@ -24,7 +24,7 @@
   built from. The inputs are the dependency array: nothing to declare, staleness impossible.
 </p>
 
-<pre>{`import { slider, enumOf, textOf, boolOf } from 'form-graph/codecs';
+<pre>{`import { slider, enumOf, textOf, boolOf } from 'form-graph/defs';
 
 slider({ min: 1, max: 50, step: 1, default: 25, presets: [...] })
 // meta: { min, max, step, presets? } — presets are meta, outside the schema cache key
@@ -64,6 +64,12 @@ boolOf(true)`}</pre>
   }),
 }))`}</pre>
 
+<p>
+  This spread IS the way to narrow an output per pass. (The engine also carries a
+  <code>FieldOptions.refine</code> hook for hand-written <code>f.field</code> resolvers — if
+  you're writing graphs, it's plumbing you never touch.)
+</p>
+
 <h2>The performance model, measured</h2>
 <ul>
   <li>zod schema construction: ~25–35µs per codec — the one thing worth caching;</li>
@@ -81,7 +87,7 @@ boolOf(true)`}</pre>
 
 <h2>Registry</h2>
 <p>
-  <code>graph.codecs</code> is the registry: TYPE-complete (every key, function-defined fields
+  <code>graph.defs</code> is the registry: TYPE-complete (every key, function-defined fields
   included), which is what gives <code>typedFields</code>, <code>&lt;Field&gt;</code> and the
   typed React controllers each key's exact value and meta types with no annotations.
 </p>

@@ -1,9 +1,9 @@
 import type { Codec, FieldError, SchemaLike, ValidationResult } from './types.js';
 import {
   FormDefinition,
-  type CodecsInput,
+  type DefsInput,
   type CreateStoreArgs,
-  type NormalizeCodecs,
+  type NormalizeDefs,
 } from './form.js';
 import type { FormStore } from './store.js';
 import type { CodecRegistry } from './codec.js';
@@ -89,7 +89,7 @@ type ExtArg<Ext> = [void] extends [Ext] ? [ext?: Ext] : [ext: Ext];
 /** The runtime entry points every definition carries — a graph IS the form. */
 interface Mountable<Ctx, Ext, Defs> {
   /** A live client store over this definition. */
-  createStore(...args: CreateStoreArgs<Ext>): FormStore<Ctx, Ext, NormalizeCodecs<Defs>>;
+  createStore(...args: CreateStoreArgs<Ext>): FormStore<Ctx, Ext, NormalizeDefs<Defs>>;
   /** The server entry point: boundary schemas -> resolve -> output validation. */
   parse(raw: Record<string, unknown>, ...ext: ExtArg<Ext>): ValidationResult<Ctx, Ctx>;
   /** Best-effort parse: valid fields plus the errors, no throw. */
@@ -111,7 +111,7 @@ export interface Graph<
    * the freshly computed def, so nothing reads the runtime entries for
    * function fields.
    */
-  readonly codecs: Defs;
+  readonly defs: Defs;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, Ext>[];
   resolve(f: Fields, ...ext: ExtArg<Ext>): Ctx;
@@ -173,7 +173,7 @@ export interface Graph<
 }
 
 interface MountSource {
-  codecs: Record<string, unknown>;
+  defs: Record<string, unknown>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   effects: readonly RuleUnit<any, any>[];
   resolve(f: Fields, ext?: unknown): unknown;
@@ -185,7 +185,7 @@ const formOf = (g: MountSource): FormDefinition<any, any> => {
   let f = forms.get(g);
   if (!f) {
     f = new FormDefinition({
-      codecs: g.codecs as CodecsInput,
+      defs: g.defs as DefsInput,
       reconcile: [...g.effects],
       resolve: (fields, ext) => g.resolve(fields, ext),
     });
@@ -209,14 +209,14 @@ const runtime = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, Ext>[]): Graph<Ctx, Ext, Record<string, AnyDef>> {
-  const codecs: Record<string, unknown> = {};
+  const defs: Record<string, unknown> = {};
   for (const e of entries) {
-    if (e.kind === 'field' && typeof e.def !== 'function') codecs[e.key] = e.def;
-    if (e.kind === 'graph') Object.assign(codecs, e.graph!.codecs);
+    if (e.kind === 'field' && typeof e.def !== 'function') defs[e.key] = e.def;
+    if (e.kind === 'graph') Object.assign(defs, e.graph!.defs);
   }
 
   return {
-    codecs: codecs as Record<string, AnyDef>,
+    defs: defs as Record<string, AnyDef>,
     effects,
 
     resolve(f: Fields, ext: Ext): Ctx {
@@ -312,7 +312,7 @@ export interface GraphSource<
   Ext,
   Defs extends Record<string, AnyFieldDef> = Record<string, AnyFieldDef>,
 > {
-  readonly codecs: Defs;
+  readonly defs: Defs;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, any>[];
   resolve(f: Fields, ...ext: ExtArg<Ext>): Ctx;
@@ -323,7 +323,7 @@ export interface GraphLike<
   Ext,
   Defs extends Record<string, AnyFieldDef> = Record<string, AnyFieldDef>,
 > extends Mountable<Ctx, Ext, Defs> {
-  readonly codecs: Defs;
+  readonly defs: Defs;
   // Ext-agnostic on purpose: a hub is usually mounted by a form whose Ext
   // differs (the resolver adapts ext before delegating), and the form still
   // needs to spread the hub's effects into its own reconcile list.
@@ -355,7 +355,7 @@ type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) exten
 /** Every member's registry merged — what typedFields/<Field> read off a hub. */
 type DefsOf<Members> =
   UnionToIntersection<
-    { [M in keyof Members]: Members[M] extends { codecs: infer D } ? D : never }[keyof Members]
+    { [M in keyof Members]: Members[M] extends { defs: infer D } ? D : never }[keyof Members]
   > extends infer Merged extends Record<string, AnyFieldDef>
     ? Merged
     : Record<string, AnyFieldDef>;
@@ -370,11 +370,11 @@ const mergeMembers = <Ext>(
   members: Record<string, GraphSource<object, Ext>>,
   activeMember: (state: Record<string, unknown>, ext: Ext) => string | undefined
 ) => {
-  const codecs: Record<string, AnyFieldDef> = {};
+  const defs: Record<string, AnyFieldDef> = {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const owners = new Map<RuleUnit<any, any>, Set<string>>();
   for (const [name, g] of Object.entries(members)) {
-    Object.assign(codecs, g.codecs);
+    Object.assign(defs, g.defs);
     for (const e of g.effects) {
       let set = owners.get(e);
       if (!set) owners.set(e, (set = new Set()));
@@ -390,7 +390,7 @@ const mergeMembers = <Ext>(
         : patch;
     },
   }));
-  return { codecs, effects };
+  return { defs, effects };
 };
 
 /** A rule map, a callback, or a pre-built unit -> a unit. The one normalization point. */
@@ -485,7 +485,7 @@ export function branchOn<
 > {
   // active member = the discriminator's value in the pre-patch state
   const merged = mergeMembers(members, (state) => state[key] as string | undefined);
-  merged.codecs[key] = def as AnyFieldDef;
+  merged.defs[key] = def as AnyFieldDef;
   return chainable({
     ...merged,
     resolve(f: Fields, ext: Ext) {

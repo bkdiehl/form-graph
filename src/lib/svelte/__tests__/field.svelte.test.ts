@@ -100,7 +100,7 @@ describe('typedFields', () => {
   });
   // The registry lives IN the form — nothing separate to export or annotate.
   const tinyForm = defineForm({
-    codecs: { steps: STEPS, name: NAME },
+    defs: { steps: STEPS, name: NAME },
     resolve: (f: Fields) => ({
       steps: f.field('steps', STEPS),
       name: f.field('name', NAME),

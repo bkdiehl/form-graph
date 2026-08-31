@@ -1,5 +1,5 @@
 // Convenience for the generation modules: the generic primitives too.
-export * from '../../codecs/index.js';
+export * from '../../defs/index.js';
 // The pre-graph primitives the corpus is built on — pulled from their module
 // paths, since the public barrel deliberately stopped re-exporting them.
 export {

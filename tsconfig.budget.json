@@ -3,7 +3,7 @@
   "include": [],
   "files": [
     "src/lib/index.ts",
-    "src/lib/codecs/index.ts",
+    "src/lib/defs/index.ts",
     "src/lib/svelte/index.ts",
     "src/lib/react/useForm.ts",
     "src/lib/react/useField.ts",

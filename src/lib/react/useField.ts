@@ -3,8 +3,8 @@ import type {
   CodecRegistry,
   FieldSnapshot,
   FormStore,
-  InferCodecMeta,
-  InferCodecValue,
+  InferDefMeta,
+  InferDefValue,
 } from '../core/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,6 +42,6 @@ export function useField<Value = unknown, Meta = unknown>(
 export function useTypedField<State, Ext, R extends CodecRegistry, K extends keyof R & string>(
   store: FormStore<State, Ext, R> | null,
   name: K
-): FieldSnapshot<InferCodecValue<R[K]>, InferCodecMeta<R[K]>> | null {
-  return useField<InferCodecValue<R[K]>, InferCodecMeta<R[K]>>(store as AnyStore | null, name);
+): FieldSnapshot<InferDefValue<R[K]>, InferDefMeta<R[K]>> | null {
+  return useField<InferDefValue<R[K]>, InferDefMeta<R[K]>>(store as AnyStore | null, name);
 }

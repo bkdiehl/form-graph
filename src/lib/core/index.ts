@@ -19,8 +19,8 @@ export {
   codec,
   codecFamily,
   type CodecRegistry,
-  type InferCodecValue,
-  type InferCodecMeta,
+  type InferDefValue,
+  type InferDefMeta,
   type RegistryMetas,
   type RegistryValues,
 } from './codec.js';
@@ -29,14 +29,14 @@ export { defineGraph, branch, branchOn, type Graph, type GraphLike,
 export { slider, enumOf, textOf, boolOf, type EnumDefOption, type EnumDefMeta, type SliderDefMeta } from './def-helpers.js';
 export {
   defineForm,
-  type CodecsInput,
+  type DefsInput,
   type CreateStoreArgs,
   type FormDefinition,
   type FormConfig,
-  type NormalizeCodecs,
+  type NormalizeDefs,
   type InferState,
   type InferExt,
-  type InferCodecs,
+  type InferDefs,
   type InferFieldValue,
 } from './form.js';
 export type { Intent, IntentEntry } from './intent.js';

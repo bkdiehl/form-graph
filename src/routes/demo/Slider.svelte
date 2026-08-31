@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { FieldSnapshot } from '$lib/index.js';
-  import type { SliderDefMeta } from '$lib/codecs/index.js';
+  import type { SliderDefMeta } from '$lib/defs/index.js';
   import type { Reactive } from '$lib/svelte/index.js';
 
   // Typed at the boundary: this control only accepts a number/SliderDefMeta field,

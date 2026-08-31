@@ -1,5 +1,5 @@
 import { branchOn } from '$lib/index.js';
-import { enumOf } from '$lib/codecs/index.js';
+import { enumOf } from '$lib/defs/index.js';
 import { s3Graph, s3Meta } from './s3.js';
 import { emailGraph, emailMeta } from './email.js';
 import { webhookGraph, webhookMeta } from './webhook.js';

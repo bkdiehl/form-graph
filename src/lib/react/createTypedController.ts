@@ -3,8 +3,8 @@ import type {
   CodecRegistry,
   FormDefinition,
   FormStore,
-  InferCodecMeta,
-  InferCodecValue,
+  InferDefMeta,
+  InferDefValue,
 } from '../core/index.js';
 import { Controller, type ControllerProps, type ControllerRenderProps } from './Controller.js';
 
@@ -18,7 +18,7 @@ export type TypedController<R extends CodecRegistry> = <K extends keyof R & stri
 export interface TypedControllerProps<R extends CodecRegistry, K extends keyof R & string> {
   name: K;
   render: (
-    props: ControllerRenderProps<InferCodecValue<R[K]>, InferCodecMeta<R[K]>>
+    props: ControllerRenderProps<InferDefValue<R[K]>, InferDefMeta<R[K]>>
   ) => ReactElement | null;
   store?: AnyStore;
 }
@@ -58,7 +58,7 @@ export function createTypedController<R extends CodecRegistry>(_form?: unknown) 
   }: TypedControllerProps<R, K>): ReactElement | null {
     return createElement(
       Controller as (
-        props: ControllerProps<InferCodecValue<R[K]>, InferCodecMeta<R[K]>>
+        props: ControllerProps<InferDefValue<R[K]>, InferDefMeta<R[K]>>
       ) => ReactElement | null,
       { name, render, store }
     );

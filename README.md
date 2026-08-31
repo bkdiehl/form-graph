@@ -10,7 +10,7 @@ drives the client store and parses raw input on the server. No second schema, no
 ```ts
 import { z } from 'zod';
 import { defineGraph } from 'form-graph';
-import { slider, enumOf } from 'form-graph/codecs';
+import { slider, enumOf } from 'form-graph/defs';
 
 // A field is ONE definition — schemas, default, meta, conditions, together.
 // Conditional fields are functions of (ctx, ext); null = doesn't exist this pass.
@@ -121,7 +121,7 @@ const store = form.createStore({ ext, storage: persistedStorage('my-form') });
 | `form-graph` | core: `codec`, `defineForm`, `defineRules`, `defineFieldKit`, store, introspection, `persistedStorage`, intent readers |
 | `form-graph/svelte` | `typedFields`, `<Field>`, `field`, `formState` |
 | `form-graph/react` | `useForm`, `useField`, `useTypedField`, `Controller`, `createTypedController`, `FormProvider` |
-| `form-graph/codecs` | ready-made codec factories and field kits: sliders, enums, aspect ratios, resources, checkpoints, images |
+| `form-graph/defs` | the definition helpers: sliders, enums, text, booleans — schemas cached automatically |
 
 ## Docs and demos
 

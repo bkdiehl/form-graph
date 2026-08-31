@@ -18,8 +18,8 @@ export function codec<T, M = undefined, O extends SchemaLike<T> = SchemaLike<T>>
   return def;
 }
 
-export type InferCodecValue<C> = C extends Codec<infer T, infer _M> ? T : never;
-export type InferCodecMeta<C> = C extends Codec<infer _T, infer M> ? M : never;
+export type InferDefValue<C> = C extends Codec<infer T, infer _M> ? T : never;
+export type InferDefMeta<C> = C extends Codec<infer _T, infer M> ? M : never;
 
 /**
  * The per-key inference pattern: the app declares one registry object mapping
@@ -33,12 +33,12 @@ export type CodecRegistry = Record<string, Codec<any, any>>;
 
 /** @typeParam R - The app's codec-registry literal (`typeof genCodecs`); keys are field names. */
 export type RegistryValues<R extends CodecRegistry> = {
-  [K in keyof R]: InferCodecValue<R[K]>;
+  [K in keyof R]: InferDefValue<R[K]>;
 };
 
 /** @typeParam R - Same registry literal as {@link RegistryValues}. */
 export type RegistryMetas<R extends CodecRegistry> = {
-  [K in keyof R]: InferCodecMeta<R[K]>;
+  [K in keyof R]: InferDefMeta<R[K]>;
 };
 
 /**

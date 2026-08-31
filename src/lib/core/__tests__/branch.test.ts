@@ -35,7 +35,7 @@ describe('branchOn', () => {
   const hub = branchOn('destination', DESTINATION, { s3, email });
 
   const form = defineForm({
-    codecs: hub.codecs,
+    defs: hub.defs,
     resolve: (f) => hub.resolve(f),
   });
 
@@ -49,7 +49,7 @@ describe('branchOn', () => {
   });
 
   it('merges every member registry', () => {
-    expect(Object.keys(hub.codecs).sort()).toEqual(['bucket', 'destination', 'recipient', 'region']);
+    expect(Object.keys(hub.defs).sort()).toEqual(['bucket', 'destination', 'recipient', 'region']);
   });
 
   it('types the state as a union discriminated by the key', () => {
@@ -80,7 +80,7 @@ describe('branch', () => {
   const hub = branch((ext: Ext) => ext.tier, { free, pro });
 
   const form = defineForm({
-    codecs: hub.codecs,
+    defs: hub.defs,
     resolve: (f: Fields, ext: Ext) => hub.resolve(f, ext),
     reconcile: [...hub.effects],
   });
@@ -116,7 +116,7 @@ describe('branch', () => {
     expect(hub.effects).toHaveLength(1); // the original hub is untouched
 
     const cappedForm = defineForm({
-      codecs: capped.codecs,
+      defs: capped.defs,
       resolve: (f: Fields, ext: Ext) => capped.resolve(f, ext),
       reconcile: [...capped.effects],
     });
@@ -159,7 +159,7 @@ describe('branchOn failure path', () => {
       real: defineGraph().field('x', slider({ min: 0, max: 1, default: 0 })),
     });
     const form = defineForm({
-      codecs: hub.codecs,
+      defs: hub.defs,
       resolve: (f) => hub.resolve(f),
     });
     expect(() => form.createStore()).toThrow('branchOn "kind": no member graph for "ghost"');

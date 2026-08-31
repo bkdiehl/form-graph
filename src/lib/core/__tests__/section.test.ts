@@ -72,7 +72,7 @@ describe('mounting a graph with .use', () => {
   const graph = defineGraph().field('nsfw', boolOf()).use(sampling).use(caption);
 
   const form = defineForm({
-    codecs: graph.codecs,
+    defs: graph.defs,
     resolve: (f: Fields) => graph.resolve(f),
   });
 
@@ -89,9 +89,9 @@ describe('mounting a graph with .use', () => {
     type _added = Assert<Equals<State['steps'], number>>;
     type _conditional = Assert<Equals<State['caption'], string | undefined>>;
     type _registry = Assert<
-      Equals<keyof typeof graph.codecs, 'nsfw' | 'steps' | 'seed' | 'caption'>
+      Equals<keyof typeof graph.defs, 'nsfw' | 'steps' | 'seed' | 'caption'>
     >;
-    expect(Object.keys(graph.codecs).sort()).toEqual(['nsfw', 'seed', 'steps']);
+    expect(Object.keys(graph.defs).sort()).toEqual(['nsfw', 'seed', 'steps']);
   });
 
   it("does NOT leak the child's needs into the parent's state", () => {
@@ -100,7 +100,7 @@ describe('mounting a graph with .use', () => {
     const bare = defineGraph().use(sampling).use(caption);
     type BareState = ReturnType<typeof bare.resolve>;
     type _noLeak = Assert<Equals<'nsfw' extends keyof BareState ? true : false, false>>;
-    expect(Object.keys(bare.codecs).sort()).toEqual(['seed', 'steps']);
+    expect(Object.keys(bare.defs).sort()).toEqual(['seed', 'steps']);
   });
 
   it('rejects a parent missing a REQUIRED need, at the type level', () => {
@@ -123,7 +123,7 @@ describe('mounting a graph with .use', () => {
     expect(parent.effects).toHaveLength(1);
 
     const capped = defineForm({
-      codecs: parent.codecs,
+      defs: parent.defs,
       reconcile: [...parent.effects],
       resolve: (f: Fields) => parent.resolve(f),
     });
@@ -139,7 +139,7 @@ describe('mounting a graph with .use', () => {
     );
     const parent = defineGraph<Ext>().use(child);
     const form = defineForm({
-      codecs: parent.codecs,
+      defs: parent.defs,
       resolve: (f: Fields, ext: Ext) => parent.resolve(f, ext),
     });
     const store = form.createStore({ ext: { limit: 4 } });
@@ -150,7 +150,7 @@ describe('mounting a graph with .use', () => {
     const addSeed = <G extends { field: (k: string, d: unknown) => unknown }>(g: G) =>
       g.field('seed', slider({ min: 0, max: 100, default: 0 }));
     const viaUse = defineGraph().use((g) => g.field('seed', slider({ min: 0, max: 100, default: 0 })));
-    expect(Object.keys(viaUse.codecs)).toEqual(['seed']);
+    expect(Object.keys(viaUse.defs)).toEqual(['seed']);
     void addSeed;
   });
 });

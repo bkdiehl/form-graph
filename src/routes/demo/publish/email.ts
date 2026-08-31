@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { boolOf, enumOf, slider } from '$lib/codecs/index.js';
+import { boolOf, enumOf, slider } from '$lib/defs/index.js';
 
 export const emailGraph = defineGraph()
   .field('recipients', {

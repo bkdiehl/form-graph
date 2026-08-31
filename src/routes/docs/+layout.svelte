@@ -18,10 +18,10 @@
       title: 'Reference',
       pages: [
         { href: '/docs/fields', label: 'The graph' },
-        { href: '/docs/codecs', label: 'Definitions' },
+        { href: '/docs/definitions', label: 'Definitions' },
         { href: '/docs/store', label: 'The store' },
         { href: '/docs/rules', label: 'Effects' },
-        { href: '/docs/kits', label: 'Reuse' },
+        { href: '/docs/reuse', label: 'Reuse' },
         { href: '/docs/storage', label: 'Storage' },
         { href: '/docs/introspection', label: 'Introspection' },
       ],

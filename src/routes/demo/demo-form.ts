@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { enumOf, slider } from '$lib/codecs/index.js';
+import { enumOf, slider } from '$lib/defs/index.js';
 
 // A compact form authored right next to the page that consumes it. Each field
 // is one definition; conditional fields return null when their mode doesn't

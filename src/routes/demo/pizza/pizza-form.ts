@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
-import { boolOf, enumOf, slider, textOf } from '$lib/codecs/index.js';
+import { boolOf, enumOf, slider, textOf } from '$lib/defs/index.js';
 
 // Demo ladder, rung 1: every core mechanism on a form anyone can read. Each
 // field is ONE function of (ctx, ext) returning its whole definition — or

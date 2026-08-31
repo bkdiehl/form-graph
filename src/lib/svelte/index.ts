@@ -3,8 +3,8 @@ import type {
   CodecRegistry,
   FieldSnapshot,
   FormStore,
-  InferCodecMeta,
-  InferCodecValue,
+  InferDefMeta,
+  InferDefValue,
 } from '../core/index.js';
 
 /**
@@ -50,8 +50,8 @@ export function field<Value = unknown, Meta = unknown>(
  */
 export type FieldsOf<Codecs> = {
   readonly [K in keyof Codecs & string]: Reactive<FieldSnapshot<
-    InferCodecValue<Codecs[K]>,
-    InferCodecMeta<Codecs[K]>
+    InferDefValue<Codecs[K]>,
+    InferDefMeta<Codecs[K]>
   > | null>;
 };
 
@@ -60,7 +60,7 @@ export type FieldsOf<Codecs> = {
  * or import. The form's `codecs` slot is the single source; the store carries
  * its type; this reads it back:
  *
- *   const form = defineForm({ codecs: { steps: STEPS, ... }, resolve });
+ *   const form = defineForm({ defs: { steps: STEPS, ... }, resolve });
  *   const f = typedFields(form.createStore({ ext }));
  *   f.steps.current   // FieldSnapshot<number, NumberMeta> | null
  *

@@ -50,7 +50,7 @@ for (let i = 0; i < 16; i++) {
 }
 
 const form = defineForm({
-  codecs: wide.codecs,
+  defs: wide.defs,
   resolve: (f: Fields, ext: { tier: 'free' | 'pro' }) => wide.resolve(f, ext),
 });
 
