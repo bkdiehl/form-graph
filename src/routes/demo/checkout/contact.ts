@@ -1,14 +1,12 @@
 import { z } from 'zod';
-import { defineRules, type AnyFieldDef, type Graph } from '$lib/index.js';
+import { defineRules, section } from '$lib/index.js';
 import { boolOf } from '$lib/codecs/index.js';
 
-// A SECTION is a Graph -> Graph function: it appends its fields to whatever
-// chain it's given and hands the chain back, ctx flowing through. It knows
-// nothing about the form it joins.
+// A SECTION appends its fields to whatever chain it's given and hands the
+// chain back, ctx flowing through. It knows nothing about the form it joins;
+// `section()` owns the generics that keep the caller's ctx and registry.
 
-export const withContact = <C extends object, D extends Record<string, AnyFieldDef>>(
-  g: Graph<C, void, D>
-) =>
+export const withContact = section()((g) =>
   g
     .field('email', {
       input: z.string().optional(),
@@ -33,7 +31,8 @@ export const withContact = <C extends object, D extends Record<string, AnyFieldD
             default: '',
           }
         : null
-    );
+    )
+);
 
 // Section-owned coupling: switching OFF business clears the business-only
 // intent, so stale company data can't linger and resurface.

@@ -25,27 +25,36 @@
   <code>codecFamily</code> if it's ever hot.
 </p>
 
-<h2>2. Sections: Graph → Graph functions</h2>
+<h2>2. Sections: <code>section()</code> + <code>.use()</code></h2>
 <p>
   A section appends its fields to whatever chain it's given and hands the chain back — ctx
-  flows through, so cross-section conditions are plain reads:
+  flows through, so cross-section conditions are plain reads. <code>section()</code> owns the
+  generic threading (hand-written sections that forget the Defs generic silently erase the
+  caller's registry types): state what the section NEEDS from prior ctx, and its own additions
+  are inferred from the build function.
 </p>
 
-<pre>{`export const withContact = <C extends object, D extends Record<string, AnyFieldDef>>(
-  g: Graph<C, void, D>
-) =>
+<pre>{`export const withContact = section()((g) =>
   g
     .field('email', EMAIL)
     .field('isBusiness', boolOf())
-    .field('company', (ctx) => (ctx.isBusiness ? COMPANY : null));
+    .field('company', (ctx) => (ctx.isBusiness ? COMPANY : null))
+);
 
-// later, another section reads what contact declared:
-export const withPayment = (g) =>
+// another section reads what contact declared — a NEEDS declaration:
+export const withPayment = section<{ isBusiness: boolean }>()((g) =>
   g.field('paymentMethod', (ctx) => enumOf({
     options: METHODS,
     default: 'card',
     gate: { invoice: !ctx.isBusiness && 'invoice_requires_business' },
-  }));`}</pre>
+  }))
+);
+
+// application is chain-linear, not nested inside-out:
+const graph = defineGraph()
+  .use(withContact)
+  .field('billingSameAsShipping', boolOf(true))
+  .use(withPayment);`}</pre>
 
 <h2>3. The same section, mounted more than once</h2>
 <p>

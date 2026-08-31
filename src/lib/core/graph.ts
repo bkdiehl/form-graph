@@ -96,6 +96,13 @@ export interface Graph<
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   effect(unit: RuleUnit<any, Ext>): Graph<Ctx, Ext, Defs>;
+
+  /**
+   * Apply a section — a Graph -> Graph function — keeping the chain linear:
+   * `g.use(withCore('v2.5')).field(...)` instead of nesting calls inside-out.
+   * Plain application: `use(fn)` IS `fn(this)`.
+   */
+  use<G>(fn: (g: this) => G): G;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,12 +155,68 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return make<Ctx, Ext>(entries, [...effects, unit]) as any;
     },
+
+    use(fn) {
+      return fn(this);
+    },
   };
 }
 
 export function defineGraph<Ext = void>(): Graph<Record<never, never>, Ext> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return make([], []) as any;
+}
+
+/**
+ * A reusable stretch of chain, with the generic threading written ONCE — here,
+ * instead of by every section author (hand-threaded sections that forget the
+ * Defs generic silently erase the registry types of everything upstream).
+ *
+ * `Needs` declares what the section reads from prior ctx; `Ext` is the
+ * external context its entries receive. Both are stated explicitly (there is
+ * nothing to infer them from); the section's own additions are inferred from
+ * the build function:
+ *
+ *   const withTextBlock = (negative: boolean) =>
+ *     section<{ model?: ResourceData }, WanExt>()((g) =>
+ *       g.computed('triggerWords', (ctx) => ...).field('prompt', PROMPT));
+ *
+ *   base.use(withCore('v2.5')).field('resolution', RES_25).use(withTextBlock(true))
+ *
+ * The returned function accepts any graph whose ctx satisfies `Needs` and
+ * whose Ext matches, and preserves that graph's ctx and registry exactly.
+ */
+type RequiredNeeds<T> = { [K in keyof T]-?: undefined extends T[K] ? never : K }[keyof T];
+type BadNeedKeys<C, Needs> = {
+  [K in keyof Needs & keyof C]-?: C[K] extends Needs[K] ? never : K;
+}[keyof Needs & keyof C];
+/**
+ * Per-key compatibility instead of `C extends Needs`: an all-optional Needs
+ * is a WEAK TYPE, so `extends` would reject any consumer sharing no keys with
+ * it — the exact case optional Needs exists for (read the key, get undefined).
+ * Resolves to `unknown` (a no-op on the parameter) when compatible, and to an
+ * impossible branded object naming the offending keys when not.
+ */
+type NeedsCheck<C, Needs> = [Exclude<RequiredNeeds<Needs>, keyof C>] extends [never]
+  ? [BadNeedKeys<C, Needs>] extends [never]
+    ? unknown
+    : { 'section Needs incompatible with ctx at key': BadNeedKeys<C, Needs> }
+  : { 'section Needs missing from ctx': Exclude<RequiredNeeds<Needs>, keyof C> };
+
+export function section<Needs extends object = Record<never, never>, Ext = void>() {
+  return <Out extends object, OutDefs extends Record<string, AnyDef>>(
+    build: (g: Graph<Needs, Ext>) => Graph<Out, Ext, OutDefs>
+  ) =>
+    <C extends object, D extends Record<string, AnyDef>>(
+      g: Graph<C, Ext, D> & NeedsCheck<C, Needs>
+    ): Graph<C & Omit<Out, keyof Needs>, Ext, D & OutDefs> =>
+      // Out includes Needs (the chain carries its input ctx through) — strip
+      // it, or a section's Needs keys would leak into every consumer's state
+      build(g as unknown as Graph<Needs, Ext>) as unknown as Graph<
+        C & Omit<Out, keyof Needs>,
+        Ext,
+        D & OutDefs
+      >;
 }
 
 /** What a graph exposes to composition — a hub produces the same shape. */

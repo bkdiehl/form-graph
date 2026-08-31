@@ -12,15 +12,18 @@ import { withPayment, FEE_RATE } from './payment.js';
 const ITEM_TOTAL = 120;
 const SHIPPING_COST = { US: 5, DE: 12, JP: 18 } as const;
 
-const base = withAddress(withContact(defineGraph()), 'shipping');
-
-const graph = withPayment(
-  withAddress(
-    base.field('billingSameAsShipping', boolOf(true)),
-    'billing',
-    (ctx) => !(ctx as { billingSameAsShipping: boolean }).billingSameAsShipping
+const graph = defineGraph()
+  .use(withContact)
+  .use((g) => withAddress(g, 'shipping'))
+  .field('billingSameAsShipping', boolOf(true))
+  .use((g) =>
+    withAddress(
+      g,
+      'billing',
+      (ctx) => !(ctx as { billingSameAsShipping: boolean }).billingSameAsShipping
+    )
   )
-)
+  .use(withPayment)
   .computed('shipping', (ctx) => ({
     street: ctx.shippingStreet,
     city: ctx.shippingCity,

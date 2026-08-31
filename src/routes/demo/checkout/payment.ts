@@ -1,17 +1,12 @@
 import { z } from 'zod';
-import { type AnyFieldDef, type Graph } from '$lib/index.js';
+import { section } from '$lib/index.js';
 import { enumOf } from '$lib/codecs/index.js';
 
 // Payment section: its own branching (each method mounts different fields).
 // Whether 'invoice' is allowed depends on the CONTACT section — which is just
 // a ctx read, because sections share one chain.
 
-export const withPayment = <
-  C extends { isBusiness: boolean },
-  D extends Record<string, AnyFieldDef>,
->(
-  g: Graph<C, void, D>
-) =>
+export const withPayment = section<{ isBusiness: boolean }>()((g) =>
   g
     .field('paymentMethod', (ctx) =>
       enumOf({
@@ -55,6 +50,7 @@ export const withPayment = <
             default: '',
           }
         : null
-    );
+    )
+);
 
 export const FEE_RATE = { card: 0.02, paypal: 0.03, invoice: 0 } as const;
