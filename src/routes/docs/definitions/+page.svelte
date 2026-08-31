@@ -16,6 +16,19 @@
   toOutput?: (value: T) => unknown;  // submission projection
 }`}</pre>
 
+<h2><code>input</code> is optional — and live typing never touches it</h2>
+<p>
+  Session edits (<code>set()</code>) write TRUSTED intent: a half-typed invalid value is held
+  and rejected only at submit, with or without an input schema. The input schema guards only
+  UNTRUSTED boundaries — storage reload, raw server input, URL params. Omit it, and those
+  boundaries parse with the OUTPUT schema, leniently: an invalid stored value falls to the
+  default, with the error recorded. That is the right behavior for most fields. Declare
+  <code>input</code> yourself for its real jobs: coercion (<code>z.coerce</code>), key
+  migration, and restoring INVALID persisted drafts across reload (long text —
+  <code>textOf</code> does this for you, and takes an <code>output</code> override for
+  formats: <code>textOf(&#123; output: z.string().email('…') &#125;)</code>).
+</p>
+
 <h2>The helpers</h2>
 <p>
   <code>slider</code>, <code>enumOf</code>, <code>textOf</code>, <code>boolOf</code> build the

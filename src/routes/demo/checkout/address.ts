@@ -1,17 +1,14 @@
 import { z } from 'zod';
 import { type AnyFieldDef, type FieldDef, type Graph } from '$lib/index.js';
-import { enumOf } from '$lib/defs/index.js';
+import { enumOf, textOf } from '$lib/defs/index.js';
 
 // The same section mounted more than once: field keys must be unique
 // form-wide, so the caller names a PREFIX. Without `when` the fields are
 // unconditional (required keys); with `when` the whole mount is conditional
 // (optional keys) — the billing block behind the same-as-shipping toggle.
 
-const TEXT = (message: string): FieldDef<string> => ({
-  input: z.string().optional(),
-  output: z.string().min(1, message),
-  default: '',
-});
+const TEXT = (message: string): FieldDef<string> =>
+  textOf({ output: z.string().min(1, message) });
 
 const COUNTRY = enumOf({
   options: [

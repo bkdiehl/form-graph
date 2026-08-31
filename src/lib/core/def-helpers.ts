@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { FieldDef } from './graph.js';
+import type { SchemaLike } from './types.js';
 
 /**
  * PROTOTYPE E definition helpers. Each returns a fresh FieldDef per call
@@ -116,8 +117,22 @@ export function enumOf<const T extends string | number>(cfg: {
   };
 }
 
+/**
+ * A text field. The INPUT stays lenient regardless of the output — that's the
+ * dual-schema contract that lets a field HOLD a half-typed invalid value
+ * (rejected only at submit) instead of snapping to the default while typing.
+ * `output` overrides the strict contract (formats, messages) without giving
+ * that up:
+ *
+ *   textOf({ output: z.string().email('A valid email is required') })
+ */
 export function textOf(
-  cfg: { maxLength?: number; required?: boolean; default?: string } = {}
+  cfg: {
+    maxLength?: number;
+    required?: boolean;
+    default?: string;
+    output?: SchemaLike<string>;
+  } = {}
 ): FieldDef<string> {
   const { maxLength = 6000, required = false } = cfg;
   const schemas = memo(`text|${maxLength}|${required}`, () => {
@@ -127,7 +142,11 @@ export function textOf(
       output: required ? base.min(1, 'Required') : base,
     };
   });
-  return { ...schemas, default: cfg.default ?? '' };
+  return {
+    ...schemas,
+    ...(cfg.output ? { output: cfg.output } : {}),
+    default: cfg.default ?? '',
+  };
 }
 
 export function boolOf(cfg: { default?: boolean } = {}): FieldDef<boolean> {
