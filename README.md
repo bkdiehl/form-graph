@@ -32,10 +32,7 @@ const graph = defineGraph<{ maxSteps: number }>()
   .field('scale', (ctx) =>
     ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null);
 
-const form = defineForm({
-  codecs: graph.codecs,   // types every binding, conditional fields included
-  resolve: (f, ext: { maxSteps: number }) => graph.resolve(f, ext),
-});
+const form = defineForm(graph);   // registry, effects, resolver — wired from the graph
 
 // Client: a live store — per-field subscriptions, persistent scoped memory.
 const store = form.createStore({ ext: { maxSteps: 50 } });
