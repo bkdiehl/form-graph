@@ -1,20 +1,10 @@
 import { z } from 'zod';
-import { defineGraph, defineRules } from '$lib/index.js';
+import { defineGraph } from '$lib/index.js';
 import { boolOf } from '$lib/codecs/index.js';
 
 // A reusable section is just a GRAPH: define it standalone, mount it into a
 // parent chain with `.use(contact)`. Its fields, registry, and effects join
 // the parent; it knows nothing about the form it lands in.
-
-// Section-owned coupling: switching OFF business clears the business-only
-// intent, so stale company data can't linger and resurface. Attached with
-// .effect, it rides the mount — the parent never imports it.
-const contactRules = defineRules<void, { isBusiness?: boolean }>({
-  rules: () => ({
-    isBusiness: (value) =>
-      value === false ? { company: undefined, vatId: undefined } : undefined,
-  }),
-});
 
 export const contact = defineGraph()
   .field('email', {
@@ -41,4 +31,10 @@ export const contact = defineGraph()
         }
       : null
   )
-  .effect(contactRules);
+  // Section-owned coupling, a plain map keyed by the trigger field: switching
+  // OFF business clears the business-only intent, so stale company data can't
+  // linger and resurface. It rides the mount — the parent never imports it.
+  .effect({
+    isBusiness: (value) =>
+      value === false ? { company: undefined, vatId: undefined } : undefined,
+  });

@@ -73,13 +73,9 @@ describe('branch', () => {
   const pro = defineGraph<Ext>()
     .field('steps', slider({ min: 1, max: 50, default: 25 }))
     .field('seed', slider({ min: 0, max: 1000, default: 0 }))
-    .effect(
-      defineRules<void, { steps?: number; seed?: number }>({
-        rules: () => ({
-          steps: (steps) => (steps === 50 ? { seed: 7 } : undefined),
-        }),
-      })
-    );
+    .effect({
+      steps: (steps) => (steps === 50 ? { seed: 7 } : undefined),
+    });
 
   const hub = branch((ext: Ext) => ext.tier, { free, pro });
 
@@ -101,6 +97,14 @@ describe('branch', () => {
     const store = form.createStore({ ext: { tier: 'pro' } });
     store.set({ steps: 50 });
     expect(store.getState()).toEqual({ steps: 50, seed: 7 });
+  });
+
+  it("AUTO-SCOPES a member's effects to that member being picked", () => {
+    // Rules see the RAW patch (reconcile runs before codecs), so steps: 50
+    // would trigger pro's rule — but free is active, so it must not fire.
+    const store = form.createStore({ ext: { tier: 'free' } });
+    store.set({ steps: 50 });
+    expect(store.getIntent()).not.toHaveProperty('seed');
   });
 
   it('chains its own effects with .effect, like a graph', () => {

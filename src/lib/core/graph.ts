@@ -1,7 +1,7 @@
 import type { Codec, SchemaLike } from './types.js';
 import type { CodecRegistry } from './codec.js';
 import type { Fields, FieldOptions } from './resolve.js';
-import type { RuleUnit } from './rules.js';
+import { compileRules, type RuleCtx, type RuleUnit } from './rules.js';
 import type { Scope } from './scope.js';
 
 /**
@@ -49,6 +49,19 @@ export type AnyFieldDef = FieldDef<any, any>;
 type DefValue<D> = D extends FieldDef<infer T, infer _M> ? T : never;
 type DefArg<Ctx, Ext> = AnyDef | ((ctx: Ctx, ext: Ext) => AnyDef | null);
 
+/**
+ * Rules typed FROM the graph: triggers are its own keys, each rule's value
+ * parameter is that field's type (as found in a raw patch, so possibly
+ * undefined), and state is the graph's ctx with every key optional (rules run
+ * against whatever branch is live).
+ */
+export type GraphRules<Ctx, Ext> = {
+  [K in keyof Ctx & string]?: (
+    value: Ctx[K] | undefined,
+    ctx: RuleCtx<Partial<Ctx>, Ext>
+  ) => Record<string, unknown> | undefined | void;
+};
+
 interface Entry {
   kind: 'field' | 'computed' | 'graph';
   key: string;
@@ -95,6 +108,14 @@ export interface Graph<
     calc: (ctx: Ctx, ext: Ext) => T
   ): Graph<Ctx & Record<K, T>, Ext, Defs>;
 
+  /**
+   * Attach rules as a PLAIN MAP keyed by the trigger field: a rule fires when
+   * its key is in a patch, reads the pre-patch state, and returns keys to add
+   * to the patch. Everything is typed from the graph — no generics, no
+   * wrapper. A pre-built unit (`defineRules`, for config-bound or guarded
+   * rule sets) is also accepted.
+   */
+  effect(rules: GraphRules<Ctx, Ext>): Graph<Ctx, Ext, Defs>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   effect(unit: RuleUnit<any, Ext>): Graph<Ctx, Ext, Defs>;
 
@@ -165,9 +186,13 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
       return make([...entries, { kind: 'computed', key, calc: calc as Entry['calc'] }], effects) as any;
     },
 
-    effect(unit) {
+    effect(arg: unknown) {
+      const unit =
+        arg !== null && typeof arg === 'object' && !('reconciler' in arg)
+          ? { reconciler: compileRules(arg as Parameters<typeof compileRules>[0]) }
+          : (arg as RuleUnit<unknown, Ext>);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return make<Ctx, Ext>(entries, [...effects, unit]) as any;
+      return make<Ctx, Ext>(entries, [...effects, unit as RuleUnit<any, Ext>]) as any;
     },
 
     use(arg: unknown) {
@@ -241,17 +266,37 @@ type DefsOf<Members> =
     ? Merged
     : Record<string, AnyFieldDef>;
 
-const mergeMembers = <Ext>(members: Record<string, GraphLike<object, Ext>>) => {
+/**
+ * Merge member registries, and AUTO-SCOPE member effects: a rule attached to
+ * a member graph fires only while that member is the picked branch — the hub
+ * knows the dispatch, so nobody hand-writes the guard. A unit shared through
+ * a common prefix merges once and fires when ANY of its members is active.
+ */
+const mergeMembers = <Ext>(
+  members: Record<string, GraphLike<object, Ext>>,
+  activeMember: (state: Record<string, unknown>, ext: Ext) => string | undefined
+) => {
   const codecs: Record<string, AnyFieldDef> = {};
-  // members built by continuing one shared chain carry the SAME unit
-  // instances — dedupe by identity so a prefix's effect merges once
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const effects = new Set<RuleUnit<any, any>>();
-  for (const g of Object.values(members)) {
+  const owners = new Map<RuleUnit<any, any>, Set<string>>();
+  for (const [name, g] of Object.entries(members)) {
     Object.assign(codecs, g.codecs);
-    for (const e of g.effects) effects.add(e);
+    for (const e of g.effects) {
+      let set = owners.get(e);
+      if (!set) owners.set(e, (set = new Set()));
+      set.add(name);
+    }
   }
-  return { codecs, effects: [...effects] };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const effects: RuleUnit<any, any>[] = [...owners.entries()].map(([unit, names]) => ({
+    reconciler: (patch, state, ext) => {
+      const active = activeMember(state as Record<string, unknown>, ext as Ext);
+      return active !== undefined && names.has(active)
+        ? unit.reconciler(patch, state, ext)
+        : patch;
+    },
+  }));
+  return { codecs, effects };
 };
 
 const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): H => ({
@@ -278,7 +323,7 @@ export function branch<Ext, const Members extends Record<string, GraphLike<objec
   members: Members
 ): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>> {
   return chainable({
-    ...mergeMembers(members),
+    ...mergeMembers(members, (_state, ext) => String(pick(ext))),
     resolve(f: Fields, ext: Ext) {
       return members[pick(ext)]!.resolve(f, ext) as CtxOf<Members[keyof Members]>;
     },
@@ -310,7 +355,8 @@ export function branchOn<
   Ext,
   DefsOf<Members> & Record<K, D>
 > {
-  const merged = mergeMembers(members);
+  // active member = the discriminator's value in the pre-patch state
+  const merged = mergeMembers(members, (state) => state[key] as string | undefined);
   merged.codecs[key] = def as AnyFieldDef;
   return chainable({
     ...merged,
