@@ -38,7 +38,7 @@ const offOne = store.subscribe('steps', onSteps);      // one key only`}</pre>
 <ul>
   <li>
     <code>set(patch)</code> — the one write path for user input. The patch runs through the
-    form's <code>reconcile</code> rules, lands in intent (through each codec's input schema),
+    form's <code>reconcile</code> rules, lands in intent (through each definition's input schema),
     and triggers a resolve.
   </li>
   <li>

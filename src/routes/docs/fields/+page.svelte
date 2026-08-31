@@ -71,7 +71,7 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 // no member re-declares which member it is. Omit the tag for an untagged hub.`}</pre>
 
 <p>
-  Either way the hub is the same shape a graph is: <code>codecs</code> holds every member's
+  Either way the hub is the same shape a graph is: <code>defs</code> holds every member's
   registry merged (type-complete, so the bindings know every key), <code>effects</code> holds
   every member's rule units plus the hub's own, and <code>resolve</code> returns the
   discriminated union. A hand-written <code>switch</code> composing whole graphs remains the
@@ -89,7 +89,7 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 const result = graph.parse(rawBody);      // server — the same pipeline`}</pre>
 <p>
   Hubs carry the same runtime: <code>publish.createStore()</code>. <code>defineForm(&#123;
-  codecs, reconcile, resolve &#125;)</code> exists for forms whose resolver is hand-written —
+  defs, reconcile, resolve &#125;)</code> exists for forms whose resolver is hand-written —
   a custom dispatch the hub combinators can't express — or that list reconcile entries beyond
   what any one graph carries. Underneath, every entry compiles to
   <code>f.field(key, def, options)</code> on the engine; nothing about intent, scoping,

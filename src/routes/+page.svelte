@@ -9,33 +9,28 @@
   <p class="mt-5 max-w-[65ch] leading-relaxed text-muted">
     form-graph is a contract engine for forms whose <em class="text-ink">shape depends on their
     own values</em> — selecting a workflow changes which fields exist, with defaults, per-branch
-    memory, and coupling rules. You write one pure resolver; TypeScript infers the discriminated
-    union from it; the same definition drives the client store and parses raw input on the
-    server.
+    memory, and coupling rules. You declare the fields as a graph; TypeScript infers the
+    discriminated union from it; the same definition IS the client store and parses raw input on
+    the server.
   </p>
 
   <pre class="mt-8">{`import { z } from 'zod';
-import { codec, defineForm } from 'form-graph';
+import { defineGraph, branchOn } from 'form-graph';
+import { enumOf, slider } from 'form-graph/defs';
 
-const PROMPT = codec<string>({
-  input: z.string().optional(),
-  output: z.string().min(1, 'Prompt is required'),
-  default: '',
-});
+const create = defineGraph<{ maxSteps: number }>()
+  .field('prompt', {
+    input: z.string().optional(),
+    output: z.string().min(1, 'Prompt is required'),
+    default: '',
+  })
+  .field('steps', (_ctx, ext) => slider({ min: 1, max: ext.maxSteps, default: 25 }));
 
-const form = defineForm<{ maxSteps: number }>()({
-  resolve: (f, ext) => {
-    const workflow = f.field('workflow', WORKFLOW);
-    const base = { workflow, prompt: f.field('prompt', PROMPT) };
+const upscale = defineGraph<{ maxSteps: number }>()
+  .field('scale', slider({ min: 2, max: 4, default: 2 }));
 
-    switch (workflow) {                    // the switch IS the union
-      case 'upscale':
-        return { ...base, scale: f.field('scale', SCALE) };
-      default:
-        return { ...base, steps: f.field('steps', stepsCodec(ext.maxSteps)) };
-    }
-  },
-});
+// the discriminator field routes between the graphs — the union is inferred
+export const form = branchOn('workflow', WORKFLOW, { create, upscale });
 
 // Client: a live store with per-field subscriptions and persistent intent.
 const store = form.createStore({ ext: { maxSteps: 50 } });
@@ -47,8 +42,8 @@ const result = form.parse(rawBody, { maxSteps: 50 });`}</pre>
   <ul class="mt-4 flex max-w-[68ch] flex-col gap-3 leading-relaxed text-muted">
     <li>
       <strong class="font-medium text-ink">The union is inferred, not annotated.</strong> Each
-      branch of the resolver returns a different shape; consumers narrow on the discriminant like
-      any TypeScript union. Cost scales with branch <em>width</em>, not nesting depth.
+      branch graph resolves to a different shape; consumers narrow on the discriminant like any
+      TypeScript union. Cost scales with branch <em>width</em>, not nesting depth.
     </li>
     <li>
       <strong class="font-medium text-ink">Identical output client and server.</strong>

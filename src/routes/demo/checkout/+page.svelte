@@ -94,9 +94,9 @@
   <h1 class="font-display text-3xl font-bold tracking-tight">Checkout</h1>
   <p class="mt-4 max-w-[65ch] leading-relaxed text-muted">
     Rung four: <em class="text-ink">composition</em>. Contact, address and payment are defined in
-    separate modules that know nothing about each other — each exports codecs, a resolver
-    fragment, and (for contact) its own rules. The parent form spreads the registries, calls the
-    fragments, and owns only what no section can know alone: billing mirrors shipping unless
+    separate modules that know nothing about each other — each is an ordinary graph (contact
+    carries its own rules). The parent mounts them with <code>.use</code> and owns only what no
+    section can know alone: billing mirrors shipping unless
     unchecked (the address section is instantiated <em>twice</em>, under different keys, each
     with its own memory), and invoicing is passed down to the payment section as
     <code>allowInvoice</code> from the contact section's answer. There is no subform machinery —

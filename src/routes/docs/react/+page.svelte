@@ -37,11 +37,11 @@ function PromptInput() {
 <h2>Typed fields</h2>
 <p>
   <code>useTypedField(store, name)</code> derives the snapshot's value/meta types from the form's
-  codec registry, carried on the store — the hook twin of Svelte's <code>typedFields</code>:
+  def registry, carried on the store — the hook twin of Svelte's <code>typedFields</code>:
 </p>
 
 <pre>{`const steps = useTypedField(store, 'steps');
-// FieldSnapshot<number, NumberMeta> | null — inferred, no annotations`}</pre>
+// FieldSnapshot<number, SliderDefMeta> | null — inferred, no annotations`}</pre>
 
 <h2>The React ↔ Svelte mapping</h2>
 <p>Same concepts, each framework's idiom:</p>
@@ -54,13 +54,13 @@ function PromptInput() {
 
 <h2>Typed controllers</h2>
 <p>
-  <code>createTypedController</code> derives a Controller from your codec registry, so
+  <code>createTypedController</code> derives a Controller from your def registry, so
   <code>name</code> narrows <code>value</code> and <code>meta</code> with no per-call-site
   generics:
 </p>
 
-<pre>{`const codecs = { steps: STEPS, aspectRatio: ASPECT };
-const GenController = createTypedController<typeof codecs>();
+<pre>{`const defs = { steps: STEPS, aspectRatio: ASPECT };
+const GenController = createTypedController<typeof defs>();
 
 <GenController name="steps" render={({ value, meta }) => /* number, {min,max} */} />`}</pre>
 

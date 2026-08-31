@@ -6,7 +6,7 @@
 
 <p>
   <code>form.parse(raw, ext)</code> is the server entry point, and it is the same pipeline the
-  client walks: boundary codecs → resolve → strict output validation. Pure — no store, no shared
+  client walks: boundary input schemas → resolve → strict output validation. Pure — no store, no shared
   state.
 </p>
 

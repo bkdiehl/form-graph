@@ -72,11 +72,11 @@ boolOf(true)`}</pre>
 
 <h2>The performance model, measured</h2>
 <ul>
-  <li>zod schema construction: ~25–35µs per codec — the one thing worth caching;</li>
+  <li>zod schema construction: ~25–35µs per definition — the one thing worth caching;</li>
   <li>a definition object: ordinary allocation, free;</li>
   <li>
     a full generation-scale graph (LTX): ~20µs per keystroke for resolve + diff — per-pass
-    definitions measured FASTER than statically-hoisted codecs.
+    definitions measured FASTER than statically-hoisted ones.
   </li>
 </ul>
 <p>

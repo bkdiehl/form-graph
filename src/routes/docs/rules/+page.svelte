@@ -93,7 +93,7 @@ wan.effect({
 <h2>Semantics worth knowing</h2>
 <ul>
   <li>
-    Rules see the RAW patch — reconcile runs before the input codecs, so a rule's value
+    Rules see the RAW patch — reconcile runs before the input schemas, so a rule's value
     parameter is what the caller passed, not the snapped/validated value.
   </li>
   <li>

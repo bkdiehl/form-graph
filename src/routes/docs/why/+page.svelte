@@ -34,7 +34,7 @@
       problem:
         'The usual split — a form library on the client, “also run zod” on the server — is two implementations of one contract, and they drift. A default added on one side, a migration applied on the other, an aspect-ratio table trimmed differently: each drift is invisible until a submission the UI considered valid is rejected — or accepted with different values.',
       mechanism:
-        'There is one definition, and <code>form.parse(raw, ext)</code> runs the exact pipeline the client store runs — boundary codecs, resolution, rules, strict output validation. The server doesn’t approximate the form; it executes it. Building this library, a differential harness ran the same inputs through a legacy graph and this engine — the drifts it caught (a default only an effect applied; a table that resolved ’16:9’ to ’3:2’) are exactly the class this design deletes.',
+        'There is one definition, and <code>form.parse(raw, ext)</code> runs the exact pipeline the client store runs — boundary input schemas, resolution, rules, strict output validation. The server doesn’t approximate the form; it executes it. Building this library, a differential harness ran the same inputs through a legacy graph and this engine — the drifts it caught (a default only an effect applied; a table that resolved ’16:9’ to ’3:2’) are exactly the class this design deletes.',
     },
     {
       title: 'Branch switches destroy the user’s work',
