@@ -25,6 +25,24 @@
       value === false ? { company: undefined, vatId: undefined } : undefined,
   });`}</pre>
 
+<h2>The general form: one callback for a decision that SPANS keys</h2>
+<p>
+  When several fields feed one reaction, a keyed map forces the logic into a helper shared by
+  two entries. Pass a CALLBACK instead: it runs on every patch, checks <code>patch</code>
+  itself, and reads the effective values from <code>next</code> — the whole decision inline:
+</p>
+
+<pre>{`.effect(({ patch, state, next }) => {
+  if (!('workflow' in patch) && !('resolution' in patch)) return;
+  const target = next.workflow === 'img2vid' ? 'i2v_' + next.resolution : 'none';
+  if (state.ecosystem !== target) return { ecosystem: target };
+});`}</pre>
+
+<p>
+  The map is sugar for the common case — one field triggers one reaction, with the trigger
+  check and per-key typing supplied for you. The callback is the general case.
+</p>
+
 <h2>Where rules RUN vs where they're ATTACHED</h2>
 <p>
   Every rule executes at the form level, on every <code>set()</code> — attachment decides
@@ -79,11 +97,9 @@ wan.effect({
     parameter is what the caller passed, not the snapped/validated value.
   </li>
   <li>
-    A decision that needs SEVERAL fields together reads <code>ctx.next</code> — the state with
-    the accumulated patch overlaid. Any of those fields may be in this very patch, so reading
-    <code>state</code> alone is a stale-read bug; <code>next</code> is the effective pair.
-    List the rule under each trigger key delegating to one function: each firing sees the same
-    <code>next</code>, so a single <code>set()</code> carrying both keys retargets coherently.
+    <code>ctx.next</code> is the state with the accumulated patch overlaid — the effective
+    values. A decision reading several fields reads <code>next</code>, because any of them may
+    be in this very patch and <code>state</code> alone is a stale-read bug.
   </li>
   <li>
     One ordered pass per <code>set()</code>, each rule at most once, no rewind — keys a rule

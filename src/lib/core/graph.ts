@@ -1,7 +1,14 @@
 import type { Codec, SchemaLike } from './types.js';
 import type { CodecRegistry } from './codec.js';
 import type { Fields, FieldOptions } from './resolve.js';
-import { compileRules, type RuleCtx, type RuleMap, type RuleUnit } from './rules.js';
+import {
+  compileEffect,
+  compileRules,
+  type EffectFn,
+  type RuleCtx,
+  type RuleMap,
+  type RuleUnit,
+} from './rules.js';
 import type { Scope } from './scope.js';
 
 /**
@@ -116,6 +123,11 @@ export interface Graph<
    * another graph's effects) is also accepted.
    */
   effect(rules: GraphRules<Ctx, Ext>): Graph<Ctx, Ext, Defs>;
+  /**
+   * The callback form, for a decision that SPANS keys: runs on every patch,
+   * checks `ctx.patch` itself, returns keys to add.
+   */
+  effect(fn: EffectFn<Partial<Ctx>, Ext>): Graph<Ctx, Ext, Defs>;
   /** Rules triggered by keys this graph doesn't own — annotate params yourself. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   effect(rules: RuleMap<any, Ext>): Graph<Ctx, Ext, Defs>;
@@ -250,7 +262,10 @@ export interface GraphLike<
    * the mounting form considers it active) — guard inside the rule.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effect(rules: RuleMap<any, any> | RuleUnit<any, any>): GraphLike<Ctx, Ext, Defs>;
+  effect(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rules: RuleMap<any, any> | EffectFn<any, any> | RuleUnit<any, any>
+  ): GraphLike<Ctx, Ext, Defs>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -303,11 +318,13 @@ const mergeMembers = <Ext>(
   return { codecs, effects };
 };
 
-/** A rule map or a pre-built unit -> a unit. The one normalization point. */
-const toUnit = (arg: unknown) =>
-  arg !== null && typeof arg === 'object' && !('reconciler' in arg)
-    ? { reconciler: compileRules(arg as Parameters<typeof compileRules>[0]) }
-    : (arg as RuleUnit<unknown, unknown>);
+/** A rule map, a callback, or a pre-built unit -> a unit. The one normalization point. */
+const toUnit = (arg: unknown): RuleUnit<unknown, unknown> =>
+  typeof arg === 'function'
+    ? { reconciler: compileEffect(arg as EffectFn<unknown, unknown>) }
+    : arg !== null && typeof arg === 'object' && !('reconciler' in arg)
+      ? { reconciler: compileRules(arg as Parameters<typeof compileRules>[0]) }
+      : (arg as RuleUnit<unknown, unknown>);
 
 const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): H => ({
   ...hub,

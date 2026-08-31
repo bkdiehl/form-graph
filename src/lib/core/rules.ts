@@ -47,6 +47,23 @@ export type Rule<State, Ext = unknown, V = unknown> = (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type RuleMap<State, Ext = unknown> = Record<string, Rule<State, Ext, any>>;
 
+/**
+ * The general form: ONE callback for a decision that spans keys. Runs on
+ * every patch (no trigger key), checks `ctx.patch` itself, returns keys to
+ * add. Prefer the keyed map when a single field triggers the reaction.
+ */
+export type EffectFn<State, Ext = unknown> = (
+  ctx: RuleCtx<State, Ext>
+) => Record<string, unknown> | undefined | void;
+
+/** Compiles the callback form into one reconciler. */
+export function compileEffect<State, Ext>(fn: EffectFn<State, Ext>): PatchReconciler<State, Ext> {
+  return (patch, state, ext) => {
+    const additions = fn({ patch, state, next: { ...state, ...patch } as State, ext });
+    return additions ? { ...patch, ...additions } : patch;
+  };
+}
+
 
 /** A compiled rule unit — what `graph.effects` holds and `reconcile:` accepts. */
 export interface RuleUnit<State = unknown, Ext = unknown> {

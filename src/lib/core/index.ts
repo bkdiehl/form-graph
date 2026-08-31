@@ -56,6 +56,7 @@ export {
   type Rule,
   type RuleCtx,
   type RuleMap,
+  type EffectFn,
   type RuleUnit,
 } from './rules.js';
 export { debouncedStorage, persistedStorage, type DebouncedStorageAdapter } from './storage.js';

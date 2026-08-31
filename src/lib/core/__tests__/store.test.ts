@@ -166,6 +166,56 @@ describe('store: reconciler', () => {
     // fired once per trigger, both firings saw the same effective pair
     expect(retargets).toEqual(['i2v_720p', 'i2v_720p']);
   });
+
+  it('the CALLBACK form: one effect spanning keys, no trigger map', () => {
+    const graph = defineGraph()
+      .field(
+        'workflow',
+        enumOf({
+          options: [
+            { value: 'txt2vid', label: 't' },
+            { value: 'img2vid', label: 'i' },
+          ],
+          default: 'txt2vid',
+        })
+      )
+      .field(
+        'resolution',
+        enumOf({
+          options: [
+            { value: '480p', label: 'l' },
+            { value: '720p', label: 'h' },
+          ],
+          default: '480p',
+        })
+      )
+      .field(
+        'target',
+        enumOf({
+          options: [
+            { value: 'none', label: 'n' },
+            { value: 'i2v_480p', label: 'a' },
+            { value: 'i2v_720p', label: 'b' },
+          ],
+          default: 'none',
+        })
+      )
+      .effect(({ patch, next }) => {
+        if (!('workflow' in patch) && !('resolution' in patch)) return;
+        return { target: next.workflow === 'img2vid' ? `i2v_${next.resolution}` : 'none' };
+      });
+    const form = defineForm({
+      codecs: graph.codecs,
+      reconcile: [...graph.effects],
+      resolve: (f: Fields) => graph.resolve(f, undefined as void),
+    });
+    const store = form.createStore();
+    store.set({ workflow: 'img2vid', resolution: '720p' });
+    expect(store.getState()).toMatchObject({ target: 'i2v_720p' });
+    store.set({ target: 'none' });
+    // an unrelated edit passes through the callback untouched
+    expect(store.getState()).toMatchObject({ target: 'none', workflow: 'img2vid' });
+  });
 });
 
 describe('store: ext', () => {
