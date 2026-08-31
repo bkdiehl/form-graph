@@ -4,8 +4,11 @@ Branch-routed forms with one definition, both sides.
 
 form-graph is a contract engine for forms whose **shape depends on their own values** — picking
 one option changes which fields exist, with defaults, per-branch memory, and coupling rules. You
-write one pure resolver; TypeScript infers the discriminated union from it; the same definition
-drives the client store and parses raw input on the server. No second schema, no drift.
+declare the fields as a graph; TypeScript infers the discriminated union from it; the same
+definition IS the client store and parses raw input on the server. No second schema, no drift.
+
+**[Documentation](https://bkdiehl.github.io/form-graph/docs)** ·
+**[Live demos](https://bkdiehl.github.io/form-graph/demo)**
 
 ```ts
 import { z } from 'zod';
@@ -125,17 +128,23 @@ const store = form.createStore({ ext, storage: persistedStorage('my-form') });
 
 ## Docs and demos
 
-This repository is also a SvelteKit site: `pnpm dev` serves the full documentation
-(`/docs` — why it exists, core concepts, server parsing, both bindings) and a ladder of live
-demos (`/demo`) from a teaching form up to a production-scale generation form with dozens of
-branches, verified against its legacy implementation by a differential parity harness.
+The full documentation and a ladder of live demos are published from this repository:
+
+- **Docs** — [bkdiehl.github.io/form-graph/docs](https://bkdiehl.github.io/form-graph/docs):
+  getting started, core concepts, the graph model, rules, server parsing, both bindings.
+- **Demos** — [bkdiehl.github.io/form-graph/demo](https://bkdiehl.github.io/form-graph/demo):
+  from a teaching form up to a production-scale generation form with dozens of branches,
+  verified against its legacy implementation by a differential parity harness.
+
+Locally, `pnpm dev` serves the same site.
 
 ## Status
 
 Pre-1.0. The API has been through several deliberate revisions and is settling, but every
 release before 1.0 may break it. Battle-testing is ongoing against a large production form
 (40+ branch families); the core engine, both bindings, and the persistence layer are covered
-by ~270 tests including compile-time type assertions.
+by ~310 tests including compile-time type assertions and a 36-case differential parity
+suite against the production implementation it replaces.
 
 Engineering history — the design decisions, measurements, and dead ends — lives in
 [docs/DEVLOG.md](docs/DEVLOG.md).
