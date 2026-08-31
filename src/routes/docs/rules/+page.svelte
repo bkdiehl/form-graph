@@ -74,6 +74,13 @@
     parameter is what the caller passed, not the snapped/validated value.
   </li>
   <li>
+    A decision that needs SEVERAL fields together reads <code>ctx.next</code> — the state with
+    the accumulated patch overlaid. Any of those fields may be in this very patch, so reading
+    <code>state</code> alone is a stale-read bug; <code>next</code> is the effective pair.
+    List the rule under each trigger key delegating to one function: each firing sees the same
+    <code>next</code>, so a single <code>set()</code> carrying both keys retargets coherently.
+  </li>
+  <li>
     One ordered pass per <code>set()</code>, each rule at most once, no rewind — keys a rule
     adds do NOT re-trigger other rules, so cycles are structurally unrepresentable. If B must
     react to what A adds, order A's unit first — or reconsider: a chain that deep usually

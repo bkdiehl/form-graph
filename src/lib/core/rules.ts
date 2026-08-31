@@ -40,7 +40,16 @@ import type { PatchReconciler } from './store.js';
 export interface RuleCtx<State, Ext = unknown> {
   /** The accumulated patch (earlier rules' corrections included). */
   patch: Readonly<Record<string, unknown>>;
+  /** The pre-patch state. */
   state: State;
+  /**
+   * The EFFECTIVE values: state with the accumulated patch overlaid — what
+   * things look like if this patch lands. The one to read when a decision
+   * needs several fields together (workflow AND resolution), since any of
+   * them may be in this very patch. Patched keys are raw (pre-codec), so
+   * trust them the way you trust `value`.
+   */
+  next: State;
   ext: Ext;
 }
 
@@ -94,7 +103,8 @@ export function compileRules<State, Ext>(
     let current = patch;
     for (const [key, rule] of entries) {
       if (!(key in current)) continue;
-      const additions = rule(current[key], { patch: current, state, ext });
+      const next = { ...state, ...current } as State;
+      const additions = rule(current[key], { patch: current, state, next, ext });
       if (additions) current = { ...current, ...additions };
     }
     return current;
