@@ -22,7 +22,7 @@
 <p>
   Helpers used inside a factory keep their automatic schema caching; a factory that hand-builds
   zod pays construction per distinct call — wrap the schema part in
-  <code>codecFamily</code> if it's ever hot.
+  <code>defFamily</code> if it's ever hot.
 </p>
 
 <h2>2. Sections are just graphs, mounted with <code>.use()</code></h2>

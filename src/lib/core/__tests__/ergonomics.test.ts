@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
   codec,
-  codecFamily,
+  defFamily,
   defineForm,
   type Fields,
   type InferDefMeta,
@@ -194,10 +194,10 @@ describe('enumOf gate: one declaration, both halves (helper-level)', () => {
     expect(store.getNotes()).toEqual([]);
   });
 });
-describe('codecFamily', () => {
+describe('defFamily', () => {
   it('memoizes per parameter list — same args, same instance', () => {
     let builds = 0;
-    const FAM = codecFamily((max: number) => {
+    const FAM = defFamily((max: number) => {
       builds++;
       return codec({ input: z.coerce.number().optional(), output: z.number().max(max), default: 0 });
     });
@@ -207,7 +207,7 @@ describe('codecFamily', () => {
   });
 
   it('keeps a per-pass parameterised field churn-free', () => {
-    const FAM = codecFamily((max: number) =>
+    const FAM = defFamily((max: number) =>
       codec({ input: z.coerce.number().optional(), output: z.number(), default: 0, coerce: (r) => Math.min(Number(r), max) })
     );
     const form = defineForm({

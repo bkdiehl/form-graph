@@ -81,7 +81,7 @@ boolOf(true)`}</pre>
 </ul>
 <p>
   So: use helpers freely, spread-and-override for custom schemas, and if a fully hand-built
-  definition is ever hot, memoize its schemas yourself with <code>codecFamily(build)</code> —
+  definition is ever hot, memoize its schemas yourself with <code>defFamily(build)</code> —
   the explicit escape hatch you'll likely never need.
 </p>
 

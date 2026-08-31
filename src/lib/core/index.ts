@@ -17,7 +17,7 @@
  */
 export {
   codec,
-  codecFamily,
+  defFamily,
   type CodecRegistry,
   type InferDefValue,
   type InferDefMeta,

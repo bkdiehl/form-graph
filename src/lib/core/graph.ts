@@ -43,7 +43,7 @@ import type { Scope } from './scope.js';
  * measured) — the def helpers (slider/enumOf/textOf) cache their schemas
  * automatically, keyed on the exact values the schemas are built from, so
  * there is nothing to declare and staleness is impossible. Raw inline zod
- * rebuilds per pass; wrap a hot raw definition in `codecFamily` if a profile
+ * rebuilds per pass; wrap a hot raw definition in `defFamily` if a profile
  * ever says so.
  */
 export interface FieldDef<T, M = undefined> {

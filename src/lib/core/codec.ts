@@ -48,7 +48,7 @@ export type RegistryMetas<R extends CodecRegistry> = {
  * aspect ratios, a per-tier bound) stays churn-free without hand-rolling a
  * dictionary of pre-built variants:
  *
- *   const AR = codecFamily((res: Resolution) =>
+ *   const AR = defFamily((res: Resolution) =>
  *     aspectRatioCodec({ options: TABLE[res], default: '16:9' }));
  *   // in resolve:  f.field('aspectRatio', AR(resolution))
  *
@@ -56,7 +56,7 @@ export type RegistryMetas<R extends CodecRegistry> = {
  * from a finite set — each distinct combination is cached for the module's
  * lifetime.
  */
-export function codecFamily<
+export function defFamily<
   Args extends readonly (string | number | boolean | null | undefined)[],
   C,
 >(build: (...args: Args) => C): (...args: Args) => C {
