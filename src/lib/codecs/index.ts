@@ -1,7 +1,5 @@
-export { enumCodec, numberCodec, textCodec, type EnumMeta, type EnumOption, type NumberMeta } from './basic.js';
-export { selectCodec, type SelectMeta } from './select.js';
-
-// The graph-model definition helpers — the new primary surface.
+// The definition helpers. (The pre-graph codec primitives in ./basic.js and
+// ./select.js are corpus-internal — deliberately NOT re-exported here.)
 export {
   slider,
   enumOf,
