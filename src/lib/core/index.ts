@@ -2,7 +2,7 @@
  * The public surface. Three tiers, deliberately small:
  *
  * - Authoring: defineGraph / branch / branchOn (the runtime lives on the
- *   definitions), defineForm for hand-written resolvers, plus the types an
+ *   definitions; the runtime lives on them), plus the types an
  *   author writes against.
  * - Runtime: store types and storage adapters. `FormStore` is type-only —
  *   stores are created via `form.createStore()`, never constructed directly.

@@ -170,10 +170,11 @@ export type CreateStoreArgs<Ext> = [void] extends [Ext]
   : [options: StoreOptions<Ext>];
 
 /**
- * A graph (or hub) needs none of this — `createStore`/`parse` live on the
- * definition itself. `defineForm` is for forms whose resolver is HAND-WRITTEN
- * (a custom dispatch the hub combinators can't express) or that list
- * reconcile entries beyond what any one graph carries.
+ * The ENGINE-LEVEL path: a hand-written resolver over `f.field` calls. A
+ * graph (or hub) needs none of this — `createStore`/`parse` live on the
+ * definition itself, and every known form (the generation-scale hub included)
+ * is expressible as a graph. This stays for the corpus and for whoever finds
+ * the form that isn't.
  */
 export function defineForm<State, Ext = void, Codecs extends DefsInput = CodecRegistry>(
   config: FormConfig<Ext, State, Codecs>

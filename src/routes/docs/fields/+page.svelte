@@ -88,10 +88,10 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 <pre>{`const store = graph.createStore();       // client
 const result = graph.parse(rawBody);      // server — the same pipeline`}</pre>
 <p>
-  Hubs carry the same runtime: <code>publish.createStore()</code>. <code>defineForm(&#123;
-  defs, reconcile, resolve &#125;)</code> exists for forms whose resolver is hand-written —
-  a custom dispatch the hub combinators can't express — or that list reconcile entries beyond
-  what any one graph carries. Underneath, every entry compiles to
-  <code>f.field(key, def, options)</code> on the engine; nothing about intent, scoping,
-  corrections, the diff, or server <code>parse</code> is graph-specific.
+  Hubs carry the same runtime: <code>publish.createStore()</code>. Underneath, every entry
+  compiles to <code>f.field(key, def, options)</code> on the engine; nothing about intent,
+  scoping, corrections, the diff, or server <code>parse</code> is graph-specific.
+  (<code>defineForm(&#123; defs, reconcile, resolve &#125;)</code> is the engine-level path —
+  writing that resolver by hand. Every form in this repo, the generation-scale hub included,
+  is expressible as a graph; reach for the engine only if you find one that isn't.)
 </p>
