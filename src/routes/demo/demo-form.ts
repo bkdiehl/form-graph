@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { defineForm, defineGraph } from '$lib/index.js';
+import { defineGraph } from '$lib/index.js';
 import { enumOf, slider } from '$lib/codecs/index.js';
 
 // A compact form authored right next to the page that consumes it. Each field
 // is one definition; conditional fields return null when their mode doesn't
 // carry them; the graph's registry is what types the page's controls.
 
-const graph = defineGraph()
+export const demoForm = defineGraph()
   .field('mode', enumOf({
     options: [
       { label: 'Create', value: 'create' },
@@ -37,6 +37,4 @@ const graph = defineGraph()
       : null
   );
 
-export const demoForm = defineForm(graph);
-
-export type DemoState = ReturnType<typeof demoForm.resolve>['state'];
+export type DemoState = ReturnType<typeof demoForm.resolve>;

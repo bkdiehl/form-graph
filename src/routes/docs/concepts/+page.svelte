@@ -109,7 +109,7 @@
     model: (model, { state }) =>
       model?.id === DRAFT_ID && state.workflow !== 'draft' ? { workflow: 'draft' } : undefined,
   });
-// rules ride the graph: into a parent via .use, into a form via defineForm(graph)`}</pre>
+// rules ride the graph: into a parent via .use, and into its own createStore()/parse()`}</pre>
 
 <p>
   Rule of thumb: an effect when a choice implies another choice; <code>correct</code> when the

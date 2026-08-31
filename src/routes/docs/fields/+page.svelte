@@ -82,13 +82,14 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
   union discriminates.
 </p>
 
-<h2>Mounting</h2>
-<pre>{`export const form = defineForm(graph);   // registry, effects, resolver — all wired`}</pre>
+<h2>The runtime is on the definition</h2>
+<pre>{`const store = graph.createStore();       // client
+const result = graph.parse(rawBody);      // server — the same pipeline`}</pre>
 <p>
-  Hubs mount the same way: <code>defineForm(publish)</code>. The config-object form
-  (<code>defineForm(&#123; codecs, reconcile, resolve &#125;)</code>) remains for forms whose
-  resolver is hand-written — a custom dispatch the hub combinators can't express — or that
-  list reconcile entries beyond what the graph carries. Underneath, every entry compiles to
+  Hubs carry the same runtime: <code>publish.createStore()</code>. <code>defineForm(&#123;
+  codecs, reconcile, resolve &#125;)</code> exists for forms whose resolver is hand-written —
+  a custom dispatch the hub combinators can't express — or that list reconcile entries beyond
+  what any one graph carries. Underneath, every entry compiles to
   <code>f.field(key, def, options)</code> on the engine; nothing about intent, scoping,
   corrections, the diff, or server <code>parse</code> is graph-specific.
 </p>

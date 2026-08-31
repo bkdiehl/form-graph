@@ -20,7 +20,7 @@
   automatically:
 </p>
 
-<pre>{`import { defineGraph, defineForm } from 'form-graph';
+<pre>{`import { defineGraph } from 'form-graph';
 import { slider, enumOf, textOf, boolOf } from 'form-graph/codecs';
 import { z } from 'zod';
 
@@ -44,19 +44,16 @@ const graph = defineGraph()
   .field('scale', (ctx) => (ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null))
   .computed('summary', (ctx) => \`\${ctx.mode} · \${ctx.prompt.length} chars\`);`}</pre>
 
-<h2>2. Mount it</h2>
+<h2>2. Use it</h2>
 <p>
-  A graph IS a form definition — hand it to <code>defineForm</code> and its fields, rules,
-  and resolver are wired for you:
+  There is no mounting step — the graph IS the form. The runtime lives on the definition:
 </p>
 
-<pre>{`export const form = defineForm(graph);
-
-// Client: a live store — per-field subscriptions, persistent scoped memory.
-const store = form.createStore();
+<pre>{`// Client: a live store — per-field subscriptions, persistent scoped memory.
+const store = graph.createStore();
 
 // Server: the same pipeline over raw input. One behavior, both sides.
-const result = form.parse(rawBody, undefined);`}</pre>
+const result = graph.parse(rawBody);`}</pre>
 
 <p>
   External context (limits, permissions — facts the form reads but the user doesn't edit) is
@@ -66,8 +63,7 @@ const result = form.parse(rawBody, undefined);`}</pre>
 <pre>{`const g = defineGraph<{ maxSteps: number }>()
   .field('steps', (_ctx, ext) => slider({ min: 1, max: ext.maxSteps, default: 25 }));
 
-const form = defineForm(g);
-const store = form.createStore({ ext: { maxSteps: 50 } });
+const store = g.createStore({ ext: { maxSteps: 50 } });
 store.setExt({ maxSteps: 30 });   // the whole form re-resolves`}</pre>
 
 <h2>3. Render it</h2>

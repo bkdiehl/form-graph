@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph } from '$lib/index.js';
+import { defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider, textOf } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 1: every core mechanism on a form anyone can read. Each
@@ -57,7 +57,7 @@ const toppingsDef = (budget: number) => ({
   },
 });
 
-const graph = defineGraph()
+export const pizzaForm = defineGraph()
   .field('style', enumOf({
     options: [
       { value: 'classic', label: 'Classic' },
@@ -140,4 +140,3 @@ const graph = defineGraph()
     ) / 100
   );
 
-export const pizzaForm = defineForm(graph);

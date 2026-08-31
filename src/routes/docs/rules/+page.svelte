@@ -52,8 +52,8 @@
 <ul>
   <li>
     <strong>On a graph</strong>: the rules travel with it — into a parent via
-    <code>.use()</code>, into a hub as a member, into a form via
-    <code>defineForm(graph)</code>.
+    <code>.use()</code>, into a hub as a member, and straight into the graph's own
+    <code>createStore()</code>/<code>parse()</code>.
   </li>
   <li>
     <strong>On a hub member</strong>: AUTO-SCOPED. A rule attached to the <code>v2.5</code>

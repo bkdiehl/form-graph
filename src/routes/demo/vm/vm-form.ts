@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph } from '$lib/index.js';
+import { defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider } from '$lib/codecs/index.js';
 
 // Demo ladder, rung 3: the hardest mechanisms together, each field ONE
@@ -36,7 +36,7 @@ export interface VmExt {
 
 export const defaultVmExt: VmExt = { tier: 'pro', gpuAvailable: true };
 
-const graph = defineGraph<VmExt>()
+export const vmForm = defineGraph<VmExt>()
   .field('preset', enumOf({
     options: [
       { value: 'general', label: 'General' },
@@ -182,4 +182,3 @@ const graph = defineGraph<VmExt>()
     ctx.vcpus >= 32 ? '25 Gbps' : ctx.vcpus >= 16 ? '10 Gbps' : '5 Gbps'
   );
 
-export const vmForm = defineForm(graph);

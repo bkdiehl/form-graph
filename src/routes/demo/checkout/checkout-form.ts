@@ -1,4 +1,4 @@
-import { defineForm, defineGraph } from '$lib/index.js';
+import { defineGraph } from '$lib/index.js';
 import { boolOf } from '$lib/codecs/index.js';
 import { contact } from './contact.js';
 import { withAddress } from './address.js';
@@ -13,7 +13,7 @@ import { payment, FEE_RATE } from './payment.js';
 const ITEM_TOTAL = 120;
 const SHIPPING_COST = { US: 5, DE: 12, JP: 18 } as const;
 
-const graph = defineGraph()
+export const checkoutForm = defineGraph()
   .use(contact)
   .use((g) => withAddress(g, 'shipping'))
   .field('billingSameAsShipping', boolOf({ default: true }))
@@ -39,4 +39,3 @@ const graph = defineGraph()
   .computed('paymentFee', (ctx) => Math.round(ITEM_TOTAL * FEE_RATE[ctx.paymentMethod] * 100) / 100)
   .computed('total', (ctx) => ITEM_TOTAL + ctx.shippingCost + ctx.paymentFee);
 
-export const checkoutForm = defineForm(graph);

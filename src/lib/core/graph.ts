@@ -1,4 +1,11 @@
-import type { Codec, SchemaLike } from './types.js';
+import type { Codec, FieldError, SchemaLike, ValidationResult } from './types.js';
+import {
+  FormDefinition,
+  type CodecsInput,
+  type CreateStoreArgs,
+  type NormalizeCodecs,
+} from './form.js';
+import type { FormStore } from './store.js';
 import type { CodecRegistry } from './codec.js';
 import type { Fields, FieldOptions } from './resolve.js';
 import {
@@ -77,11 +84,26 @@ interface Entry {
   graph?: GraphLike<object, unknown>;
 }
 
+type ExtArg<Ext> = [void] extends [Ext] ? [ext?: Ext] : [ext: Ext];
+
+/** The runtime entry points every definition carries — a graph IS the form. */
+interface Mountable<Ctx, Ext, Defs> {
+  /** A live client store over this definition. */
+  createStore(...args: CreateStoreArgs<Ext>): FormStore<Ctx, Ext, NormalizeCodecs<Defs>>;
+  /** The server entry point: boundary schemas -> resolve -> output validation. */
+  parse(raw: Record<string, unknown>, ...ext: ExtArg<Ext>): ValidationResult<Ctx, Ctx>;
+  /** Best-effort parse: valid fields plus the errors, no throw. */
+  parsePartial(
+    raw: Record<string, unknown>,
+    ...ext: ExtArg<Ext>
+  ): { data: Partial<Ctx>; errors: Record<string, FieldError>; state: Ctx };
+}
+
 export interface Graph<
   Ctx extends object,
   Ext,
   Defs extends Record<string, AnyDef> = Record<never, never>,
-> {
+> extends Mountable<Ctx, Ext, Defs> {
   /**
    * The registry for bindings and forms. TYPE-complete (every field,
    * function-defined ones included, so `typedFields`/`<Field>` know every
@@ -92,7 +114,7 @@ export interface Graph<
   readonly codecs: Defs;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, Ext>[];
-  resolve(f: Fields, ...ext: [void] extends [Ext] ? [ext?: Ext] : [ext: Ext]): Ctx;
+  resolve(f: Fields, ...ext: ExtArg<Ext>): Ctx;
 
   field<K extends string, D extends AnyDef | null>(
     key: K,
@@ -150,6 +172,41 @@ export interface Graph<
   use<G>(fn: (g: this) => G): G;
 }
 
+interface MountSource {
+  codecs: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  effects: readonly RuleUnit<any, any>[];
+  resolve(f: Fields, ext?: unknown): unknown;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const forms = new WeakMap<object, FormDefinition<any, any>>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const formOf = (g: MountSource): FormDefinition<any, any> => {
+  let f = forms.get(g);
+  if (!f) {
+    f = new FormDefinition({
+      codecs: g.codecs as CodecsInput,
+      reconcile: [...g.effects],
+      resolve: (fields, ext) => g.resolve(fields, ext),
+    });
+    forms.set(g, f);
+  }
+  return f;
+};
+
+const runtime = {
+  createStore(this: MountSource, ...args: unknown[]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (formOf(this) as any).createStore(...args);
+  },
+  parse(this: MountSource, raw: Record<string, unknown>, ext?: unknown) {
+    return formOf(this).parse(raw, ext);
+  },
+  parsePartial(this: MountSource, raw: Record<string, unknown>, ext?: unknown) {
+    return formOf(this).parsePartial(raw, ext);
+  },
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, Ext>[]): Graph<Ctx, Ext, Record<string, AnyDef>> {
   const codecs: Record<string, unknown> = {};
@@ -206,6 +263,8 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
       return make<Ctx, Ext>(entries, [...effects, toUnit(arg) as RuleUnit<any, Ext>]) as any;
     },
 
+    ...runtime,
+
     use(arg: unknown) {
       if (typeof arg === 'function') return (arg as (g: unknown) => unknown)(this);
       const child = arg as GraphLike<object, unknown>;
@@ -243,18 +302,34 @@ type NeedsCheck<C, Needs> = [Needs] extends [object]
   : unknown;
 
 /** What a graph exposes to composition — a hub produces the same shape. */
-export interface GraphLike<
+/**
+ * What composition sites (hub members, `.use` children) require — the data
+ * surface only, so richer shapes (full graphs with runtime methods) always
+ * qualify without variance friction.
+ */
+export interface GraphSource<
   Ctx,
   Ext,
   Defs extends Record<string, AnyFieldDef> = Record<string, AnyFieldDef>,
 > {
+  readonly codecs: Defs;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly effects: readonly RuleUnit<any, any>[];
+  resolve(f: Fields, ...ext: ExtArg<Ext>): Ctx;
+}
+
+export interface GraphLike<
+  Ctx,
+  Ext,
+  Defs extends Record<string, AnyFieldDef> = Record<string, AnyFieldDef>,
+> extends Mountable<Ctx, Ext, Defs> {
   readonly codecs: Defs;
   // Ext-agnostic on purpose: a hub is usually mounted by a form whose Ext
   // differs (the resolver adapts ext before delegating), and the form still
   // needs to spread the hub's effects into its own reconcile list.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, any>[];
-  resolve(f: Fields, ...ext: [void] extends [Ext] ? [ext?: Ext] : [ext: Ext]): Ctx;
+  resolve(f: Fields, ...ext: ExtArg<Ext>): Ctx;
   /**
    * Attach rules — same chain section as a graph's `.effect`. Hub-level rules
    * usually trigger on fields owned elsewhere, so the map is loosely typed:
@@ -269,7 +344,7 @@ export interface GraphLike<
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CtxOf<G> = G extends GraphLike<infer C, any, any> ? C : never;
+type CtxOf<G> = G extends GraphSource<infer C, any, any> ? C : never;
 
 type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (
   x: infer I
@@ -292,7 +367,7 @@ type DefsOf<Members> =
  * a common prefix merges once and fires when ANY of its members is active.
  */
 const mergeMembers = <Ext>(
-  members: Record<string, GraphLike<object, Ext>>,
+  members: Record<string, GraphSource<object, Ext>>,
   activeMember: (state: Record<string, unknown>, ext: Ext) => string | undefined
 ) => {
   const codecs: Record<string, AnyFieldDef> = {};
@@ -328,6 +403,7 @@ const toUnit = (arg: unknown): RuleUnit<unknown, unknown> =>
 
 const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): H => ({
   ...hub,
+  ...runtime,
   effect(arg: unknown) {
     return chainable({ ...hub, effects: [...hub.effects, toUnit(arg)] });
   },
@@ -344,7 +420,7 @@ const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): 
  *     'v2.1': v21, 'v2.2': v22, ...
  *   }).effect(wanCoupling);
  */
-export function branch<Ext, const Members extends Record<string, GraphLike<object, Ext>>>(
+export function branch<Ext, const Members extends Record<string, GraphSource<object, Ext>>>(
   pick: (ext: Ext) => keyof Members,
   members: Members
 ): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>> {
@@ -370,7 +446,7 @@ export function branch<Ext, const Members extends Record<string, GraphLike<objec
 export function branchOn<
   Ext,
   K extends string,
-  const Members extends Record<string, GraphLike<object, Ext>>,
+  const Members extends Record<string, GraphSource<object, Ext>>,
   D extends AnyFieldDef = FieldDef<keyof Members & string, unknown>,
 >(
   key: K,

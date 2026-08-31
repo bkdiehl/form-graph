@@ -170,21 +170,11 @@ export type CreateStoreArgs<Ext> = [void] extends [Ext]
   : [options: StoreOptions<Ext>];
 
 /**
- * The common case: mount a graph (or hub) DIRECTLY — its registry, effects,
- * and resolver are the form. The config-object form remains for forms whose
- * resolver is hand-written (a custom dispatch the hub combinators can't
- * express) or that need reconcile entries beyond what the graph carries.
+ * A graph (or hub) needs none of this — `createStore`/`parse` live on the
+ * definition itself. `defineForm` is for forms whose resolver is HAND-WRITTEN
+ * (a custom dispatch the hub combinators can't express) or that list
+ * reconcile entries beyond what any one graph carries.
  */
-export function defineForm<
-  Ctx extends object,
-  Ext,
-  Defs extends CodecsInput,
->(graph: {
-  codecs: Defs;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effects: readonly RuleUnit<any, any>[];
-  resolve(f: Fields<NormalizeCodecs<Defs>>, ext: Ext): Ctx;
-}): FormDefinition<Ctx, Ext, NormalizeCodecs<Defs>>;
 export function defineForm<State, Ext = void, Codecs extends CodecsInput = CodecRegistry>(
   config: FormConfig<Ext, State, Codecs>
 ): FormDefinition<State, Ext, NormalizeCodecs<Codecs>>;
@@ -192,22 +182,9 @@ export function defineForm<Ext = void>(): <State, Codecs extends CodecsInput = C
   config: FormConfig<Ext, State, Codecs>
 ) => FormDefinition<State, Ext, NormalizeCodecs<Codecs>>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function defineForm(arg?: FormConfig<any, any, CodecsInput> | Record<string, any>): any {
+export function defineForm(config?: FormConfig<any, any, CodecsInput>): any {
   const build = (c: FormConfig<unknown, unknown, CodecsInput>) => new FormDefinition(c);
-  if (arg === undefined) return build;
-  if ('effects' in arg && typeof arg.resolve === 'function' && 'codecs' in arg) {
-    const graph = arg as {
-      codecs: CodecsInput;
-      effects: readonly RuleUnit[];
-      resolve: (f: Fields, ext: unknown) => unknown;
-    };
-    return build({
-      codecs: graph.codecs,
-      reconcile: [...graph.effects],
-      resolve: (f, ext) => graph.resolve(f, ext),
-    });
-  }
-  return build(arg as FormConfig<unknown, unknown, CodecsInput>);
+  return config === undefined ? build : build(config);
 }
 
 export type InferState<F> =

@@ -23,7 +23,8 @@ export {
   type RegistryMetas,
   type RegistryValues,
 } from './codec.js';
-export { defineGraph, branch, branchOn, type Graph, type GraphLike, type FieldDef, type AnyFieldDef } from './graph.js';
+export { defineGraph, branch, branchOn, type Graph, type GraphLike,
+  type GraphSource, type FieldDef, type AnyFieldDef } from './graph.js';
 export { slider, enumOf, textOf, boolOf, type EnumDefOption, type EnumDefMeta, type SliderDefMeta } from './def-helpers.js';
 export {
   defineForm,

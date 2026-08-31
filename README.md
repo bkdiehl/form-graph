@@ -9,7 +9,7 @@ drives the client store and parses raw input on the server. No second schema, no
 
 ```ts
 import { z } from 'zod';
-import { defineGraph, defineForm } from 'form-graph';
+import { defineGraph } from 'form-graph';
 import { slider, enumOf } from 'form-graph/codecs';
 
 // A field is ONE definition — schemas, default, meta, conditions, together.
@@ -32,13 +32,11 @@ const graph = defineGraph<{ maxSteps: number }>()
   .field('scale', (ctx) =>
     ctx.mode === 'upscale' ? slider({ min: 2, max: 4, default: 2 }) : null);
 
-const form = defineForm(graph);   // registry, effects, resolver — wired from the graph
-
-// Client: a live store — per-field subscriptions, persistent scoped memory.
-const store = form.createStore({ ext: { maxSteps: 50 } });
+// The graph IS the form — the runtime lives on the definition.
+const store = graph.createStore({ ext: { maxSteps: 50 } });
 
 // Server: the same pipeline over raw input.
-const result = form.parse(rawBody, { maxSteps: 50 });
+const result = graph.parse(rawBody, { maxSteps: 50 });
 ```
 
 ## Why it exists

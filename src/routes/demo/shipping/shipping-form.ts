@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineForm, defineGraph } from '$lib/index.js';
+import { defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider, textOf } from '$lib/codecs/index.js';
 import type { ZodType } from 'zod';
 
@@ -26,7 +26,7 @@ const hazmatOutput = HAZMAT.output as ZodType<'3' | '8' | '1.4'>;
 
 const cm = (max: number, dflt: number) => slider({ min: 1, max, default: dflt });
 
-const graph = defineGraph()
+export const shippingForm = defineGraph()
   .field('shipmentType', enumOf({
     options: [
       { value: 'parcel', label: 'Parcel' },
@@ -155,4 +155,3 @@ const graph = defineGraph()
         : 5
   );
 
-export const shippingForm = defineForm(graph);

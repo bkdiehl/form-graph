@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defineForm, type Fields } from '../index.js';
-import { boolOf, slider, textOf } from '../def-helpers.js';
-import { defineGraph } from '../graph.js';
+import { boolOf, enumOf, slider, textOf } from '../def-helpers.js';
+import { branchOn, defineGraph } from '../graph.js';
 
 type Assert<T extends true> = T;
 type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
@@ -18,19 +18,23 @@ const caption = defineGraph<{ nsfw?: boolean }>().field('caption', (_ctx, ext) =
   ext.nsfw ? null : textOf({ default: '' })
 );
 
-describe('defineForm(graph): the direct mount', () => {
-  it('wires codecs, effects, and the resolver from the graph', () => {
+describe('the graph IS the form: runtime on the definition', () => {
+  it('createStore wires the registry and the effects, no mounting step', () => {
     const graph = defineGraph()
       .field('steps', slider({ min: 1, max: 50, default: 25 }))
       .effect({
         steps: (steps) => (typeof steps === 'number' && steps > 40 ? { steps: 40 } : undefined),
       });
-    const form = defineForm(graph);
-    expect(form.codecs).toEqual(graph.codecs);
-    const store = form.createStore();
+    const store = graph.createStore();
     store.set({ steps: 50 });
-    // the graph's effect ran — nothing was hand-wired
     expect(store.getState()).toEqual({ steps: 40 });
+  });
+
+  it('parse is the same pipeline server-side', () => {
+    const graph = defineGraph().field('steps', slider({ min: 1, max: 50, default: 25 }));
+    const result = graph.parse({ steps: 30 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toEqual({ steps: 30 });
   });
 
   it('flows ext through, typed', () => {
@@ -38,9 +42,29 @@ describe('defineForm(graph): the direct mount', () => {
     const graph = defineGraph<Ext>().field('steps', (_ctx, ext) =>
       slider({ min: 1, max: ext.max, default: 1 })
     );
-    const form = defineForm(graph);
-    const store = form.createStore({ ext: { max: 7 } });
+    const store = graph.createStore({ ext: { max: 7 } });
     expect(store.getField('steps')?.meta).toMatchObject({ max: 7 });
+  });
+
+  it('hubs carry the runtime too', () => {
+    const hub = branchOn(
+      'kind',
+      enumOf({
+        options: [
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+        ],
+        default: 'a',
+      }),
+      {
+        a: defineGraph().field('x', slider({ min: 0, max: 9, default: 1 })),
+        b: defineGraph().field('y', slider({ min: 0, max: 9, default: 2 })),
+      }
+    );
+    const store = hub.createStore();
+    expect(store.getState()).toEqual({ kind: 'a', x: 1 });
+    store.set({ kind: 'b' });
+    expect(store.getState()).toEqual({ kind: 'b', y: 2 });
   });
 });
 

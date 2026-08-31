@@ -1,4 +1,4 @@
-import { branchOn, defineForm } from '$lib/index.js';
+import { branchOn } from '$lib/index.js';
 import { enumOf } from '$lib/codecs/index.js';
 import { s3Graph, s3Meta } from './s3.js';
 import { emailGraph, emailMeta } from './email.js';
@@ -16,12 +16,10 @@ const DESTINATION = enumOf({
   default: 's3',
 });
 
-const publish = branchOn('destination', DESTINATION, {
+export const publishForm = branchOn('destination', DESTINATION, {
   s3: s3Graph,
   email: emailGraph,
   webhook: webhookGraph,
 });
 
-export const publishForm = defineForm(publish);
-
-export type PublishState = ReturnType<typeof publishForm.resolve>['state'];
+export type PublishState = ReturnType<typeof publishForm.resolve>;
