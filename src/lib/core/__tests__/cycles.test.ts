@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { codec, defineForm, defineRules, type Fields } from '../index.js';
+import { codec, defineForm, type Fields } from '../index.js';
 
 /**
  * Where v1 needed a runtime circuit breaker (the 1000-iteration guard on its
@@ -24,22 +24,20 @@ describe('rules terminate in one ordered pass', () => {
     // reach only later rules, and the pass ends.
     let aRuns = 0;
     let bRuns = 0;
-    const createPingPong = defineRules({
-      rules: () => ({
-        a: () => {
-          aRuns++;
-          return { b: 'set-by-a' }; // unconditionally writes b — no guard
-        },
-        b: () => {
-          bRuns++;
-          return { a: 'set-by-b' }; // unconditionally writes a back — no guard
-        },
-      }),
-    });
+    const pingPong = {
+      a: () => {
+        aRuns++;
+        return { b: 'set-by-a' }; // unconditionally writes b — no guard
+      },
+      b: () => {
+        bRuns++;
+        return { a: 'set-by-b' }; // unconditionally writes a back — no guard
+      },
+    };
 
     const form = defineForm<void>()({
       resolve: (f: Fields) => ({ a: f.field('a', TEXT), b: f.field('b', TEXT) }),
-      reconcile: [createPingPong()],
+      reconcile: [pingPong],
     });
     const store = form.createStore({ ext: undefined });
 
@@ -55,19 +53,17 @@ describe('rules terminate in one ordered pass', () => {
 
   it('an addition cannot re-trigger an EARLIER rule (no rewind)', () => {
     let firstRuns = 0;
-    const createOrdered = defineRules({
-      rules: () => ({
-        target: () => {
-          firstRuns++;
-          return undefined;
-        },
-        source: () => ({ target: 'added-late' }),
-      }),
-    });
+    const ordered = {
+      target: () => {
+        firstRuns++;
+        return undefined;
+      },
+      source: () => ({ target: 'added-late' }),
+    };
 
     const form = defineForm<void>()({
       resolve: (f: Fields) => ({ source: f.field('source', TEXT), target: f.field('target', TEXT) }),
-      reconcile: [createOrdered()],
+      reconcile: [ordered],
     });
     const store = form.createStore({ ext: undefined });
 

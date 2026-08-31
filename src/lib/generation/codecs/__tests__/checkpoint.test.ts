@@ -276,7 +276,8 @@ describe('reconciler array composition (decided Q10)', () => {
       reconcile: [
         kit.reconciler,
         // Runs AFTER the checkpoint rule — records what it decided.
-        (patch) => ('ecosystem' in patch ? { ...patch, audit: String(patch.ecosystem) } : patch),
+        (patch: Record<string, unknown>) =>
+          'ecosystem' in patch ? { ...patch, audit: String(patch.ecosystem) } : patch,
       ],
     });
 

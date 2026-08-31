@@ -1,4 +1,4 @@
-import { defineRules, type Fields } from '../core/index.js';
+import { type Fields, type RuleMap } from '../core/index.js';
 import {
   aspectRatioCodec,
   createControlNetsKit,
@@ -146,11 +146,12 @@ export function fluxResolver(
 type FluxRuleState = { workflow?: string; ecosystem?: string; model?: { id?: number } };
 const build = (id: number) => ({ id, model: { type: 'Checkpoint' } });
 
+const inFlux = (state: FluxRuleState) => state.ecosystem === 'Flux1';
+
 /** The draft workflow<->model coupling — v1's two mutually-guarded effects. */
-const createFluxCoupling = defineRules<void, FluxRuleState>({
-  scope: (state) => state.ecosystem === 'Flux1',
-  rules: () => ({
-    workflow: (workflow: string, { patch, state }) => {
+export const fluxCoupling: RuleMap<FluxRuleState> = {
+  workflow: (workflow: string, { patch, state }) => {
+      if (!inFlux(state)) return;
       if ('model' in patch) return; // the model rule owns mixed patches
       const model = state.model?.id;
       if (workflow === 'txt2img:draft' && model !== fluxVersionIds.draft) {
@@ -160,7 +161,8 @@ const createFluxCoupling = defineRules<void, FluxRuleState>({
         return { model: build(fluxVersionIds.standard) };
       }
     },
-    model: (model: { id?: number } | undefined, { state }) => {
+  model: (model: { id?: number } | undefined, { state }) => {
+      if (!inFlux(state)) return;
       if (model?.id === fluxVersionIds.draft && state.workflow !== 'txt2img:draft') {
         return { workflow: 'txt2img:draft' };
       }
@@ -168,8 +170,5 @@ const createFluxCoupling = defineRules<void, FluxRuleState>({
         return { workflow: 'txt2img' };
       }
     },
-  }),
-});
-
-export const fluxCoupling = createFluxCoupling();
+};
 export const fluxCheckpoint = checkpoint;

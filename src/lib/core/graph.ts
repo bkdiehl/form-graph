@@ -1,7 +1,7 @@
 import type { Codec, SchemaLike } from './types.js';
 import type { CodecRegistry } from './codec.js';
 import type { Fields, FieldOptions } from './resolve.js';
-import { compileRules, type RuleCtx, type RuleUnit } from './rules.js';
+import { compileRules, type RuleCtx, type RuleMap, type RuleUnit } from './rules.js';
 import type { Scope } from './scope.js';
 
 /**
@@ -112,10 +112,13 @@ export interface Graph<
    * Attach rules as a PLAIN MAP keyed by the trigger field: a rule fires when
    * its key is in a patch, reads the pre-patch state, and returns keys to add
    * to the patch. Everything is typed from the graph — no generics, no
-   * wrapper. A pre-built unit (`defineRules`, for config-bound or guarded
-   * rule sets) is also accepted.
+   * wrapper. A pre-built unit carrying a `reconciler` (a field kit's rules,
+   * another graph's effects) is also accepted.
    */
   effect(rules: GraphRules<Ctx, Ext>): Graph<Ctx, Ext, Defs>;
+  /** Rules triggered by keys this graph doesn't own — annotate params yourself. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  effect(rules: RuleMap<any, Ext>): Graph<Ctx, Ext, Defs>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   effect(unit: RuleUnit<any, Ext>): Graph<Ctx, Ext, Defs>;
 
@@ -187,12 +190,8 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
     },
 
     effect(arg: unknown) {
-      const unit =
-        arg !== null && typeof arg === 'object' && !('reconciler' in arg)
-          ? { reconciler: compileRules(arg as Parameters<typeof compileRules>[0]) }
-          : (arg as RuleUnit<unknown, Ext>);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return make<Ctx, Ext>(entries, [...effects, unit as RuleUnit<any, Ext>]) as any;
+      return make<Ctx, Ext>(entries, [...effects, toUnit(arg) as RuleUnit<any, Ext>]) as any;
     },
 
     use(arg: unknown) {
@@ -244,9 +243,14 @@ export interface GraphLike<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, any>[];
   resolve(f: Fields, ext: Ext): Ctx;
-  /** Attach a rule unit — same chain section as a graph's `.effect`. */
+  /**
+   * Attach rules — same chain section as a graph's `.effect`. Hub-level rules
+   * usually trigger on fields owned elsewhere, so the map is loosely typed:
+   * annotate rule params yourself. NOT auto-scoped (the hub can't know when
+   * the mounting form considers it active) — guard inside the rule.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effect(unit: RuleUnit<any, any>): GraphLike<Ctx, Ext, Defs>;
+  effect(rules: RuleMap<any, any> | RuleUnit<any, any>): GraphLike<Ctx, Ext, Defs>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -299,11 +303,16 @@ const mergeMembers = <Ext>(
   return { codecs, effects };
 };
 
+/** A rule map or a pre-built unit -> a unit. The one normalization point. */
+const toUnit = (arg: unknown) =>
+  arg !== null && typeof arg === 'object' && !('reconciler' in arg)
+    ? { reconciler: compileRules(arg as Parameters<typeof compileRules>[0]) }
+    : (arg as RuleUnit<unknown, unknown>);
+
 const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): H => ({
   ...hub,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effect(unit: RuleUnit<any, any>) {
-    return chainable({ ...hub, effects: [...hub.effects, unit] });
+  effect(arg: unknown) {
+    return chainable({ ...hub, effects: [...hub.effects, toUnit(arg)] });
   },
 });
 

@@ -67,7 +67,7 @@ export interface FieldKitSpec<Config, Args, T, M, State, Ext> {
   ) => { value: T; reason: string; detail?: Record<string, unknown> } | undefined;
   /**
    * Patch rules that belong to this field — same record shape as
-   * `defineRules`: trigger field -> rule (usually just this field's own key).
+   * a graph's `.effect` map: trigger field -> rule (usually this field's own key).
    */
   rules?: (config: Config) => RuleMap<State, Ext>;
   /** Branch guard applied to this kit's rules. */

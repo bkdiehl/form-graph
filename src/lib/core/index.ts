@@ -1,7 +1,7 @@
 /**
  * The public surface. Three tiers, deliberately small:
  *
- * - Authoring: defineForm / defineFieldKit / defineRules / codec, plus the
+ * - Authoring: defineForm / defineFieldKit / codec, plus the
  *   types a resolver or kit author writes against.
  * - Runtime: store types and storage adapters. `FormStore` is type-only —
  *   stores are created via `form.createStore()`, never constructed directly.
@@ -53,11 +53,9 @@ export {
 export type { Fields, FieldOptions, Resolver, Resolution } from './resolve.js';
 export type { FormStore, StorageAdapter, StoreOptions } from './store.js';
 export {
-  defineRules,
   type Rule,
   type RuleCtx,
   type RuleMap,
-  type RulesSpec,
   type RuleUnit,
 } from './rules.js';
 export { debouncedStorage, persistedStorage, type DebouncedStorageAdapter } from './storage.js';

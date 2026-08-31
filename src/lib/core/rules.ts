@@ -1,34 +1,13 @@
 import type { PatchReconciler } from './store.js';
 
 /**
- * THE STANDARD for rules, mirroring `defineFieldKit` for fields. Every rule
- * lives in one of exactly two homes:
- *
- *   1. a field kit's `rules` slot — rules owned by ONE field
- *   2. a `defineRules` unit — rules owned by a module or a relationship
- *      between fields (a mode<->model coupling, a resolution<->variant
- *      mapping)
- *
- * Both expose a single `reconciler`, and a form's `reconcile:` array lists
- * those UNITS — named things with an anatomy — never bare inline functions.
- *
- * Rules are a RECORD keyed by the trigger field — the same key -> definition
- * shape fields use. A rule fires when its key is in the patch, receives the
- * patch VALUE, and returns the keys to ADD to the patch (or nothing):
- *
- *   const createPlanCoupling = defineRules<void, PlanRuleState>({
- *     scope: (state) => state.tier === 'enterprise',
- *     rules: () => ({
- *       plan: (plan, { patch, state }) => { ... },
- *       addon: (addon, { state }) => {
- *         if (addon?.id === premiumId && state.plan !== 'annual') {
- *           return { plan: 'annual' };
- *         }
- *       },
- *     }),
- *   });
- *   const planCoupling = createPlanCoupling();
- *   // form: reconcile: [planCoupling, ...kits]
+ * Rules are PLAIN MAPS keyed by the trigger field, attached with a graph's
+ * (or hub's) `.effect({...})` — or listed directly in a form's `reconcile`
+ * array. A rule fires when its key is in the patch, receives the patch VALUE,
+ * and returns the keys to ADD to the patch (or nothing). Rules that need app
+ * config are ordinary closures: `(cfg) => ({ model: (v, c) => ... })`.
+ * Scoping comes from structure — a hub auto-scopes its members' effects — or
+ * from an early return inside the rule.
  */
 
 /**
@@ -68,26 +47,8 @@ export type Rule<State, Ext = unknown, V = unknown> = (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type RuleMap<State, Ext = unknown> = Record<string, Rule<State, Ext, any>>;
 
-/**
- * @typeParam Config - What the APP binds once per unit (tables, injected
- *   functions), received by the `rules` slot. Use `void` for units with no
- *   config — callers then invoke the factory with no argument.
- * @typeParam State - The state shape the guard and rules read. Same rule as
- *   everywhere: declare only the keys touched, optional, so the unit slots
- *   into any form whose state carries them.
- * @typeParam Ext - External-context type; `unknown` when rules never read it.
- */
-export interface RulesSpec<Config, State, Ext> {
-  /** Branch guard applied to every rule in the unit. */
-  scope?: (state: State) => boolean;
-  rules: (config: Config) => RuleMap<State, Ext>;
-}
 
-/**
- * A bound rule unit — what `reconcile:` arrays list.
- *
- * @typeParam State / Ext - Carried from the spec; see {@link RulesSpec}.
- */
+/** A compiled rule unit — what `graph.effects` holds and `reconcile:` accepts. */
 export interface RuleUnit<State = unknown, Ext = unknown> {
   reconciler: PatchReconciler<State, Ext>;
 }
@@ -109,32 +70,4 @@ export function compileRules<State, Ext>(
     }
     return current;
   };
-}
-
-/**
- * Generics are declared EXPLICITLY at the definition site, like
- * `defineFieldKit` — the spec's slots consume them, so inference has nothing
- * to infer from. See {@link RulesSpec} for what each one means.
- */
-/**
- * With no Config there is nothing to bind, so the returned factory is ALSO
- * the unit itself — `defineRules({ ... })` drops straight into a form's
- * `reconcile` array (or a graph's `.effect`), no trailing `()`. Config-bound
- * rules still call the factory with their config.
- */
-export function defineRules<Config = void, State = { [key: string]: unknown }, Ext = unknown>(
-  spec: RulesSpec<Config, State, Ext>
-): ((config: Config) => RuleUnit<State, Ext>) & ([Config] extends [void] ? RuleUnit<State, Ext> : unknown) {
-  const factory = (config: Config): RuleUnit<State, Ext> => ({
-    reconciler: compileRules(spec.rules(config), spec.scope),
-  });
-  let lazy: RuleUnit<State, Ext> | undefined;
-  Object.defineProperty(factory, 'reconciler', {
-    get() {
-      lazy ??= factory(undefined as Config);
-      return lazy.reconciler;
-    },
-  });
-  return factory as ((config: Config) => RuleUnit<State, Ext>) &
-    ([Config] extends [void] ? RuleUnit<State, Ext> : unknown);
 }

@@ -102,16 +102,14 @@
   rewind — cycles are structurally unrepresentable.
 </p>
 
-<pre>{`const coupling = defineRules<void, { ecosystem?: string }>({
-  scope: (state) => state.ecosystem === 'Flux1',   // guard: fire only in this region
-  rules: () => ({
+<pre>{`defineGraph()
+  .field('model', MODEL)
+  .effect({
+    // a PLAIN MAP keyed by the trigger field — typed from the graph
     model: (model, { state }) =>
       model?.id === DRAFT_ID && state.workflow !== 'draft' ? { workflow: 'draft' } : undefined,
-  }),
-});
-
-defineGraph().field(...).effect(coupling)          // rides the graph
-// or: defineForm({ ..., reconcile: [coupling] })`}</pre>
+  });
+// rules ride the graph: into a parent via .use, into a form via reconcile: [...graph.effects]`}</pre>
 
 <p>
   Rule of thumb: an effect when a choice implies another choice; <code>correct</code> when the

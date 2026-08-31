@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, defineRules, type Fields } from '../core/index.js';
+import { codec, type Fields, type RuleMap } from '../core/index.js';
 import {
   createCheckpointKit,
   createResourcesKit,
@@ -143,15 +143,11 @@ export function collectTriggerWords(
  * ecosystem→workflow — a genuine conflict between two user choices — remains
  * a patch rule.
  */
-const createHubCoupling = defineRules<void, { workflow?: string }>({
-  rules: () => ({
-    ecosystem: (ecosystem: string, { patch, state }) => {
-      if ('workflow' in patch) return;
-      if (!state.workflow || isWorkflowAvailable(state.workflow, ecosystem)) return;
-      const [first] = getWorkflowsForEcosystem(ecosystem);
-      if (first) return { workflow: first };
-    },
-  }),
-});
-
-export const hubCoupling = createHubCoupling();
+export const hubCoupling: RuleMap<{ workflow?: string }> = {
+  ecosystem: (ecosystem: string, { patch, state }) => {
+    if ('workflow' in patch) return;
+    if (!state.workflow || isWorkflowAvailable(state.workflow, ecosystem)) return;
+    const [first] = getWorkflowsForEcosystem(ecosystem);
+    if (first) return { workflow: first };
+  },
+};

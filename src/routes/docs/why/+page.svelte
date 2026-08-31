@@ -62,7 +62,7 @@
       problem:
         '“Selecting the draft workflow forces the draft model, and selecting the draft model forces the draft workflow” — written as reactive effects, that’s two watchers with mutual guards, ordering dependencies on the store, and a cycle waiting for the guard someone deletes.',
       mechanism:
-        'Couplings are <code>defineRules</code> records keyed by the field whose change triggers them. Rules rewrite the patch <em>before</em> resolution, in one ordered pass per <code>set()</code>, each rule at most once, no rewind — cycles aren’t detected, they’re unrepresentable. The driver is whichever field the user actually touched, so the two directions coexist without chasing each other.',
+        'Couplings are plain rule maps on <code>.effect</code>, keyed by the field whose change triggers them. Rules rewrite the patch <em>before</em> resolution, in one ordered pass per <code>set()</code>, each rule at most once, no rewind — cycles aren’t detected, they’re unrepresentable. The driver is whichever field the user actually touched, so the two directions coexist without chasing each other.',
     },
     {
       title: 'Recompute-everything re-renders everything',

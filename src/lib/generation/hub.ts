@@ -225,7 +225,7 @@ export type GenerationState = ReturnType<typeof resolveGeneration>;
 
 export const generationForm = defineForm<GenerationExt>()({
   resolve: resolveGeneration,
-  // Named rule units (kits + defineRules products), hub first so branch rules
+  // Kits' units and plain rule maps, hub first so branch rules
   // see the hub's corrections. Couplings before their branch's checkpoint kit.
   reconcile: [
     hubCoupling,

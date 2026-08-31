@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { defineForm, defineRules, type Fields } from '../index.js';
+import { defineForm, type Fields } from '../index.js';
 import { enumOf, slider, textOf } from '../def-helpers.js';
 import { branch, branchOn, defineGraph } from '../graph.js';
 
@@ -108,12 +108,10 @@ describe('branch', () => {
   });
 
   it('chains its own effects with .effect, like a graph', () => {
-    const capUnit = defineRules<void, { steps?: number }>({
-      rules: () => ({
-        steps: (steps) => (typeof steps === 'number' && steps > 40 ? { steps: 40 } : undefined),
-      }),
+    const capped = branch((ext: Ext) => ext.tier, { free, pro }).effect({
+      steps: (steps: unknown) =>
+        typeof steps === 'number' && steps > 40 ? { steps: 40 } : undefined,
     });
-    const capped = branch((ext: Ext) => ext.tier, { free, pro }).effect(capUnit);
     expect(capped.effects).toHaveLength(2);
     expect(hub.effects).toHaveLength(1); // the original hub is untouched
 
@@ -130,11 +128,7 @@ describe('branch', () => {
   it('merges a shared prefix effect ONCE across members', () => {
     const shared = defineGraph<Ext>()
       .field('steps', slider({ min: 1, max: 50, default: 25 }))
-      .effect(
-        defineRules<void, { steps?: number }>({
-          rules: () => ({ steps: () => undefined }),
-        })
-      );
+      .effect({ steps: () => undefined });
     const a = shared.field('seed', slider({ min: 0, max: 10, default: 0 }));
     const b = shared.field('cfg', slider({ min: 0, max: 10, default: 5 }));
     const twoWays = branch((ext: Ext) => (ext.tier === 'pro' ? 'a' : 'b'), { a, b });

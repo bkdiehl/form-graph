@@ -45,26 +45,31 @@
   </li>
   <li>
     <strong>On the hub itself</strong> (<code>branch(...).effect(...)</code>): NOT auto-scoped
-    — the hub can't know when the mounting form considers it active. Guard it yourself with
-    <code>scope</code> (below) if the form hosts more than this hub.
+    — the hub can't know when the mounting form considers it active. Guard with an early
+    return (below) if the form hosts more than this hub.
   </li>
 </ul>
 
-<h2><code>defineRules</code>: the escape hatch for config and guards</h2>
+<h2>Config and guards, without machinery</h2>
 <p>
-  Reach for it in exactly two situations: the rule set needs app CONFIG bound once
-  (<code>defineRules&lt;Cfg, State&gt;(&#123;...&#125;)(cfg)</code>), or it needs a manual
-  <code>scope</code> guard — a predicate over the pre-patch state, evaluated on every
-  <code>set()</code>, that answers "does this unit apply right now". Scope is not
-  change-detection: it doesn't care when the scoped value last changed, only what it is.
+  Rules that need app config (catalogs, id tables) are ordinary closures — a function returning
+  the map. Rules that must guard against firing outside their territory — a hub-level coupling
+  sharing the form with another family — guard with an early return, usually in the shared
+  decision function:
 </p>
 
-<pre>{`export const wanCoupling = defineRules<void, WanRuleState>({
-  // hub-level rules for a hub that shares the form with another family
-  scope: (state) => wanEcosystems.has(state.ecosystem ?? ''),
-  rules: () => ({
-    model: (model, { state }) => { ... },
-  }),
+<pre>{`// config: a closure
+const draftCoupling = (draftId: number) => ({
+  model: (model, { state }) => (model?.id === draftId ? { workflow: 'draft' } : undefined),
+});
+graph.effect(draftCoupling(fluxIds.draft));
+
+// guard: an early return (this map rides a hub that shares the form)
+wan.effect({
+  workflow: (_v, { state, next }) => {
+    if (!wanEcosystems.has(state.ecosystem ?? '')) return;
+    ...
+  },
 });`}</pre>
 
 <h2>Semantics worth knowing</h2>

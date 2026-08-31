@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codec, defineRules, type Fields } from '../core/index.js';
+import { codec, type Fields, type RuleMap } from '../core/index.js';
 import {
   aspectRatioCodec,
   createSamplerKit,
@@ -250,18 +250,14 @@ export function wanResolver(
 const createImagesKitSingleton = createImagesKit({ max: 1, min: 1, label: 'Source image' });
 
 /** Picking a resolution IS picking an ecosystem. */
-const createWanCoupling = defineRules<void, { ecosystem?: string }>({
-  scope: (state) => (state.ecosystem ?? '').startsWith('WanV21'),
-  rules: () => ({
-    resolution: (resolution: WanResolution, { patch, state }) => {
-      if ('ecosystem' in patch) return;
-      const target = wanEcoByResolution[resolution];
-      if (target && target !== state.ecosystem) return { ecosystem: target };
-    },
-  }),
-});
-
-export const wanCoupling = createWanCoupling();
+export const wanCoupling: RuleMap<{ ecosystem?: string }> = {
+  resolution: (resolution: WanResolution, { patch, state }) => {
+    if (!(state.ecosystem ?? '').startsWith('WanV21')) return;
+    if ('ecosystem' in patch) return;
+    const target = wanEcoByResolution[resolution];
+    if (target && target !== state.ecosystem) return { ecosystem: target };
+  },
+};
 export { wanCheckpoint, sdCheckpoint, ltxCheckpoint, nbCheckpoint };
 
 // --- NanoBanana (nano-banana-graph.ts) --------------------------------------

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defineForm, defineRules, type Fields } from '../index.js';
+import { defineForm, type Fields } from '../index.js';
 import { boolOf, slider, textOf } from '../def-helpers.js';
 import { defineGraph } from '../graph.js';
 
@@ -66,13 +66,9 @@ describe('mounting a graph with .use', () => {
   it("carries the child's effects through the mount", () => {
     const child = defineGraph()
       .field('steps', slider({ min: 1, max: 50, default: 25 }))
-      .effect(
-        defineRules<void, { steps?: number }>({
-          rules: () => ({
-            steps: (steps) => (typeof steps === 'number' && steps > 40 ? { steps: 40 } : undefined),
-          }),
-        })
-      );
+      .effect({
+        steps: (steps) => (typeof steps === 'number' && steps > 40 ? { steps: 40 } : undefined),
+      });
     const parent = defineGraph().use(child);
     expect(parent.effects).toHaveLength(1);
 

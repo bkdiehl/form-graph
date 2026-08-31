@@ -1,7 +1,7 @@
 import { intentFromRaw, type Intent } from './intent.js';
 import { resolve, type Fields, type Resolution } from './resolve.js';
 import { FormStore, type PatchReconciler, type StoreOptions } from './store.js';
-import type { RuleUnit } from './rules.js';
+import { compileRules, type RuleMap, type RuleUnit } from './rules.js';
 import { validateResolution } from './validate.js';
 import type { CodecRegistry } from './codec.js';
 import type { Codec, FieldError, ValidationResult } from './types.js';
@@ -40,22 +40,27 @@ export interface FormConfig<Ext, State, Codecs extends CodecsInput = CodecRegist
    * two user choices. Runs once, before
    * resolution, so there is no loop to detect.
    *
-   * THE STANDARD: an array of rule UNITS — field kits and `defineRules`
-   * products, each exposing `reconciler` — composed left-to-right with each
-   * unit seeing the accumulated patch. Declare hub units before branch units
-   * so branch rules see the hub's corrections. Bare functions are accepted for
-   * tests, but shipped rules belong in a unit.
+   * An array of PLAIN RULE MAPS (trigger field -> rule), rule units carrying
+   * a `reconciler` (field kits, `graph.effects` spreads), and bare reconciler
+   * functions — composed left-to-right, each seeing the accumulated patch.
+   * Declare hub entries before branch entries so branch rules see the hub's
+   * corrections.
    */
   reconcile?: ReconcileEntry<State, Ext> | readonly ReconcileEntry<State, Ext>[];
 }
 
-type ReconcileEntry<State, Ext> = PatchReconciler<State, Ext> | RuleUnit<State, Ext>;
+type ReconcileEntry<State, Ext> =
+  | PatchReconciler<State, Ext>
+  | RuleUnit<State, Ext>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | RuleMap<State, Ext>;
 
-// A void-config defineRules unit is a FUNCTION carrying a `reconciler`
-// getter, so "is a function" can't mean "is a bare reconciler" — the
-// property wins whenever it exists.
 const toRule = <State, Ext>(entry: ReconcileEntry<State, Ext>): PatchReconciler<State, Ext> =>
-  'reconciler' in entry ? entry.reconciler : entry;
+  typeof entry === 'function'
+    ? entry
+    : 'reconciler' in entry
+      ? (entry as RuleUnit<State, Ext>).reconciler
+      : compileRules(entry as RuleMap<State, Ext>);
 
 function composeReconcilers<State, Ext>(
   reconcile: FormConfig<Ext, State>['reconcile']
