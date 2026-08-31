@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { FieldSnapshot } from '$lib/index.js';
-  import type { NumberMeta } from '$lib/codecs/index.js';
+  import type { SliderDefMeta } from '$lib/codecs/index.js';
   import type { Reactive } from '$lib/svelte/index.js';
 
-  // Typed at the boundary: this control only accepts a number/NumberMeta field,
+  // Typed at the boundary: this control only accepts a number/SliderDefMeta field,
   // so wiring it to the wrong key is a compile error, not a runtime surprise.
   const {
     label,
@@ -11,7 +11,7 @@
     onchange,
   }: {
     label: string;
-    field: Reactive<FieldSnapshot<number, NumberMeta> | null>;
+    field: Reactive<FieldSnapshot<number, SliderDefMeta> | null>;
     onchange: (value: number) => void;
   } = $props();
 </script>
