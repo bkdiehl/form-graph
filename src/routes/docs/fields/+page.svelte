@@ -64,9 +64,8 @@ withAddress(g, 'shipping'); withAddress(g, 'billing', (ctx) => !ctx.sameAsShippi
 
 <pre>{`export const wan = branch(
   (ext: WanExt) => versionOf(ext.ecosystem),   // derive the branch key here
-  { 'v2.1': v21, 'v2.2': v22, 'v2.5': v25 },
-  [defineRules({ ... })]                       // the family's coupling, inline
-);
+  { 'v2.1': v21, 'v2.2': v22, 'v2.5': v25 }
+).effect(wanCoupling);                         // same chain section as a graph
 // the ONE export: a parent mounts wan.resolve(f, ext) and ...wan.effects`}</pre>
 
 <p>

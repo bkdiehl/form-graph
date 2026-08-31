@@ -102,6 +102,40 @@ describe('branch', () => {
     store.set({ steps: 50 });
     expect(store.getState()).toEqual({ steps: 50, seed: 7 });
   });
+
+  it('chains its own effects with .effect, like a graph', () => {
+    const capUnit = defineRules<void, { steps?: number }>({
+      rules: () => ({
+        steps: (steps) => (typeof steps === 'number' && steps > 40 ? { steps: 40 } : undefined),
+      }),
+    });
+    const capped = branch((ext: Ext) => ext.tier, { free, pro }).effect(capUnit);
+    expect(capped.effects).toHaveLength(2);
+    expect(hub.effects).toHaveLength(1); // the original hub is untouched
+
+    const cappedForm = defineForm({
+      codecs: capped.codecs,
+      resolve: (f: Fields, ext: Ext) => capped.resolve(f, ext),
+      reconcile: [...capped.effects],
+    });
+    const store = cappedForm.createStore({ ext: { tier: 'pro' } });
+    store.set({ steps: 50 });
+    expect(store.getState()).toEqual({ steps: 40, seed: 7 });
+  });
+
+  it('merges a shared prefix effect ONCE across members', () => {
+    const shared = defineGraph<Ext>()
+      .field('steps', slider({ min: 1, max: 50, default: 25 }))
+      .effect(
+        defineRules<void, { steps?: number }>({
+          rules: () => ({ steps: () => undefined }),
+        })
+      );
+    const a = shared.field('seed', slider({ min: 0, max: 10, default: 0 }));
+    const b = shared.field('cfg', slider({ min: 0, max: 10, default: 5 }));
+    const twoWays = branch((ext: Ext) => (ext.tier === 'pro' ? 'a' : 'b'), { a, b });
+    expect(twoWays.effects).toHaveLength(1);
+  });
 });
 
 describe('branchOn failure path', () => {

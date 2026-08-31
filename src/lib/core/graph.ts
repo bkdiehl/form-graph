@@ -169,6 +169,9 @@ export interface GraphLike<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, any>[];
   resolve(f: Fields, ext: Ext): Ctx;
+  /** Attach a rule unit — same chain section as a graph's `.effect`. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  effect(unit: RuleUnit<any, any>): GraphLike<Ctx, Ext, Defs>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -188,20 +191,26 @@ type DefsOf<Members> =
     ? Merged
     : Record<string, AnyFieldDef>;
 
-const mergeMembers = <Ext>(
-  members: Record<string, GraphLike<object, Ext>>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  extraEffects: readonly RuleUnit<any, any>[]
-) => {
+const mergeMembers = <Ext>(members: Record<string, GraphLike<object, Ext>>) => {
   const codecs: Record<string, AnyFieldDef> = {};
+  // members built by continuing one shared chain carry the SAME unit
+  // instances — dedupe by identity so a prefix's effect merges once
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const effects: RuleUnit<any, any>[] = [...extraEffects];
+  const effects = new Set<RuleUnit<any, any>>();
   for (const g of Object.values(members)) {
     Object.assign(codecs, g.codecs);
-    effects.push(...g.effects);
+    for (const e of g.effects) effects.add(e);
   }
-  return { codecs, effects };
+  return { codecs, effects: [...effects] };
 };
+
+const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): H => ({
+  ...hub,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  effect(unit: RuleUnit<any, any>) {
+    return chainable({ ...hub, effects: [...hub.effects, unit] });
+  },
+});
 
 /**
  * A HUB that dispatches on a value derived from the external context — the
@@ -210,24 +219,21 @@ const mergeMembers = <Ext>(
  * ride the hub, so a form mounting it inherits everything; each member's own
  * literal computed key is what discriminates the state union.
  *
- *   export const wan = branch((ext: WanExt) => ext.wanVersion, {
+ *   export const wan = branch((ext: WanExt) => versionOf(ext.ecosystem), {
  *     'v2.1': v21, 'v2.2': v22, ...
- *   }, [wanCoupling]);
+ *   }).effect(wanCoupling);
  */
 export function branch<Ext, const Members extends Record<string, GraphLike<object, Ext>>>(
   pick: (ext: Ext) => keyof Members,
-  members: Members,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effects: readonly RuleUnit<any, any>[] = []
+  members: Members
 ): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>> {
-  const merged = mergeMembers(members, effects);
-  return {
-    ...merged,
+  return chainable({
+    ...mergeMembers(members),
     resolve(f: Fields, ext: Ext) {
       return members[pick(ext)]!.resolve(f, ext) as CtxOf<Members[keyof Members]>;
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  }) as any;
 }
 
 /**
@@ -248,17 +254,15 @@ export function branchOn<
 >(
   key: K,
   def: D & { output: SchemaLike<keyof Members & string> },
-  members: Members,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effects: readonly RuleUnit<any, any>[] = []
+  members: Members
 ): GraphLike<
   { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
   Ext,
   DefsOf<Members> & Record<K, D>
 > {
-  const merged = mergeMembers(members, effects);
+  const merged = mergeMembers(members);
   merged.codecs[key] = def as AnyFieldDef;
-  return {
+  return chainable({
     ...merged,
     resolve(f: Fields, ext: Ext) {
       const picked = f.field(
@@ -272,5 +276,5 @@ export function branchOn<
       }[keyof Members];
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  }) as any;
 }
