@@ -76,11 +76,12 @@ export interface Codec<T = unknown, M = unknown> {
   /** Strict contract for validate()/output()/server parse. */
   output: SchemaLike<T>;
   /**
-   * Lenient parse for values arriving from storage, remix, URL params, raw server
-   * input. Its result type is checked against the field's state type — `undefined`
-   * is allowed and means "no usable value", which falls through to the default.
+   * Lenient parse for values arriving from storage, remix, URL params, raw
+   * server input. Deliberately untyped against T — leniency means it may
+   * produce fragments of the state type; `output` is the contract. A result of
+   * `undefined` means "no usable value" and falls through to the default.
    */
-  input?: SchemaLike<T | undefined>;
+  input?: SchemaLike<unknown>;
   default?: T | (() => T);
   /**
    * The codec's CONTRIBUTION to the field's meta — the unconditional and
@@ -121,6 +122,14 @@ export interface FieldRecord<T = unknown, M = unknown> {
   metaFn: ((value: unknown) => unknown) | undefined;
   codec: Codec<T, M> | undefined;
   isComputed: boolean;
+  /**
+   * Wire disposition: undefined emits under the graph key, a string emits
+   * under that name instead, false keeps the key out of parsed data entirely
+   * (it still resolves, validates, and holds intent). Validation errors key by
+   * the WIRE name — the external contract — except emit:false fields, which
+   * key by graph name (they have no wire name).
+   */
+  emit?: false | string;
   /** Set when a boundary value failed its input schema and the default was used instead. */
   boundaryError: FieldError | undefined;
   /** The refined output schema for this pass (FieldOptions.refine); replaces codec.output at submit. */

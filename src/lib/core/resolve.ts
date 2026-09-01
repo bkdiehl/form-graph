@@ -59,6 +59,8 @@ export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
    * Runs after the value resolves.
    */
   correct?: (value: T) => { value: T; reason: string; detail?: Record<string, unknown> } | undefined;
+  /** Wire disposition — see FieldRecord.emit. */
+  emit?: false | string;
 }
 
 /**
@@ -86,7 +88,7 @@ export interface Fields<Codecs extends CodecRegistry = CodecRegistry> {
       SchemaLike<InferDefValue<Codecs[K]>>
     >
   ): InferDefValue<Codecs[K]>;
-  computed<T>(key: string, value: T): T;
+  computed<T>(key: string, value: T, opts?: { emit?: false | string }): T;
   /**
    * Replaces an already-declared field's value and records why — correction
    * as a visible STATEMENT in the resolver, not a hidden pipeline step:
@@ -221,6 +223,7 @@ class Collector implements Fields {
       metaFn: metaFn as ((value: unknown) => unknown) | undefined,
       codec: codec as Codec<unknown, unknown>,
       isComputed: false,
+      emit: opts?.emit,
       boundaryError: parsed?.error,
       refined,
       refineError,
@@ -236,7 +239,7 @@ class Collector implements Fields {
     return value as T;
   }
 
-  computed<T>(key: string, value: T): T {
+  computed<T>(key: string, value: T, opts?: { emit?: false | string }): T {
     this.assertUnique(key);
     this.record({
       key,
@@ -246,6 +249,7 @@ class Collector implements Fields {
       metaFn: undefined,
       codec: undefined,
       isComputed: true,
+      emit: opts?.emit,
       boundaryError: undefined,
       refined: undefined,
       refineError: undefined,

@@ -119,7 +119,15 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
       data: data as State,
       state: resolution.state,
       notes: resolution.notes,
-      computedKeys: resolution.keys.filter((key) => resolution.records.get(key)!.isComputed),
+      // WIRE names, because they accompany `data`: a computed emitting under a
+      // field's old name reports that name (it IS the derived key in this
+      // data); emit:false computeds are not in data, so not listed. Excluding
+      // these keys from a stored record is exactly "store no derivable value".
+      computedKeys: resolution.keys.flatMap((key) => {
+        const record = resolution.records.get(key)!;
+        if (!record.isComputed || record.emit === false) return [];
+        return [record.emit ?? key];
+      }),
     };
   }
 

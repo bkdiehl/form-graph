@@ -42,7 +42,7 @@ type Listener = () => void;
  *   registry-driven binding helpers can infer per-key types from a store
  *   value alone. Never read at runtime.
  */
-export class FormStore<State, Ext, Codecs = unknown> {
+export class FormStore<State, Ext, Codecs = unknown, Data = State> {
   declare private __codecs?: Codecs;
   private intent = new Map<string, IntentEntry>();
   private cache: ParseCache = new WeakMap();
@@ -197,7 +197,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
   }
 
   /** Runs output schemas, records errors on fields, and notifies. */
-  validate(): ValidationResult<State, State> {
+  validate(): ValidationResult<Data, State> {
     const { errors, data } = validateResolution(this.resolution);
     this.errors = errors;
     this.publish(diffSnapshot(this.snapshot, this.resolution, this.errors));
@@ -205,7 +205,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
     if (errors.size > 0) {
       return { success: false, errors: Object.fromEntries(errors) };
     }
-    return { success: true, data: data as State, state: this.snapshot.state };
+    return { success: true, data: data as Data, state: this.snapshot.state };
   }
 
   /**
@@ -213,7 +213,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
    * `parse` makes: same keys, per-key output-validated (possibly stripped)
    * values. Never written back into state.
    */
-  output(): State {
+  output(): Data {
     const { errors, data } = validateResolution(this.resolution);
     if (errors.size > 0) {
       throw new Error(
@@ -222,7 +222,7 @@ export class FormStore<State, Ext, Codecs = unknown> {
           '). Use validate() for a checked result, or parsePartial() for best-effort data.'
       );
     }
-    return data as State;
+    return data as Data;
   }
 
   /** Derived (computed) keys in the active branch. */

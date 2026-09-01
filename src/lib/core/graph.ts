@@ -48,13 +48,27 @@ import type { Scope } from './scope.js';
  */
 export interface FieldDef<T, M = undefined, O extends SchemaLike<T> = SchemaLike<T>> {
   output: O;
-  input?: SchemaLike<T | undefined>;
+  /**
+   * Deliberately untyped against T: the input pass is LENIENT — it may accept
+   * fragments (an id where the state holds a full record) that only become T
+   * after coercion or later enrichment. `output` is the contract; typing input
+   * against T forced a cast at every lenient definition.
+   */
+  input?: SchemaLike<unknown>;
   default?: T | (() => T);
   coerce?: (raw: unknown) => T;
   toOutput?: (value: T) => unknown;
   meta?: M | ((value: T) => M);
   scope?: Scope;
   correct?: (value: T) => { value: T; reason: string; detail?: Record<string, unknown> } | undefined;
+  /**
+   * Wire disposition: a string emits this key's value under that name in
+   * parsed data; false keeps it out of parsed data entirely (it still
+   * resolves, guards, and holds intent). Use the pair for a SELECTION the
+   * form keeps and a DERIVED value the wire carries — never overwrite one
+   * key with two facts.
+   */
+  emit?: false | string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,7 +80,22 @@ type DefValue<D> = D extends FieldDef<infer T, infer _M> ? T : never;
  * at top level — destructure exactly what you read — with the external
  * context under the one reserved key, `_ext`. `_ext` cannot be a field name.
  */
-export type DefBag<Ctx, Ext> = Ctx & { _ext: Ext };
+type BagKeys<C> = C extends unknown ? keyof C : never;
+
+/**
+ * The read surface a field/computed callback gets when Ctx is a UNION (fields
+ * declared after a mounted branch): every key of every arm, typed
+ * `T | undefined` where the key is missing from some arm — so a hub field can
+ * destructure a family's output without casting. Only the callback's bag is
+ * loosened; the graph's Ctx (state types, DataOf) keeps the real union. The
+ * cost is tag-correlation inside the bag (narrowing on a branch tag no longer
+ * narrows sibling keys) — state types retain it.
+ */
+type LooseCtx<C> = [BagKeys<C>] extends [never]
+  ? C
+  : { [K in BagKeys<C>]: C extends unknown ? (K extends keyof C ? C[K] : undefined) : never };
+
+export type DefBag<Ctx, Ext> = LooseCtx<Ctx> & { _ext: Ext };
 
 type DefArg<Ctx, Ext> = AnyDef | ((c: DefBag<Ctx, Ext>) => AnyDef | null);
 
@@ -88,29 +117,71 @@ interface Entry {
   key: string;
   def?: DefArg<unknown, unknown>;
   calc?: (c: Record<string, unknown>) => unknown;
+  emitOpt?: false | string;
   graph?: GraphLike<object, unknown>;
 }
 
 type ExtArg<Ext> = [void] extends [Ext] ? [ext?: Ext] : [ext: Ext];
 
+/** graph key -> wire disposition, accumulated only for keys that declare one. */
+type WireMap = Record<string, false | string>;
+
+type UtoI<U> = (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void
+  ? I
+  : never;
+
+/**
+ * The WIRE shape of parsed data, derived from the state type and the emit
+ * dispositions: emitting keys leave under their wire names carrying their own
+ * types, emit:false keys leave entirely. This is what makes `parse().data`
+ * tell the truth when a selection stays in-graph and a derived value rides
+ * the wire under its old name.
+ */
+export type DataOf<Ctx, W extends WireMap> = [keyof W] extends [never]
+  ? Ctx // no emits: data IS the state type, identically — not a mapped copy
+  : Ctx extends unknown // distribute over state unions (hub branches) — Omit on a union intersects keys
+    ? // a wire name also evicts the state key it shadows — a field whose name a
+      // computed emits needs no emit:false of its own
+      Omit<Ctx, keyof W | Extract<W[keyof W], string>> &
+        UtoI<
+          {
+            [K in keyof W]: W[K] extends string
+              ? Record<W[K], K extends keyof Ctx ? Ctx[K] : never>
+              : never;
+          }[keyof W]
+        >
+    : never;
+
+type EmitOf<D> = D extends { emit: infer E extends false | string } ? E : never;
+
 /** The runtime entry points every definition carries — a graph IS the form. */
-interface Mountable<Ctx, Ext, Defs> {
+interface Mountable<Ctx, Ext, Defs, W extends WireMap = Record<never, never>> {
+  /**
+   * PHANTOM — never set at runtime. Carries the wire map in the type so
+   * composition sites (`.use`, hub members) can INFER it; without a member
+   * mentioning W, inference has no site and falls back to the constraint,
+   * whose `keyof` is `string` — which would Omit every key from DataOf.
+   */
+  readonly __wire?: W;
   /** A live client store over this definition. */
-  createStore(...args: CreateStoreArgs<Ext>): FormStore<Ctx, Ext, NormalizeDefs<Defs>>;
+  createStore(
+    ...args: CreateStoreArgs<Ext>
+  ): FormStore<Ctx, Ext, NormalizeDefs<Defs>, DataOf<Ctx, W>>;
   /** The server entry point: boundary schemas -> resolve -> output validation. */
-  parse(raw: Record<string, unknown>, ...ext: ExtArg<Ext>): ValidationResult<Ctx, Ctx>;
+  parse(raw: Record<string, unknown>, ...ext: ExtArg<Ext>): ValidationResult<DataOf<Ctx, W>, Ctx>;
   /** Best-effort parse: valid fields plus the errors, no throw. */
   parsePartial(
     raw: Record<string, unknown>,
     ...ext: ExtArg<Ext>
-  ): { data: Partial<Ctx>; errors: Record<string, FieldError>; state: Ctx };
+  ): { data: Partial<DataOf<Ctx, W>>; errors: Record<string, FieldError>; state: Ctx };
 }
 
 export interface Graph<
   Ctx extends object,
   Ext,
   Defs extends Record<string, AnyDef> = Record<never, never>,
-> extends Mountable<Ctx, Ext, Defs> {
+  W extends WireMap = Record<never, never>,
+> extends Mountable<Ctx, Ext, Defs, W> {
   /**
    * The registry for bindings and forms. TYPE-complete (every field,
    * function-defined ones included, so `typedFields`/`<Field>` know every
@@ -123,7 +194,7 @@ export interface Graph<
   readonly effects: readonly RuleUnit<any, Ext>[];
   resolve(f: Fields, ...ext: ExtArg<Ext>): Ctx;
 
-  field<K extends Exclude<string, '_ext'>, D extends AnyDef | null>(
+  field<K extends Exclude<string, '_ext'>, const D extends AnyDef | null>(
     key: K & (K extends '_ext' ? never : K),
     def: (c: DefBag<Ctx, Ext>) => D
   ): Graph<
@@ -132,17 +203,29 @@ export interface Graph<
         ? Record<K, DefValue<D>>
         : Partial<Record<K, DefValue<NonNullable<D>>>>),
     Ext,
-    Defs & Record<K, NonNullable<D>>
+    Defs & Record<K, NonNullable<D>>,
+    W & ([EmitOf<NonNullable<D>>] extends [never] ? Record<never, never> : Record<K, EmitOf<NonNullable<D>>>)
   >;
-  field<K extends string, D extends AnyDef>(
+  field<K extends string, const D extends AnyDef>(
     key: K,
     def: D
-  ): Graph<Ctx & Record<K, DefValue<D>>, Ext, Defs & Record<K, D>>;
+  ): Graph<
+    Ctx & Record<K, DefValue<D>>,
+    Ext,
+    Defs & Record<K, D>,
+    W & ([EmitOf<D>] extends [never] ? Record<never, never> : Record<K, EmitOf<D>>)
+  >;
 
-  computed<K extends string, T>(
+  computed<K extends string, T, const E extends false | string = never>(
     key: K & (K extends '_ext' ? never : K),
-    calc: (c: DefBag<Ctx, Ext>) => T
-  ): Graph<Ctx & Record<K, T>, Ext, Defs>;
+    calc: (c: DefBag<Ctx, Ext>) => T,
+    opts?: { emit?: E }
+  ): Graph<
+    Ctx & Record<K, T>,
+    Ext,
+    Defs,
+    W & ([E] extends [never] ? Record<never, never> : Record<K, E>)
+  >;
 
   /**
    * Attach rules as a PLAIN MAP keyed by the trigger field: a rule fires when
@@ -151,17 +234,17 @@ export interface Graph<
    * wrapper. A pre-built unit carrying a `reconciler` (a field kit's rules,
    * another graph's effects) is also accepted.
    */
-  effect(rules: GraphRules<Ctx, Ext>): Graph<Ctx, Ext, Defs>;
+  effect(rules: GraphRules<Ctx, Ext>): Graph<Ctx, Ext, Defs, W>;
   /**
    * The callback form, for a decision that SPANS keys: runs on every patch,
    * checks `ctx.patch` itself, returns keys to add.
    */
-  effect(fn: EffectFn<Partial<Ctx>, Ext>): Graph<Ctx, Ext, Defs>;
+  effect(fn: EffectFn<Partial<Ctx>, Ext>): Graph<Ctx, Ext, Defs, W>;
   /** Rules triggered by keys this graph doesn't own — annotate params yourself. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   effect(rules: RuleMap<any, Ext>): Graph<Ctx, Ext, Defs>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effect(unit: RuleUnit<any, Ext>): Graph<Ctx, Ext, Defs>;
+  effect(unit: RuleUnit<any, Ext>): Graph<Ctx, Ext, Defs, W>;
 
   /**
    * Mount another graph (or hub) at this point in the chain. The child is an
@@ -173,9 +256,10 @@ export interface Graph<
    * The function form is plain application — `use(fn)` IS `fn(this)` — for
    * transforms a standalone graph can't express (e.g. key prefixing).
    */
-  use<C2 extends object, X2, D2 extends Record<string, AnyDef>>(
-    child: GraphLike<C2, X2, D2> & NeedsCheck<Ctx & ([Ext] extends [object] ? Ext : unknown), X2>
-  ): Graph<Ctx & C2, Ext, Defs & D2>;
+  use<C2 extends object, X2, D2 extends Record<string, AnyDef>, W2 extends WireMap>(
+    child: GraphSource<C2, X2, D2, W2> &
+      NeedsCheck<Ctx & ([Ext] extends [object] ? Ext : unknown), X2>
+  ): Graph<Ctx & C2, Ext, Defs & D2, W & W2>;
   use<G>(fn: (g: this) => G): G;
 }
 
@@ -239,7 +323,7 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
           continue;
         }
         if (e.kind === 'computed') {
-          bag[e.key] = ctx[e.key] = f.computed(e.key, e.calc!(bag));
+          bag[e.key] = ctx[e.key] = f.computed(e.key, e.calc!(bag), { emit: e.emitOpt });
           continue;
         }
         const def = typeof e.def === 'function' ? e.def(bag as never) : e.def;
@@ -255,6 +339,7 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
         if (def.scope !== undefined) opts.scope = def.scope;
         if (def.meta !== undefined) opts.meta = def.meta as FieldOptions<unknown, unknown>['meta'];
         if (def.correct !== undefined) opts.correct = def.correct as FieldOptions<unknown, unknown>['correct'];
+        if (def.emit !== undefined) opts.emit = def.emit;
         bag[e.key] = ctx[e.key] = f.field(e.key, codec, opts);
       }
       return ctx as Ctx;
@@ -266,10 +351,13 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
       return make([...entries, { kind: 'field', key, def: def as Entry['def'] }], effects) as any;
     },
 
-    computed(key: string, calc: unknown) {
+    computed(key: string, calc: unknown, opts?: { emit?: false | string }) {
       if (key === '_ext') throw new Error('"_ext" is reserved: it carries the external context in definition functions.');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return make([...entries, { kind: 'computed', key, calc: calc as Entry['calc'] }], effects) as any;
+      return make(
+        [...entries, { kind: 'computed', key, calc: calc as Entry['calc'], emitOpt: opts?.emit }],
+        effects
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any;
     },
 
     effect(arg: unknown) {
@@ -325,7 +413,10 @@ export interface GraphSource<
   Ctx,
   Ext,
   Defs extends Record<string, AnyFieldDef> = Record<string, AnyFieldDef>,
+  W extends WireMap = WireMap,
 > {
+  /** Phantom wire map — see Mountable.__wire. */
+  readonly __wire?: W;
   readonly defs: Defs;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly effects: readonly RuleUnit<any, any>[];
@@ -336,7 +427,8 @@ export interface GraphLike<
   Ctx,
   Ext,
   Defs extends Record<string, AnyFieldDef> = Record<string, AnyFieldDef>,
-> extends Mountable<Ctx, Ext, Defs> {
+  W extends WireMap = Record<never, never>,
+> extends Mountable<Ctx, Ext, Defs, W> {
   readonly defs: Defs;
   // Ext-agnostic on purpose: a hub is usually mounted by a form whose Ext
   // differs (the resolver adapts ext before delegating), and the form still
@@ -354,11 +446,11 @@ export interface GraphLike<
   effect(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rules: RuleMap<any, any> | EffectFn<any, any> | RuleUnit<any, any>
-  ): GraphLike<Ctx, Ext, Defs>;
+  ): GraphLike<Ctx, Ext, Defs, W>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CtxOf<G> = G extends GraphSource<infer C, any, any> ? C : never;
+type CtxOf<G> = G extends GraphSource<infer C, any, any, any> ? C : never;
 
 type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (
   x: infer I
@@ -380,6 +472,20 @@ type DefsOf<Members> =
  * knows the dispatch, so nobody hand-writes the guard. A unit shared through
  * a common prefix merges once and fires when ANY of its members is active.
  */
+/** Every member's wire map merged — a hub's parse data reflects member emits. */
+type WOf<Members> =
+  UtoI<
+    {
+      [M in keyof Members]: Members[M] extends { __wire?: infer MW }
+        ? NonNullable<MW> extends WireMap
+          ? NonNullable<MW>
+          : never
+        : never;
+    }[keyof Members]
+  > extends infer Merged extends WireMap
+    ? Merged
+    : Record<never, never>;
+
 const mergeMembers = <Ext>(
   members: Record<string, GraphSource<object, Ext>>,
   /** null = no auto-scoping: member effects pass through unwrapped. */
@@ -447,7 +553,7 @@ const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): 
 export function branch<Ext, const Members extends Record<string, GraphSource<object, Ext>>>(
   pick: (ext: Ext) => keyof Members,
   members: Members
-): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>>;
+): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>, WOf<Members>>;
 /**
  * Tagged: name a key and the picked MEMBER KEY lands in state under it, as a
  * computed — the derived counterpart of `branchOn`'s field. The state union
@@ -465,7 +571,8 @@ export function branch<
 ): GraphLike<
   { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
   Ext,
-  DefsOf<Members>
+  DefsOf<Members>,
+  WOf<Members>
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function branch(...args: any[]): any {
@@ -518,7 +625,8 @@ export function branchOn<
 ): GraphLike<
   { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
   Ext,
-  DefsOf<Members> & Record<K, D>
+  DefsOf<Members> & Record<K, D>,
+  WOf<Members> & ([EmitOf<D>] extends [never] ? Record<never, never> : Record<K, EmitOf<D>>)
 > {
   // active member = the discriminator's value in the pre-patch state
   const merged = mergeMembers(
