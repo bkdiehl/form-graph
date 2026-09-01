@@ -85,6 +85,36 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
   union discriminates.
 </p>
 
+<h2>Mutually dependent fields</h2>
+<p>
+  A graph resolves once, in declaration order — that is what makes cycles
+  unrepresentable. When two fields GENUINELY depend on each other (an ecosystem whose value
+  depends on a resolution declared after it), the answer has two halves, one per timing:
+</p>
+<ul>
+  <li>
+    <strong>Interactive (stores):</strong> a RULE — when the user edits the driver, retarget
+    the dependent field in the same patch. Rules run on <code>set()</code>, which is exactly
+    when the interactive half matters.
+  </li>
+  <li>
+    <strong>Parse (server, storage):</strong> <code>parseFixpoint(graph, raw, ext, feedback)</code>
+    — re-parses feeding values from the previous pass's state back through ext, and returns
+    as soon as a pass changes nothing. Declare the feedback keys on the graph's Ext; the
+    dependent field's <code>correct</code> reads them. Bounded, and an oscillating loop
+    THROWS — that is a graph-design bug, not an input condition.
+  </li>
+</ul>
+
+<pre>{`const result = parseFixpoint(videoHub, raw, ctx, (state) =>
+  state.resolution !== undefined ? { resolvedResolution: state.resolution } : null
+);`}</pre>
+
+<p>
+  Reach for this only when reordering the declarations genuinely cannot express the
+  dependency — that stays the first answer.
+</p>
+
 <h2>The runtime is on the definition</h2>
 <pre>{`const store = graph.createStore();       // client
 const result = graph.parse(rawBody);      // server — the same pipeline`}</pre>

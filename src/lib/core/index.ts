@@ -17,6 +17,7 @@
  * unreachable for consumers.
  */
 export { defFamily, type InferDefValue, type InferDefMeta } from './codec.js';
+export { parseFixpoint } from './fixpoint.js';
 export {
   defineGraph,
   branch,

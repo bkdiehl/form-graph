@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import type { FieldDef } from './graph.js';
-import type { SchemaLike } from './types.js';
+import type { Refinable, SchemaLike } from './types.js';
+
+/**
+ * What a helper's built-in output guarantees: a schema you can `.refine` for
+ * per-pass narrowing (the spread-and-narrow pattern), WITHOUT dragging the
+ * schema library's full generic surface into the public types — raw zod types
+ * here measured 89k type instantiations against the 60k budget. The
+ * `textOf({ output })` override keeps the caller's exact type instead: the
+ * caller already paid for it.
+ */
+export type RefinableSchema<T> = SchemaLike<T> & Refinable<T>;
 
 /**
  * PROTOTYPE E definition helpers. Each returns a fresh FieldDef per call
@@ -39,7 +49,7 @@ export function slider(cfg: {
   step?: number;
   default?: number;
   presets?: { label: string; value: number }[];
-}): FieldDef<number, SliderDefMeta> {
+}): FieldDef<number, SliderDefMeta, RefinableSchema<number>> {
   const { min, max, step = 1 } = cfg;
   const schemas = memo(`slider|${min}|${max}|${step}`, () => ({
     input: z.coerce
@@ -76,7 +86,7 @@ export function enumOf<const T extends string | number>(cfg: {
   options: EnumDefOption<T>[];
   default: T;
   gate?: Partial<Record<T, string | false | null | undefined>>;
-}): FieldDef<T, EnumDefMeta<T>> {
+}): FieldDef<T, EnumDefMeta<T>, RefinableSchema<T>> {
   const values = cfg.options.map((o) => o.value);
   const numeric = typeof values[0] === 'number';
   const isValid = (v: unknown): v is T => values.includes(v as T);
@@ -101,9 +111,9 @@ export function enumOf<const T extends string | number>(cfg: {
   );
 
   return {
-    input: schemas.input as FieldDef<T>['input'],
-    output: schemas.output as FieldDef<T>['output'],
-    coerce: schemas.coerce as FieldDef<T>['coerce'],
+    input: schemas.input as SchemaLike<T | undefined>,
+    output: schemas.output as unknown as RefinableSchema<T>,
+    coerce: schemas.coerce as (raw: unknown) => T,
     default: cfg.default,
     meta: { options },
     correct: (value) => {
@@ -126,6 +136,17 @@ export function enumOf<const T extends string | number>(cfg: {
  *
  *   textOf({ output: z.string().email('A valid email is required') })
  */
+export function textOf(cfg?: {
+  maxLength?: number;
+  required?: boolean;
+  default?: string;
+}): FieldDef<string, undefined, RefinableSchema<string>>;
+export function textOf<O extends SchemaLike<string>>(cfg: {
+  maxLength?: number;
+  required?: boolean;
+  default?: string;
+  output: O;
+}): FieldDef<string, undefined, O>;
 export function textOf(
   cfg: {
     maxLength?: number;
@@ -149,7 +170,7 @@ export function textOf(
   };
 }
 
-export function boolOf(cfg: { default?: boolean } = {}): FieldDef<boolean> {
+export function boolOf(cfg: { default?: boolean } = {}): FieldDef<boolean, undefined, RefinableSchema<boolean>> {
   const def = cfg.default ?? false;
   const schemas = memo('bool', () => ({
     input: z.boolean().optional(),

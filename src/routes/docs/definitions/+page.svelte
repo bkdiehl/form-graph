@@ -16,6 +16,20 @@
   toOutput?: (value: T) => unknown;  // submission projection
 }`}</pre>
 
+<h2>Keep the schema type: <code>satisfies</code>, never a type annotation</h2>
+<p>
+  The helpers return their CONCRETE schema types (<code>textOf().output</code> is a
+  <code>ZodString</code>, not a bare <code>SchemaLike</code>), so the spread-and-narrow
+  pattern above composes without casts. Hand-written definitions keep that property only if
+  you let inference carry the type — annotating erases it:
+</p>
+
+<pre>{`const GOOD = { output: z.string().email(), default: '' } satisfies FieldDef<string>;
+GOOD.output.refine(...)   // ZodString survives
+
+const BAD: FieldDef<string> = { output: z.string().email(), default: '' };
+BAD.output.refine(...)    // error: SchemaLike<string> has no .refine`}</pre>
+
 <h2><code>input</code> is optional — and live typing never touches it</h2>
 <p>
   Session edits (<code>set()</code>) write TRUSTED intent: a half-typed invalid value is held

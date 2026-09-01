@@ -46,8 +46,8 @@ import type { Scope } from './scope.js';
  * rebuilds per pass; wrap a hot raw definition in `defFamily` if a profile
  * ever says so.
  */
-export interface FieldDef<T, M = undefined> {
-  output: SchemaLike<T>;
+export interface FieldDef<T, M = undefined, O extends SchemaLike<T> = SchemaLike<T>> {
+  output: O;
   input?: SchemaLike<T | undefined>;
   default?: T | (() => T);
   coerce?: (raw: unknown) => T;
