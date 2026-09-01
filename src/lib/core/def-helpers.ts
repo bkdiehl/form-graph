@@ -111,7 +111,7 @@ export function enumOf<const T extends string | number>(cfg: {
   );
 
   return {
-    input: schemas.input as SchemaLike<T | undefined>,
+    input: schemas.input,
     output: schemas.output as unknown as RefinableSchema<T>,
     coerce: schemas.coerce as (raw: unknown) => T,
     default: cfg.default,

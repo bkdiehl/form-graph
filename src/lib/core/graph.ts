@@ -458,6 +458,21 @@ type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) exten
   ? I
   : never;
 
+/** DefsOf over a UNION of member graphs (the record-less branch form). */
+type DefsOfUnion<G> =
+  UnionToIntersection<G extends { defs: infer D } ? D : never> extends infer Merged extends
+    Record<string, AnyFieldDef>
+    ? Merged
+    : Record<string, AnyFieldDef>;
+
+/** WOf over a UNION of member graphs (the record-less branch form). */
+type WOfUnion<G> =
+  UtoI<
+    G extends { __wire?: infer MW } ? (NonNullable<MW> extends WireMap ? NonNullable<MW> : never) : never
+  > extends infer Merged extends WireMap
+    ? Merged
+    : Record<never, never>;
+
 /** Every member's registry merged — what typedFields/<Field> read off a hub. */
 type DefsOf<Members> =
   UnionToIntersection<
@@ -550,8 +565,11 @@ const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): 
  *     'v2.1': v21, 'v2.2': v22, ...
  *   }).effect(wanCoupling);
  */
+export function branch<Ext, const M extends GraphSource<object, Ext>>(
+  pick: (ext: Ext) => M
+): GraphLike<CtxOf<M>, Ext, DefsOfUnion<M>, WOfUnion<M>>;
 export function branch<Ext, const Members extends Record<string, GraphSource<object, Ext>>>(
-  pick: (ext: Ext) => keyof Members,
+  pick: (ext: Ext) => keyof Members | Members[keyof Members],
   members: Members
 ): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>, WOf<Members>>;
 /**
@@ -566,7 +584,7 @@ export function branch<
   const Members extends Record<string, GraphSource<object, Ext>>,
 >(
   key: K,
-  pick: (ext: Ext) => keyof Members,
+  pick: (ext: Ext) => keyof Members | Members[keyof Members],
   members: Members
 ): GraphLike<
   { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
@@ -578,6 +596,40 @@ export function branch<
 export function branch(...args: any[]): any {
   const [key, pick, members] =
     typeof args[0] === 'string' ? args : [undefined, args[0], args[1]];
+  if (key === undefined && members === undefined) {
+    // Record-less: the pick returns member graphs directly and there is no
+    // manifest. Member rules forward lazily from the members a store has
+    // actually resolved (a never-activated member's rules never matter); the
+    // runtime defs registry stays empty, which graph-model members never
+    // read — resolution always passes each field's freshly computed def.
+    const seen = new Set<{ effects: readonly RuleUnit<unknown, unknown>[] }>();
+    return chainable({
+      defs: {},
+      effects: [
+        {
+          reconciler: (
+            patch: Readonly<Record<string, unknown>>,
+            state: unknown,
+            ext: unknown
+          ) => {
+            let p = patch;
+            for (const m of seen) for (const e of m.effects) p = e.reconciler(p, state, ext);
+            return p;
+          },
+        },
+      ] as RuleUnit<unknown, unknown>[],
+      resolve(f: Fields, ext: unknown) {
+        const member = pick(ext) as { resolve?: (f: Fields, ext: unknown) => unknown } | undefined;
+        if (!member || typeof member.resolve !== 'function')
+          throw new Error('branch: the pick must return a member graph');
+        seen.add(member as never);
+        return member.resolve!(f, ext);
+      },
+    });
+  }
+  const keyByMember = new Map<object, string>(
+    Object.entries(members as Record<string, object>).map(([k, m]) => [m, k])
+  );
   return chainable({
     ...mergeMembers(
       members,
@@ -594,9 +646,21 @@ export function branch(...args: any[]): any {
           null
     ),
     resolve(f: Fields, ext: unknown) {
-      const picked = pick(ext) as string;
-      const member = members[picked];
-      if (!member) throw new Error(`branch${key ? ` "${key}"` : ''}: no member graph for "${picked}"`);
+      // the pick may return a member KEY or the member GRAPH itself — the
+      // record stays the manifest either way (defs merge, state union, and
+      // the tag stamped below all come from it)
+      const pickedRaw = pick(ext) as string | object;
+      const picked =
+        typeof pickedRaw === 'string' ? pickedRaw : keyByMember.get(pickedRaw);
+      const member = picked !== undefined ? members[picked] : undefined;
+      if (!member || picked === undefined)
+        throw new Error(
+          `branch${key ? ` "${key}"` : ''}: ${
+            typeof pickedRaw === 'string'
+              ? `no member graph for "${pickedRaw}"`
+              : 'pick returned a graph that is not one of the members'
+          }`
+        );
       const resolved = member.resolve(f, ext);
       return key === undefined ? resolved : { [key]: f.computed(key, picked), ...resolved };
     },
