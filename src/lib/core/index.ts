@@ -62,6 +62,7 @@ export {
   readIntentBuckets,
   readIntentValue,
   rootScope,
+  scopedAddress,
   type RootScope,
   type Scope,
   type ScopeValue,
