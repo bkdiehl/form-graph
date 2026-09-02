@@ -21,6 +21,7 @@ export {
   defineGraph,
   branch,
   branchOn,
+  type DefInputValue,
   type Graph,
   type GraphLike,
   type GraphSource,

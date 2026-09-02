@@ -722,15 +722,17 @@ the form and pinned in `gap-closures.test.ts`:
 
 ## Known gaps (deliberate, phase 1 scope)
 
-- **The generic `Controller<Value, Meta>` still takes explicit generics.** Per-key inference
-  exists only through `createTypedController` (the decided registry pattern above); migrating
-  call sites onto it is app-side work.
+- **The generic `Controller<Value, Meta>` still takes explicit generics.** ~~Per-key inference
+  exists only through `createTypedController`.~~ CLOSED 2026-08-31: the `graph` prop types
+  `name`/`value`/`meta` from the graph itself (registry fields plus state keys); the bare
+  generic form remains as the escape hatch.
 - **Purity is convention.** Nothing stops an impure or expensive resolver.
 - **Enumeration needs discriminants to publish `meta.options`.** True of every picker-backed
   field today, but a discriminant driven by something else (a computed like `fluxMode`) has to be
   pinned explicitly, as the tests do with `model`.
-- **No differential tests against v1 yet** — that needs the prototype to become a real workspace
-  member so it can import `~/shared/data-graph`. Phase 5, and now the largest remaining unknown.
+- **No differential tests against v1 yet** — CLOSED: the civitai port worktree runs 8,800+
+  differential cases against live `generationGraph.safeParse` (parse parity) and both step
+  dispatchers (handler parity), plus reconcile/persistence suites.
 - The demo uses plain HTML inputs on purpose; the `Controller` contract is unchanged, so Mantine
   swaps back in mechanically.
 
@@ -740,3 +742,26 @@ A discriminant must be **restated inside its branch**. Objects built before a `s
 widened type, so `{ ...head, ...branch }` leaves `head.workflow` as the full union and defeats
 narrowing. Writing `{ ...head, workflow, ...branch }` — with the narrowed local — fixes it. Cheap,
 but invisible until you try to `Extract<>` and get every branch back.
+
+## Graph-level scope (2026-09-01)
+
+`graph.scope(fn)` — a default scope for every field the graph declares, computed
+from resolve-time ext. Field-level `scope` wins, `[]` is the explicit bare-key
+opt-out, mounted children and branch members keep their own fn (a parent's never
+leaks). Motivated by the civitai port's persistence layout: v1's ~540-line
+grouped storage adapter reduced to one `.scope(familyScope)` per family graph
+plus a handful of field overrides. One gotcha it surfaced downstream: STORE
+state holds raw inputs (a remix hands `model` as a bare number), so scope fns
+and branch picks that read `model.id` need an input-tolerant accessor.
+
+## onChange input typing; branch registries union per key (2026-09-02)
+
+Replaced a short-lived `setRaw` escape hatch: `Controller`'s `onChange` is now
+typed `(next: Value | In) => void`, with `In` inferred from the def's input
+schema via Standard Schema's `~standard.types.input` (zod's `z.input`). The
+inference only survives when defs keep concrete schema types — one more reason
+the "satisfies, never a return annotation" rule exists; annotated defs fall
+back to `In = Value`. Also fixed the branch registry merge: same-key defs
+across members now merge as a per-key UNION instead of an intersection —
+intersecting collapsed differing metas to `never` (found by a duration field
+declared with different metas across wan/ltx members).

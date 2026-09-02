@@ -64,7 +64,7 @@ describe('aspectRatioCodec (aspectRatioNode port)', () => {
 
   it('coerces a bare ratio string on trusted set()', () => {
     const s = form.createStore({ ext: undefined });
-    s.set({ aspectRatio: '9:16' as never });
+    s.set({ aspectRatio: '9:16' } as Record<string, unknown>);
     expect(s.getState().aspectRatio).toMatchObject({ value: '9:16', width: 720 });
   });
 });
@@ -91,7 +91,7 @@ describe('seedCodec (seedNode port)', () => {
 describe('enumCodec (enumNode port)', () => {
   it('coerces SegmentedControl string values for numeric enums', () => {
     const s = form.createStore({ ext: undefined });
-    s.set({ priority: '2' as never });
+    s.set({ priority: '2' } as Record<string, unknown>);
     expect(s.getState().priority).toBe(2);
   });
 

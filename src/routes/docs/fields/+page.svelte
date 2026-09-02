@@ -30,6 +30,22 @@
   are unrepresentable.
 </p>
 
+<h2>Computeds on the wire: <code>emit</code></h2>
+<p>
+  A computed is form-internal by default. <code>emit: '&lt;name&gt;'</code> puts its value on
+  the parse output under that name — and if a FIELD already carries the name, the field is
+  implicitly shadowed off the wire: the selection stays in the form (and in storage), the
+  derived value is what submits. That is the clean shape for "two facts wearing one key"
+  (below): the stored selection and the derived backend value each keep their own home.
+</p>
+
+<pre>{`.field('ecosystem', ECOSYSTEM)                  // the user's SELECTION — form + storage
+.computed('effectiveEcosystem',
+  ({ model, _ext }) => deriveFrom(model) ?? _ext.ecosystem,
+  { emit: 'ecosystem' })                        // the WIRE value — what parse() emits
+// two computeds emitting one name throw on validate/parse; emit: false is the explicit
+// form-only marker where the default would read as an oversight`}</pre>
+
 <h2>Composition</h2>
 <p>Graphs are immutable values. Everything composes with the language:</p>
 
@@ -72,11 +88,29 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 // no member re-declares which member it is. Omit the tag for an untagged hub.`}</pre>
 
 <p>
+  When the dispatch is a <code>switch</code> rather than a lookup key — or the members have no
+  meaningful names at all — the pick may return the member GRAPH directly, and the manifest
+  disappears (a RECORD-LESS branch). The state type is the union of the pick's return sites;
+  members' rule units still ride along:
+</p>
+
+<pre>{`const families = branch((ext: FamilyExt) => {
+  switch (ext.ecosystem) {
+    case 'Chroma': return chroma;
+    case 'Flux1':
+    case 'FluxKrea': return flux;
+    default: return sd;
+  }
+});
+// no record, no tag in state — each member graph declares nothing about the hub`}</pre>
+
+<p>
   Either way the hub is the same shape a graph is: <code>defs</code> holds every member's
   registry merged (type-complete, so the bindings know every key), <code>effects</code> holds
   every member's rule units plus the hub's own, and <code>resolve</code> returns the
-  discriminated union. A hand-written <code>switch</code> composing whole graphs remains the
-  escape hatch when dispatch is more than one key.
+  discriminated union (record-less hubs merge the registry at the TYPE level only — their
+  runtime `defs` object stays empty, which nothing reads: resolution always passes each
+  field's freshly computed def).
 </p>
 
 <p>

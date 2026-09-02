@@ -1,4 +1,4 @@
-import type { Codec, FieldError, SchemaLike, ValidationResult } from './types.js';
+import type { Codec, FieldError, InferSchemaInput, SchemaLike, ValidationResult } from './types.js';
 import {
   FormDefinition,
   type DefsInput,
@@ -75,6 +75,18 @@ export interface FieldDef<T, M = undefined, O extends SchemaLike<T> = SchemaLike
 type AnyDef = FieldDef<any, any>;
 export type AnyFieldDef = FieldDef<any, any>;
 type DefValue<D> = D extends FieldDef<infer T, infer _M> ? T : never;
+
+/**
+ * What a field's WRITE path accepts: the input schema's raw side when the def
+ * kept its concrete schema type (`satisfies FieldDef<...>`, never an
+ * annotation), else the parsed value type. The conservative fallback means an
+ * annotated def demands parsed-shaped writes rather than accepting anything.
+ */
+export type DefInputValue<D> = D extends { input: infer S }
+  ? unknown extends InferSchemaInput<S>
+    ? DefValue<D>
+    : InferSchemaInput<S>
+  : DefValue<D>;
 /**
  * What a definition (or computed) function receives: the prior fields spread
  * at top level — destructure exactly what you read — with the external
@@ -254,6 +266,16 @@ export interface Graph<
   effect(unit: RuleUnit<any, Ext>): Graph<Ctx, Ext, Defs, W>;
 
   /**
+   * Graph-level default scope: every field this graph declares whose def does
+   * not carry its own `scope` resolves with `fn(ext)` as its scope — the
+   * per-family "remember these values per <key>" bucket. A field-level
+   * `scope` (including `[]`, the explicit bare-key opt-out) always wins,
+   * and mounted child graphs keep their own scope fn rather than inheriting
+   * this one. Returning `undefined` leaves the field unscoped.
+   */
+  scope(fn: (ext: Ext) => Scope | undefined): Graph<Ctx, Ext, Defs, W>;
+
+  /**
    * Mount another graph (or hub) at this point in the chain. The child is an
    * ordinary `defineGraph` whose Ext declares what it NEEDS from upstream —
    * at resolve time it receives the parent's ext with the ctx-so-far merged
@@ -306,7 +328,11 @@ const runtime = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, Ext>[]): Graph<Ctx, Ext, Record<string, AnyDef>> {
+function make<Ctx extends object, Ext>(
+  entries: Entry[],
+  effects: RuleUnit<any, Ext>[],
+  scopeFn?: (ext: Ext) => Scope | undefined
+): Graph<Ctx, Ext, Record<string, AnyDef>> {
   const defs: Record<string, unknown> = {};
   for (const e of entries) {
     if (e.kind === 'field' && typeof e.def !== 'function') defs[e.key] = e.def;
@@ -319,6 +345,10 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
 
     resolve(f: Fields, ext: Ext): Ctx {
       const ctx: Record<string, unknown> = {};
+      // ext is fixed for the pass, so the graph scope is too — compute it
+      // lazily once rather than per scopeless field
+      let passScope: Scope | undefined;
+      let passScopeComputed = false;
       // the bag mirrors ctx plus the one reserved key; ctx itself stays clean
       // (it is returned as state)
       const bag: Record<string, unknown> = { _ext: ext };
@@ -333,7 +363,10 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
           bag[e.key] = ctx[e.key] = f.computed(e.key, e.calc!(bag), { emit: e.emitOpt });
           continue;
         }
-        const def = typeof e.def === 'function' ? e.def(bag as never) : e.def;
+        const def =
+          typeof e.def === 'function'
+            ? (e.def as (c: Record<string, unknown>) => AnyDef | null)(bag)
+            : e.def;
         if (def == null) continue;
         const codec = {
           input: def.input,
@@ -344,6 +377,13 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
         } as Codec<unknown, unknown> & { output: SchemaLike<unknown> };
         const opts: FieldOptions<unknown, unknown> = {};
         if (def.scope !== undefined) opts.scope = def.scope;
+        else if (scopeFn) {
+          if (!passScopeComputed) {
+            passScope = scopeFn(ext);
+            passScopeComputed = true;
+          }
+          if (passScope !== undefined) opts.scope = passScope;
+        }
         if (def.meta !== undefined) opts.meta = def.meta as FieldOptions<unknown, unknown>['meta'];
         if (def.correct !== undefined) opts.correct = def.correct as FieldOptions<unknown, unknown>['correct'];
         if (def.emit !== undefined) opts.emit = def.emit;
@@ -355,24 +395,30 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
     field(key: string, def: unknown) {
       if (key === '_ext') throw new Error('"_ext" is reserved: it carries the external context in definition functions.');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return make([...entries, { kind: 'field', key, def: def as Entry['def'] }], effects) as any;
+      return make([...entries, { kind: 'field', key, def: def as Entry['def'] }], effects, scopeFn) as any;
     },
 
     computed(key: string, calc: unknown, opts?: { emit?: false | string }) {
       if (key === '_ext') throw new Error('"_ext" is reserved: it carries the external context in definition functions.');
       return make(
         [...entries, { kind: 'computed', key, calc: calc as Entry['calc'], emitOpt: opts?.emit }],
-        effects
+        effects,
+        scopeFn
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ) as any;
     },
 
     effect(arg: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return make<Ctx, Ext>(entries, [...effects, toUnit(arg) as RuleUnit<any, Ext>]) as any;
+      return make<Ctx, Ext>(entries, [...effects, toUnit(arg) as RuleUnit<any, Ext>], scopeFn) as any;
     },
 
     ...runtime,
+
+    scope(fn: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return make<Ctx, Ext>(entries, effects, fn as (ext: Ext) => Scope | undefined) as any;
+    },
 
     use(arg: unknown) {
       if (typeof arg === 'function') return (arg as (g: unknown) => unknown)(this);
@@ -380,7 +426,7 @@ function make<Ctx extends object, Ext>(entries: Entry[], effects: RuleUnit<any, 
       const merged = [...effects];
       for (const e of child.effects) if (!merged.includes(e)) merged.push(e);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return make([...entries, { kind: 'graph', key: '', graph: child }], merged) as any;
+      return make([...entries, { kind: 'graph', key: '', graph: child }], merged, scopeFn) as any;
     },
   } as Graph<Ctx, Ext, Record<string, AnyDef>>;
 }
@@ -465,12 +511,19 @@ type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) exten
   ? I
   : never;
 
-/** DefsOf over a UNION of member graphs (the record-less branch form). */
-type DefsOfUnion<G> =
-  UnionToIntersection<G extends { defs: infer D } ? D : never> extends infer Merged extends
-    Record<string, AnyFieldDef>
-    ? Merged
-    : Record<string, AnyFieldDef>;
+/**
+ * DefsOf over a UNION of member graphs (the record-less branch form). Keys
+ * union across members; a key several members declare maps to the UNION of
+ * their defs — reads (value/meta/input) then distribute, mirroring how the
+ * state union reads. Intersecting instead collapses differing metas to never.
+ */
+type DefsOfUnion<G> = {
+  [K in G extends { defs: infer D } ? keyof D & string : never]: G extends { defs: infer D }
+    ? K extends keyof D
+      ? D[K]
+      : never
+    : never;
+};
 
 /** WOf over a UNION of member graphs (the record-less branch form). */
 type WOfUnion<G> =
@@ -481,12 +534,10 @@ type WOfUnion<G> =
     : Record<never, never>;
 
 /** Every member's registry merged — what typedFields/<Field> read off a hub. */
-type DefsOf<Members> =
-  UnionToIntersection<
-    { [M in keyof Members]: Members[M] extends { defs: infer D } ? D : never }[keyof Members]
-  > extends infer Merged extends Record<string, AnyFieldDef>
-    ? Merged
-    : Record<string, AnyFieldDef>;
+/** Same per-key def-union merge for the record (tagged) branch form. */
+type DefsOf<Members> = DefsOfUnion<
+  { [M in keyof Members]: Members[M] }[keyof Members]
+>;
 
 /**
  * Merge member registries, and AUTO-SCOPE member effects: a rule attached to
@@ -629,7 +680,7 @@ export function branch(...args: any[]): any {
         const member = pick(ext) as { resolve?: (f: Fields, ext: unknown) => unknown } | undefined;
         if (!member || typeof member.resolve !== 'function')
           throw new Error('branch: the pick must return a member graph');
-        seen.add(member as never);
+        seen.add(member as { effects: readonly RuleUnit<unknown, unknown>[] });
         return member.resolve!(f, ext);
       },
     });

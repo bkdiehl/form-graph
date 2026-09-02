@@ -1,5 +1,11 @@
 import { useCallback, useRef, useSyncExternalStore, type ReactElement } from 'react';
-import type { FieldError, FormStore, InferDefMeta, InferDefValue } from '../core/index.js';
+import type {
+  DefInputValue,
+  FieldError,
+  FormStore,
+  InferDefMeta,
+  InferDefValue,
+} from '../core/index.js';
 import type { CodecRegistry } from '../core/codec.js';
 import { useOptionalFormStore } from './context.js';
 import { useField } from './useField.js';
@@ -7,11 +13,16 @@ import { useField } from './useField.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyStore = FormStore<any, any>;
 
-export interface ControllerRenderProps<Value, Meta> {
+export interface ControllerRenderProps<Value, Meta, In = Value> {
   value: Value;
   meta: Meta;
   error: FieldError | undefined;
-  onChange: (next: Value) => void;
+  /**
+   * Writes intent. Accepts the parsed `Value` OR whatever the field's input
+   * schema declares it accepts (`In` — a picker's partial resource, a bare
+   * `{ id }`), which the schema normalizes on the next resolve.
+   */
+  onChange: (next: Value | In) => void;
   isComputed: boolean;
 }
 
@@ -61,6 +72,11 @@ type GraphFieldValue<G, K> = K extends keyof RegistryOfGraph<G>
       : never
     : never;
 
+/** What the field's WRITE path accepts (its input schema's raw side). */
+type GraphFieldInput<G, K> = K extends keyof RegistryOfGraph<G>
+  ? DefInputValue<RegistryOfGraph<G>[K]>
+  : GraphFieldValue<G, K>;
+
 type GraphFieldMeta<G, K> = K extends keyof RegistryOfGraph<G>
   ? InferDefMeta<RegistryOfGraph<G>[K]>
   : undefined;
@@ -79,7 +95,7 @@ export interface GraphControllerProps<G extends AnyGraph, K extends GraphFieldNa
   graph: G;
   name: K;
   render: (
-    props: ControllerRenderProps<GraphFieldValue<G, K>, GraphFieldMeta<G, K>>
+    props: ControllerRenderProps<GraphFieldValue<G, K>, GraphFieldMeta<G, K>, GraphFieldInput<G, K>>
   ) => ReactElement | null;
   store?: AnyStore;
 }
@@ -107,7 +123,7 @@ export function Controller<Value = unknown, Meta = unknown>({
   const store = storeProp ?? contextStore;
 
   const field = useField<Value, Meta>(store, name);
-  const onChange = useCallback((next: Value) => store?.set({ [name]: next }), [store, name]);
+  const onChange = useCallback((next: unknown) => store?.set({ [name]: next }), [store, name]);
 
   if (!store) throw new Error('<Controller> needs a `store` prop or a <FormProvider>');
   if (!field) return null;
@@ -146,7 +162,10 @@ export function MultiController<
   // one subscription for the set; per-field reference stability keeps this cheap
   const values = useMultiFieldValues(store, names as readonly string[]);
   if (!store) throw new Error('<MultiController> needs a `store` prop or a <FormProvider>');
-  return render({ values: values as never });
+  // the dynamic record from the store is re-keyed by the literal names tuple
+  return render({
+    values: values as { [K in Ks[number]]: GraphFieldValue<G, K> | undefined },
+  });
 }
 
 function useMultiFieldValues(store: AnyStore | null, names: readonly string[]) {

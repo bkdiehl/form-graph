@@ -30,6 +30,17 @@ export type StandardSchemaResult<T> =
 export type SchemaLike<T = unknown> = Schema<T> | StandardSchemaV1<T>;
 
 /**
+ * The raw shape a schema ACCEPTS — its Standard Schema input type (zod's
+ * `z.input`). `unknown` when the schema type is erased (an annotated def) or
+ * carries no input typing.
+ */
+export type InferSchemaInput<S> = S extends {
+  '~standard': { types?: { input: infer I } | undefined };
+}
+  ? I
+  : unknown;
+
+/**
  * The one method `FieldOptions.refine` callbacks can rely on regardless of how
  * widened the codec's output type is — zod schemas satisfy it structurally.
  * With a concretely-typed codec the full schema type is ALSO available (the
