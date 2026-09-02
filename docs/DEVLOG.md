@@ -856,3 +856,43 @@ Two flagged and deliberately not fixed:
   durations, ltx frame count, wan shift). It composes from existing pieces and encodes a product policy
   (refuse vs snap), so it belongs in the app's shared defs, not the lib;
   civitai's `defs.ts` grew a `refusingRangeDef` instead.
+
+## Considered and rejected (2026-09-02): async resolution
+
+Briant asked how hard async `resolve` would be — the standing assumption has
+been sync, with async requests made OUTSIDE the graph and their results passed
+in via external context. Weighed and rejected; sync resolution is a
+load-bearing design decision, not a limitation.
+
+Where the cost actually sits:
+
+- **The resolver itself: moderate.** Await through resolve/mounts/branch
+  picks, and the module-level scope threading (see the invariant at
+  `currentInheritedScope`) becomes an explicit parameter through every resolve
+  signature. Bounded, mechanical.
+- **The store/React contract: the expensive part.** `set()` today reconciles
+  synchronously to a fixpoint and the UI reads a consistent snapshot. Async
+  resolve means no current state between `set()` and settle (a "resolving"
+  intermediate, stale-while-revalidate rendering), racing resolutions per
+  keystroke (generation tokens or a queue), and user edits landing
+  MID-FIXPOINT — an interleaving bug class the sync design makes
+  unrepresentable. That is React Query's semantics rebuilt inside the engine,
+  paid by every consumer whether they use async defs or not.
+- **Testability.** The civitai port's differential methodology leans on
+  `parse` being a pure sync function of (state, ext) — 11k parity cases in
+  ~20s, byte-comparable against an oracle, no timing anywhere. Async
+  resolution makes the core operation order-nondeterministic.
+
+Why ext-injection is right rather than merely cheaper: resolution is
+DERIVATION of facts already in hand; IO is ACQUISITION of facts. Split them
+and the graph stays a pure function, async ownership stays with the layer
+that already has caching and cancellation (React Query client-side, plain
+await server-side), and a slow fetch degrades to "field not mounted yet" (a
+def factory returning null until its ext fact arrives — works today, zero
+engine support) instead of "form frozen mid-fixpoint."
+
+The one legitimate async knock — submit-time validation needing the server
+(name uniqueness, quotas) — needs an async step AFTER a sync parse
+(`parse()` → `await validateRemote(result.data)` → submit), not async
+resolution. If that materializes, add it as a documented pattern or a tiny
+`submitGuard` helper; do not touch the resolver.
