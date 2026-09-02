@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { branchOn, defineGraph } from '../graph.js';
+import { rootScope } from '../scope.js';
 import type { StorageAdapter } from '../store.js';
 
 const num = (dflt: number) => ({
@@ -26,21 +27,27 @@ function captureAdapter(): StorageAdapter & { last: () => Record<string, unknown
   };
 }
 
-const family = defineGraph<{ eco: string }>()
-  .scope((ext) => ext.eco)
+const family = defineGraph<{ eco: string }>({ scope: (ext) => ext.eco })
   .field('steps', num(25))
-  .field('bare', { ...num(1), scope: [] })
-  .field('own', { ...num(2), scope: 'X' });
+  .field('inherited', { ...num(1), scope: [] })
+  .field('appended', { ...num(2), scope: 'X' })
+  .field('global', { ...num(3), scope: rootScope() })
+  .field('absolute', { ...num(4), scope: rootScope('abs') });
 
 const root = defineGraph().field('eco', ECO).use(family);
 
 describe('graph-level scope', () => {
-  it('scopes declared fields by the ext-derived bucket; field scope and [] win', () => {
+  it('fields inherit the graph bucket; plain scopes APPEND; rootScope escapes', () => {
     const storage = captureAdapter();
     const store = root.createStore({ storage });
-    store.set({ steps: 10, bare: 5, own: 7 });
-    const saved = storage.last();
-    expect(Object.keys(saved).sort()).toEqual(['bare', 'own@X', 'steps@Flux']);
+    store.set({ steps: 10, inherited: 5, appended: 7, global: 8, absolute: 9 });
+    expect(storage.last()).toEqual({
+      'steps@Flux': 10,
+      'inherited@Flux': 5, // [] adds nothing — still bounded by the graph
+      'appended@Flux/X': 7, // plain values nest under the inherited path
+      global: 8, // rootScope() detaches to the bare key
+      'absolute@abs': 9, // rootScope(parts) sets the path from the root
+    });
   });
 
   it('gives each bucket its own memory across the discriminant switch', () => {
@@ -54,39 +61,44 @@ describe('graph-level scope', () => {
     expect((store.getSnapshot().state as { steps: number }).steps).toBe(30);
   });
 
-  it('a fn returning undefined leaves the field unscoped', () => {
-    const g = defineGraph<{ eco?: string }>()
-      .scope((ext) => ext.eco)
-      .field('steps', num(25));
+  it('a fn returning undefined contributes nothing (fields stay at the inherited path)', () => {
+    const g = defineGraph<{ eco?: string }>({ scope: (ext) => ext.eco }).field('steps', num(25));
     const storage = captureAdapter();
     const store = defineGraph().field('other', num(0)).use(g).createStore({ storage });
     store.set({ steps: 9 });
     expect(Object.keys(storage.last())).toEqual(['steps']);
   });
 
-  it('a scoped graph as a BRANCH member keeps its own scope fn', () => {
+  it('scope NESTS through .use: parent segments prefix the child contribution', () => {
+    const child = defineGraph({ scope: () => 'textFields' }).field('prompt', num(0));
+    const scopeless = defineGraph().field('plain', num(0));
+    const parent = defineGraph<{ eco: string }>({ scope: (ext) => ext.eco })
+      .use(child)
+      .use(scopeless);
+    const outer = defineGraph().field('eco', ECO).use(parent);
+    const storage = captureAdapter();
+    const store = outer.createStore({ storage });
+    store.set({ prompt: 1, plain: 2 });
+    expect(storage.last()['prompt@Flux/textFields']).toBe(1);
+    // a scopeless child inherits the accumulated path as-is
+    expect(storage.last()['plain@Flux']).toBe(2);
+  });
+
+  it('a scoped graph as a BRANCH member nests under the mounting path', () => {
     const DEST = {
       input: z.string().optional(),
       output: z.enum(['a', 'b']),
       default: 'a' as const,
     };
     const hub = branchOn('dest', DEST, { a: family, b: family });
-    const root = defineGraph().field('eco', ECO).use(hub);
-    const storage = captureAdapter();
-    const store = root.createStore({ storage });
-    store.set({ steps: 7 });
-    expect(storage.last()['steps@Flux']).toBe(7);
-  });
-
-  it('a mounted child keeps its own scope fn (the parent does not leak)', () => {
-    const parent = defineGraph()
-      .scope(() => 'parent-bucket')
+    const wrapped = defineGraph({ scope: () => 'outer' })
       .field('eco', ECO)
-      .use(family);
+      .use(hub);
     const storage = captureAdapter();
-    const store = parent.createStore({ storage });
-    store.set({ eco: 'SD', steps: 9 });
-    expect(storage.last()['steps@SD']).toBe(9);
-    expect(storage.last()['eco@parent-bucket']).toBe('SD');
+    const store = wrapped.createStore({ storage });
+    store.set({ steps: 7, global: 8 });
+    expect(storage.last()['steps@outer/Flux']).toBe(7);
+    // rootScope escapes the whole ancestry, member position included
+    expect(storage.last()['global']).toBe(8);
   });
 });

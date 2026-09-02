@@ -9,7 +9,40 @@
  */
 
 export type ScopeValue = string | number | boolean;
-export type Scope = ScopeValue | readonly ScopeValue[];
+
+/**
+ * An ABSOLUTE scope — the escape hatch out of scope inheritance. Plain scope
+ * values APPEND to the path accumulated down the mount tree; a RootScope sets
+ * the path from the root instead. `rootScope()` with no parts detaches the
+ * field entirely (bare key — global memory).
+ */
+export type RootScope = { readonly __scopeRoot: true; readonly parts: readonly ScopeValue[] };
+
+export function rootScope(...parts: readonly ScopeValue[]): RootScope {
+  return { __scopeRoot: true, parts };
+}
+
+export function isRootScope(scope: unknown): scope is RootScope {
+  return typeof scope === 'object' && scope !== null && '__scopeRoot' in scope;
+}
+
+export type Scope = ScopeValue | readonly ScopeValue[] | RootScope;
+
+/**
+ * Resolves a declared scope against the path inherited from ancestor graphs:
+ * undefined (and `[]`) inherit as-is, plain values append, a RootScope
+ * replaces from the root. Returns the FINAL parts, or undefined for a bare key.
+ */
+export function combineScope(
+  inherited: readonly ScopeValue[],
+  declared: Scope | undefined
+): readonly ScopeValue[] | undefined {
+  if (declared === undefined) return inherited.length ? inherited : undefined;
+  if (isRootScope(declared)) return declared.parts.length ? declared.parts : undefined;
+  const parts = Array.isArray(declared) ? (declared as readonly ScopeValue[]) : [declared as ScopeValue];
+  const combined = [...inherited, ...parts];
+  return combined.length ? combined : undefined;
+}
 
 const SCOPE_SEPARATOR = '@';
 const PART_SEPARATOR = '/';
@@ -40,6 +73,9 @@ export function scopedAddress(key: string, scope: Scope | undefined): string {
     );
   }
   if (scope === undefined) return key;
+  if (isRootScope(scope)) {
+    return scope.parts.length ? scopedAddress(key, scope.parts) : key;
+  }
   const parts = Array.isArray(scope) ? scope : [scope];
   if (parts.length === 0) return key;
   return key + SCOPE_SEPARATOR + parts.map((part) => escapePart(part as ScopeValue, key)).join(PART_SEPARATOR);

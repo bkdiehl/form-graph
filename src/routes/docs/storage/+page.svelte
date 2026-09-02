@@ -45,24 +45,26 @@ const adapter = debouncedStorage(myServerAdapter, 500);`}</pre>
   future per-item addressing.
 </p>
 
-<h2>Graph-level scope</h2>
+<h2>Graph-level scope — it NESTS</h2>
 <p>
   A field opts into scoped memory with <code>scope</code> on its definition. When a whole
-  SECTION of the form should bucket the same way — a per-family subgraph whose every field is
-  remembered per ecosystem — declare it once on the graph:
+  SECTION of the form should bucket the same way, declare it once at construction — and
+  scope composes down the mount tree: a parent's segments prefix everything a mounted
+  child (or branch member) declares, so scope really does apply to everything below it.
 </p>
 
-<pre>{`const family = defineGraph<FamilyExt>()
-  .scope((ext) => ext.ecosystem)     // default scope for every field this graph declares
-  .field('steps', STEPS)             // -> steps@SDXL, steps@Flux, ...
-  .field('seed', { ...SEED, scope: [] })  // field scope wins; [] = explicitly bare
-  .field('cfg', ({ _ext }) => ({ ...CFG, scope: [_ext.ecosystem, modelId(_ext)] }));`}</pre>
+<pre>{`const family = defineGraph<FamilyExt>({ scope: (ext) => ext.ecosystem })
+  .field('steps', STEPS)               // -> steps@SDXL, steps@Flux, ...
+  .field('cfg', ({ model }) => ({ ...CFG, scope: [model.id] })) // APPENDS: cfg@SDXL/123
+  .field('seed', { ...SEED, scope: rootScope() })   // ESCAPE HATCH: bare, global
+  .use(defineGraph({ scope: () => 'textFields' })   // nests: fields at @SDXL/textFields
+    .field('prompt', PROMPT));`}</pre>
 
 <ul>
   <li>The fn runs at resolve time with the graph's ext (a mounted child sees the parent's ctx merged in), so the bucket follows the live discriminant.</li>
-  <li>A field-level <code>scope</code> always wins — <code>[]</code> is the opt-out that keeps a field at its bare key inside a scoped graph.</li>
-  <li>Mounted children keep their OWN scope fn; a parent's never leaks into <code>.use</code>d graphs or branch members.</li>
-  <li>Returning <code>undefined</code> leaves a field unscoped.</li>
+  <li>Fields INHERIT the accumulated path; a field-level plain <code>scope</code> appends to it (<code>[]</code> appends nothing).</li>
+  <li><code>rootScope(...parts)</code> is the escape hatch — absolute from the root regardless of ancestry; <code>rootScope()</code> means the bare key (global memory).</li>
+  <li>Returning <code>undefined</code> from the graph fn contributes nothing — fields stay at the inherited path.</li>
 </ul>
 
 <h2>Reading a record from outside</h2>

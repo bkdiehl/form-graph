@@ -16,7 +16,16 @@ import {
   type RuleMap,
   type RuleUnit,
 } from './rules.js';
-import type { Scope } from './scope.js';
+import { combineScope, type Scope, type ScopeValue } from './scope.js';
+
+/**
+ * The scope path accumulated down the mount tree, threaded out-of-band so the
+ * public resolve signatures stay untouched — resolution is fully synchronous,
+ * and every resolve restores the value it entered with. A graph's own scope
+ * option appends to (or, via rootScope, replaces) this path; its fields and
+ * mounted children see the result.
+ */
+let currentInheritedScope: readonly ScopeValue[] = [];
 
 /**
  * PROTOTYPE E — the field as ONE FUNCTION returning its whole definition.
@@ -266,16 +275,6 @@ export interface Graph<
   effect(unit: RuleUnit<any, Ext>): Graph<Ctx, Ext, Defs, W>;
 
   /**
-   * Graph-level default scope: every field this graph declares whose def does
-   * not carry its own `scope` resolves with `fn(ext)` as its scope — the
-   * per-family "remember these values per <key>" bucket. A field-level
-   * `scope` (including `[]`, the explicit bare-key opt-out) always wins,
-   * and mounted child graphs keep their own scope fn rather than inheriting
-   * this one. Returning `undefined` leaves the field unscoped.
-   */
-  scope(fn: (ext: Ext) => Scope | undefined): Graph<Ctx, Ext, Defs, W>;
-
-  /**
    * Mount another graph (or hub) at this point in the chain. The child is an
    * ordinary `defineGraph` whose Ext declares what it NEEDS from upstream —
    * at resolve time it receives the parent's ext with the ctx-so-far merged
@@ -345,15 +344,21 @@ function make<Ctx extends object, Ext>(
 
     resolve(f: Fields, ext: Ext): Ctx {
       const ctx: Record<string, unknown> = {};
-      // ext is fixed for the pass, so the graph scope is too — compute it
-      // lazily once rather than per scopeless field
-      let passScope: Scope | undefined;
-      let passScopeComputed = false;
+      const inherited = currentInheritedScope;
+      // this graph's contribution to the scope path — appended to what the
+      // mount tree accumulated (rootScope replaces from the root)
+      let subtree = inherited;
+      if (scopeFn) {
+        const contributed = scopeFn(ext);
+        if (contributed !== undefined) subtree = combineScope(inherited, contributed) ?? [];
+      }
+      try {
       // the bag mirrors ctx plus the one reserved key; ctx itself stays clean
       // (it is returned as state)
       const bag: Record<string, unknown> = { _ext: ext };
       for (const e of entries) {
         if (e.kind === 'graph') {
+          currentInheritedScope = subtree;
           const mounted = e.graph!.resolve(f, { ...(ext as object), ...ctx });
           Object.assign(ctx, mounted);
           Object.assign(bag, mounted);
@@ -376,13 +381,9 @@ function make<Ctx extends object, Ext>(
           toOutput: def.toOutput,
         } as Codec<unknown, unknown> & { output: SchemaLike<unknown> };
         const opts: FieldOptions<unknown, unknown> = {};
-        if (def.scope !== undefined) opts.scope = def.scope;
-        else if (scopeFn) {
-          if (!passScopeComputed) {
-            passScope = scopeFn(ext);
-            passScopeComputed = true;
-          }
-          if (passScope !== undefined) opts.scope = passScope;
+        {
+          const finalScope = combineScope(subtree, def.scope);
+          if (finalScope !== undefined) opts.scope = finalScope;
         }
         if (def.meta !== undefined) opts.meta = def.meta as FieldOptions<unknown, unknown>['meta'];
         if (def.correct !== undefined) opts.correct = def.correct as FieldOptions<unknown, unknown>['correct'];
@@ -390,6 +391,9 @@ function make<Ctx extends object, Ext>(
         bag[e.key] = ctx[e.key] = f.field(e.key, codec, opts);
       }
       return ctx as Ctx;
+      } finally {
+        currentInheritedScope = inherited;
+      }
     },
 
     field(key: string, def: unknown) {
@@ -415,11 +419,6 @@ function make<Ctx extends object, Ext>(
 
     ...runtime,
 
-    scope(fn: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return make<Ctx, Ext>(entries, effects, fn as (ext: Ext) => Scope | undefined) as any;
-    },
-
     use(arg: unknown) {
       if (typeof arg === 'function') return (arg as (g: unknown) => unknown)(this);
       const child = arg as GraphLike<object, unknown>;
@@ -431,9 +430,25 @@ function make<Ctx extends object, Ext>(
   } as Graph<Ctx, Ext, Record<string, AnyDef>>;
 }
 
-export function defineGraph<Ext = void>(): Graph<Record<never, never>, Ext> {
+export interface GraphOptions<Ext> {
+  /**
+   * This graph's contribution to the scope PATH, computed from resolve-time
+   * ext. Scope nests down the mount tree: a parent's segments prefix a
+   * mounted child's, so `{scope: eco}` over `{scope: 'textFields'}` buckets
+   * at `eco/textFields`. Fields inherit the accumulated path; a field-level
+   * plain `scope` APPENDS to it, and `rootScope(...)` is the escape hatch —
+   * absolute from the root, `rootScope()` meaning the bare (global) key.
+   * Returning `undefined` contributes nothing (fields stay at the inherited
+   * path).
+   */
+  scope?: (ext: Ext) => Scope | undefined;
+}
+
+export function defineGraph<Ext = void>(
+  options?: GraphOptions<Ext>
+): Graph<Record<never, never>, Ext> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return make([], []) as any;
+  return make([], [], options?.scope) as any;
 }
 
 type RequiredNeeds<T> = { [K in keyof T]-?: undefined extends T[K] ? never : K }[keyof T];

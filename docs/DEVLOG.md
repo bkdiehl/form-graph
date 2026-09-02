@@ -765,3 +765,46 @@ back to `In = Value`. Also fixed the branch registry merge: same-key defs
 across members now merge as a per-key UNION instead of an intersection —
 intersecting collapsed differing metas to `never` (found by a duration field
 declared with different metas across wan/ltx members).
+
+## scope moved to defineGraph({ scope }) (2026-09-02)
+
+The chain form `.scope(fn)` applied to the whole graph regardless of position,
+which read as if it governed only the fields after it (the docs briefly said
+"every field below" — wrong). A property that is fixed at birth and singular
+belongs in construction options: `defineGraph<Ext>({ scope })`. The chain
+method is gone; `GraphOptions` is exported.
+
+## Scope nests through the mount tree; rootScope escape hatch (2026-09-02)
+
+`defineGraph({ scope })` now composes hierarchically: a parent's segments
+prefix a mounted child's (`{scope: eco}` over `{scope: 'textFields'}` buckets
+at `eco/textFields`), fields inherit the accumulated path, field-level plain
+scopes APPEND, and `rootScope(...parts)` is the absolute escape hatch —
+`rootScope()` detaching to the bare (global) key. This replaces the earlier
+"children keep their own scope, parents never leak" isolation rule, which
+existed only because it happened to fit the civitai port's global text block;
+that block now detaches explicitly, which reads better anyway. The inherited
+path threads through a module-level variable around synchronous resolve, so no
+public signature changed — and the port's stored addresses came out
+byte-identical (members now inherit instead of re-declaring, the per-model
+refinement became a relative append).
+
+## Considered and deferred (2026-09-02): use-site scope; folding GraphLike into Graph
+
+Two API ideas weighed with Briant and deliberately not taken:
+
+- **Scope at the mount site** (`.use(child, { scope })`). Would collapse the
+  port's 24 family-root declarations into two hub lines, but splits ownership:
+  a graph's persistence bucketing is intrinsic to the graph (true wherever it
+  mounts), and a forgotten use-site option fails silently into wrong buckets.
+  The child's scope fn already reads the mount context for its VALUE; only the
+  POLICY would move, and policy belongs with the graph. It would also be a
+  third knob (field/graph/mount) in a model whose virtue is one rule: graphs
+  declare their contribution, parents prefix it.
+- **Making `branch()` return a full `Graph`** (e.g. by returning
+  `defineGraph().use(rawBranch)` internally), deleting `GraphLike` from the
+  public vocabulary. Cosmetically simpler, no new capability — everything is
+  already expressible by chaining on the composing parent — and the extra wrap
+  layer inside every branch type spends TS instantiation depth, the exact
+  budget the data-graph engine died on. Revisit only if branch typing is
+  reworked for other reasons.

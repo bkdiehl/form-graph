@@ -23,6 +23,7 @@ export {
   branchOn,
   type DefInputValue,
   type Graph,
+  type GraphOptions,
   type GraphLike,
   type GraphSource,
   type FieldDef,
@@ -53,7 +54,14 @@ export {
 export type { FormStore, StorageAdapter, StoreOptions } from './store.js';
 export { type Rule, type RuleCtx, type RuleMap, type EffectFn, type RuleUnit } from './rules.js';
 export { debouncedStorage, persistedStorage, type DebouncedStorageAdapter } from './storage.js';
-export { readIntentBuckets, readIntentValue, type Scope, type ScopeValue } from './scope.js';
+export {
+  readIntentBuckets,
+  readIntentValue,
+  rootScope,
+  type RootScope,
+  type Scope,
+  type ScopeValue,
+} from './scope.js';
 export type {
   FieldError,
   ResolutionNote,
