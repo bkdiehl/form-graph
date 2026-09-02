@@ -15,7 +15,7 @@
   </p>
 
   <pre class="mt-8">{`import { z } from 'zod';
-import { defineGraph, branchOn } from 'form-graph';
+import { defineGraph, branch } from 'form-graph';
 import { enumOf, slider } from 'form-graph/defs';
 
 const create = defineGraph<{ maxSteps: number }>()
@@ -30,7 +30,9 @@ const upscale = defineGraph<{ maxSteps: number }>()
   .field('scale', slider({ min: 2, max: 4, default: 2 }));
 
 // the discriminator field routes between the graphs — the union is inferred
-export const form = branchOn('workflow', WORKFLOW, { create, upscale });
+export const form = defineGraph()
+  .field('workflow', WORKFLOW)
+  .use(branch('workflow', [[['create'], create], [['upscale'], upscale]] as const));
 
 // Client: a live store with per-field subscriptions and persistent intent.
 const store = form.createStore({ ext: { maxSteps: 50 } });

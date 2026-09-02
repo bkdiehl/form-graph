@@ -150,6 +150,49 @@ interface Entry {
 
 type ExtArg<Ext> = [void] extends [Ext] ? [ext?: Ext] : [ext: Ext];
 
+/**
+ * Handler-facing type extraction — the counterpart of `z.infer`. A complex
+ * form's consumers (server handlers, submit adapters) work from the parsed
+ * WIRE data, and for a hub that is a discriminated union over arms:
+ *
+ *   type Data = InferData<typeof hub>;                       // the union
+ *   type KlingArm = InferArm<typeof hub, 'ecosystem', 'Kling'>; // one arm
+ *
+ * `InferState` is the resolved STATE (computeds and branch tags included),
+ * the type `getSnapshot().state` and rule callbacks see.
+ */
+export type InferData<G> = G extends {
+  parse(raw: Record<string, unknown>, ...ext: never[]): ValidationResult<infer Data, infer _State>;
+}
+  ? Data
+  : never;
+export type InferState<G> = G extends {
+  parse(raw: Record<string, unknown>, ...ext: never[]): ValidationResult<infer _Data, infer State>;
+}
+  ? State
+  : never;
+/**
+ * SUBSET-matching, not `Extract`: a grouped pair's arm carries a literal
+ * UNION on the discriminator (`{ ecosystem: 'SD1' | 'SDXL' | ... }`), which
+ * `Extract` by a single literal would drop. An arm matches when any of the
+ * requested literals is one of the arm's.
+ */
+export type InferArm<G, K extends string, V extends string> = InferData<G> extends infer U
+  ? U extends unknown
+    ? K extends keyof U
+      ? V extends U[K] & string
+        ? U
+        : never
+      : never
+    : never
+  : never;
+/**
+ * Every key of every arm, optional — the type for helpers shared across a
+ * hub's arms, which read fields defensively (a field an arm lacks is simply
+ * absent). The same loosening def-callback bags use.
+ */
+export type InferLooseData<G> = LooseCtx<InferData<G>>;
+
 /** graph key -> wire disposition, accumulated only for keys that declare one. */
 type WireMap = Record<string, false | string>;
 
@@ -525,6 +568,28 @@ export interface GraphLike<
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CtxOf<G> = G extends GraphSource<infer C, any, any, any> ? C : never;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ExtOfSrc<G> = G extends GraphSource<any, infer X, any, any> ? X : never;
+/**
+ * What a branch's members collectively need from upstream, minus the
+ * discriminator the branch itself resolves and provides. Surfaced as the
+ * returned GraphLike's Ext so the MOUNT's NeedsCheck validates it — where
+ * prior fields can satisfy it — exactly like any other child graph.
+ */
+/** Keeps an ext-less branch's Ext untouched so `ExtArg` stays optional. */
+type OutExt<Ext, Members, K extends string> = [keyof MemberNeeds<Members, K>] extends [never]
+  ? Ext
+  : Ext & MemberNeeds<Members, K>;
+type MemberNeeds<Members, K extends string> = Omit<
+  UtoI<
+    {
+      [M in keyof Members]: ExtOfSrc<Members[M]> extends object
+        ? ExtOfSrc<Members[M]>
+        : Record<never, never>;
+    }[keyof Members]
+  >,
+  K
+>;
 
 type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (
   x: infer I
@@ -633,30 +698,84 @@ const chainable = <H extends { readonly effects: readonly unknown[] }>(hub: H): 
   },
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MemberPair = readonly [ReadonlyArray<string>, GraphSource<object, any>];
 /**
- * A HUB that dispatches on a value derived from the external context — the
- * shape of a version-family form (the wan graph picks its version subgraph
- * from the ecosystem). The member graphs' registries and effects merge and
- * ride the hub, so a form mounting it inherits everything; each member's own
- * literal computed key is what discriminates the state union.
+ * The grouped-pairs members form, flattened to the record the registry/wire
+ * helpers type from: each pair's keys all map to its graph. A key repeated
+ * across pairs resolves to the LAST pair that lists it, like a later record
+ * entry.
+ */
+type PairsToMembers<Pairs extends ReadonlyArray<MemberPair>> = UtoI<
+  {
+    [I in keyof Pairs]: Pairs[I] extends readonly [
+      infer Ks extends ReadonlyArray<string>,
+      infer G,
+    ]
+      ? { [M in Ks[number]]: G }
+      : never;
+  }[number]
+> extends infer R
+  ? { [P in keyof R]: R[P] }
+  : never;
+/**
+ * ONE ARM PER PAIR, the pair's keys as a union on the discriminator — sd's
+ * six ecosystems are one arm with a six-literal key, not six near-identical
+ * arms. Keeps the derived union's arm count at one per FAMILY, the same as
+ * an undiscriminated union, so discrimination costs only the literal unions.
+ */
+type KeyedArms<K extends string, Pairs extends ReadonlyArray<MemberPair>> = {
+  [I in keyof Pairs]: Pairs[I] extends readonly [
+    infer Ks extends ReadonlyArray<string>,
+    infer G,
+  ]
+    ? Record<K, Ks[number]> & CtxOf<G>
+    : never;
+}[number];
+
+/**
+ * The branch combinator — every branch is DISCRIMINATED; the only question
+ * is whether the key already exists or is derived here.
  *
- *   export const wan = branch((ext: WanExt) => versionOf(ext.ecosystem), {
- *     'v2.1': v21, 'v2.2': v22, ...
- *   }).effect(wanCoupling);
+ * KEYED — dispatch on a field or computed resolved UPSTREAM (declared before
+ * the `.use`, so members read it through the ordinary ctx-over-ext merge).
+ * The members table is the switch as data: one entry per member graph,
+ * however many key values it serves, and the key literals type the arms:
+ *
+ *   defineGraph()
+ *     .field('ecosystem', ECOSYSTEM)
+ *     .use(branch('ecosystem', [
+ *       [['SD1', 'SDXL'], sd],
+ *       [['Kling'], kling],
+ *     ]))
+ *
+ * TAGGED — the key is DERIVED from ext and stamped into state as a computed
+ * (the version-family shape); the members record's keys type the tag:
+ *
+ *   branch('wanVersion', (ext) => versionOf(ext.ecosystem), {
+ *     'v2.1': v21, 'v2.2': v22,
+ *   })
+ *
+ * Pass `{ emit: false }` to keep a derived tag in state (where the UI and
+ * rules read it) but off the wire — for a tag the consuming protocol does
+ * not carry.
+ *
+ * There is deliberately NO untagged form: a pick function's control flow is
+ * invisible to the type system, so an untagged branch cannot type its arms —
+ * every dispatch that looks untagged is either keyed (the discriminator is a
+ * field) or tagged-with-`emit: false` (it is derived but private).
  */
-export function branch<Ext, const M extends GraphSource<object, Ext>>(
-  pick: (ext: Ext) => M
-): GraphLike<CtxOf<M>, Ext, DefsOfUnion<M>, WOfUnion<M>>;
-export function branch<Ext, const Members extends Record<string, GraphSource<object, Ext>>>(
-  pick: (ext: Ext) => keyof Members | Members[keyof Members],
-  members: Members
-): GraphLike<CtxOf<Members[keyof Members]>, Ext, DefsOf<Members>, WOf<Members>>;
-/**
- * Tagged: name a key and the picked MEMBER KEY lands in state under it, as a
- * computed — the derived counterpart of `branchOn`'s field. The state union
- * discriminates on it (`Extract<State, { wanVersion: 'v2.5' }>`), so members
- * never re-declare which member they are.
- */
+export function branch<K extends string, const Pairs extends ReadonlyArray<MemberPair>>(
+  key: K,
+  members: Pairs
+): GraphLike<
+  KeyedArms<K, Pairs>,
+  MemberNeeds<PairsToMembers<Pairs>, K> & Record<K, string>,
+  DefsOf<PairsToMembers<Pairs>> extends infer D extends Record<string, AnyDef>
+    ? D
+    : Record<never, never>,
+  WOf<PairsToMembers<Pairs>>
+>;
 export function branch<
   K extends string,
   Ext,
@@ -664,7 +783,8 @@ export function branch<
 >(
   key: K,
   pick: (ext: Ext) => keyof Members | Members[keyof Members],
-  members: Members
+  members: Members,
+  opts?: { emit?: false }
 ): GraphLike<
   { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
   Ext,
@@ -673,123 +793,67 @@ export function branch<
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function branch(...args: any[]): any {
-  const [key, pick, members] =
-    typeof args[0] === 'string' ? args : [undefined, args[0], args[1]];
-  if (key === undefined && members === undefined) {
-    // Record-less: the pick returns member graphs directly and there is no
-    // manifest. Member rules forward lazily from the members a store has
-    // actually resolved (a never-activated member's rules never matter); the
-    // runtime defs registry stays empty, which graph-model members never
-    // read — resolution always passes each field's freshly computed def.
-    const seen = new Set<{ effects: readonly RuleUnit<unknown, unknown>[] }>();
+  // KEYED: (key, pairs) — flatten the table, dispatch on ext[key]
+  if (Array.isArray(args[1])) {
+    const key = args[0] as string;
+    const pairs = args[1] as ReadonlyArray<MemberPair>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const record: Record<string, GraphSource<object, any>> = Object.fromEntries(
+      pairs.flatMap(([keys, g]) => keys.map((k) => [k, g]))
+    );
     return chainable({
-      defs: {},
-      effects: [
-        {
-          reconciler: (
-            patch: Readonly<Record<string, unknown>>,
-            state: unknown,
-            ext: unknown
-          ) => {
-            let p = patch;
-            for (const m of seen) for (const e of m.effects) p = e.reconciler(p, state, ext);
-            return p;
-          },
-        },
-      ] as RuleUnit<unknown, unknown>[],
+      ...mergeMembers(
+        record,
+        (patch, state) => ({ ...state, ...patch })[key] as string | undefined
+      ),
       resolve(f: Fields, ext: unknown) {
-        const member = pick(ext) as { resolve?: (f: Fields, ext: unknown) => unknown } | undefined;
-        if (!member || typeof member.resolve !== 'function')
-          throw new Error('branch: the pick must return a member graph');
-        seen.add(member as { effects: readonly RuleUnit<unknown, unknown>[] });
-        return member.resolve!(f, ext);
+        const value = (ext as Record<string, unknown>)[key];
+        const member = record[String(value)];
+        if (!member)
+          throw new Error(`branch "${key}": no member graph for "${String(value)}"`);
+        return member.resolve(f, ext);
       },
     });
   }
+
+  // TAGGED: (key, pick, members, opts?)
+  const [key, pick, members, opts] = args as [
+    string,
+    (ext: unknown) => string | object,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Record<string, GraphSource<object, any>>,
+    { emit?: false } | undefined,
+  ];
   const keyByMember = new Map<object, string>(
     Object.entries(members as Record<string, object>).map(([k, m]) => [m, k])
   );
   return chainable({
     ...mergeMembers(
       members,
-      key !== undefined
-        ? // Tagged: the stamped key in state is the truth, read EFFECTIVELY
-          // (patch over state). pick(ext) would lie here — a mounting form's
-          // ext is not the hub's ext (the resolver adapts it), and reconcile
-          // only ever sees the form's.
-          (patch: Readonly<Record<string, unknown>>, state: Record<string, unknown>) =>
-            ({ ...state, ...patch })[key] as string | undefined
-        : // Untagged: no state-resident discriminator exists, and pick(ext)
-          // lies under any mounting form — so no auto-scoping. Rules on
-          // untagged members must self-guard; tag the hub to get scoping.
-          null
+      // The stamped key in state is the truth, read EFFECTIVELY (patch over
+      // state). pick(ext) would lie here — a mounting form's ext is not the
+      // hub's ext (the resolver adapts it), and reconcile only ever sees the
+      // form's.
+      (patch: Readonly<Record<string, unknown>>, state: Record<string, unknown>) =>
+        ({ ...state, ...patch })[key] as string | undefined
     ),
     resolve(f: Fields, ext: unknown) {
       // the pick may return a member KEY or the member GRAPH itself — the
       // record stays the manifest either way (defs merge, state union, and
       // the tag stamped below all come from it)
-      const pickedRaw = pick(ext) as string | object;
-      const picked =
-        typeof pickedRaw === 'string' ? pickedRaw : keyByMember.get(pickedRaw);
+      const pickedRaw = pick(ext);
+      const picked = typeof pickedRaw === 'string' ? pickedRaw : keyByMember.get(pickedRaw);
       const member = picked !== undefined ? members[picked] : undefined;
       if (!member || picked === undefined)
         throw new Error(
-          `branch${key ? ` "${key}"` : ''}: ${
+          `branch "${key}": ${
             typeof pickedRaw === 'string'
               ? `no member graph for "${pickedRaw}"`
               : 'pick returned a graph that is not one of the members'
           }`
         );
-      const resolved = member.resolve(f, ext);
-      return key === undefined ? resolved : { [key]: f.computed(key, picked), ...resolved };
+      const stamped = f.computed(key, picked, opts?.emit === false ? { emit: false } : undefined);
+      return { [key]: stamped, ...(member.resolve(f, ext) as object) };
     },
   });
-}
-
-/**
- * A HUB that dispatches on a DISCRIMINATOR FIELD it declares itself — the
- * shape of a destination/workflow picker. The state union is discriminated by
- * that key: each arm is tagged with the narrowed literal, so
- * `Extract<State, { destination: 's3' }>` is the exact member shape.
- *
- *   export const publish = branchOn('destination', DESTINATION, {
- *     s3: s3Graph, email: emailGraph, webhook: webhookGraph,
- *   });
- */
-export function branchOn<
-  Ext,
-  K extends string,
-  const Members extends Record<string, GraphSource<object, Ext>>,
-  D extends AnyFieldDef = FieldDef<keyof Members & string, unknown>,
->(
-  key: K,
-  def: D & { output: SchemaLike<keyof Members & string> },
-  members: Members
-): GraphLike<
-  { [M in keyof Members]: Record<K, M> & CtxOf<Members[M]> }[keyof Members],
-  Ext,
-  DefsOf<Members> & Record<K, D>,
-  WOf<Members> & ([EmitOf<D>] extends [never] ? Record<never, never> : Record<K, EmitOf<D>>)
-> {
-  // active member = the discriminator's value in the pre-patch state
-  const merged = mergeMembers(
-    members,
-    (patch, state) => ({ ...state, ...patch })[key] as string | undefined
-  );
-  merged.defs[key] = def as AnyFieldDef;
-  return chainable({
-    ...merged,
-    resolve(f: Fields, ext: Ext) {
-      const picked = f.field(
-        key,
-        def as Codec<keyof Members & string, unknown> & { output: SchemaLike<keyof Members & string> }
-      );
-      const member = members[picked];
-      if (!member) throw new Error(`branchOn "${key}": no member graph for "${String(picked)}"`);
-      return { [key]: picked, ...member.resolve(f, ext) } as {
-        [M in keyof Members]: Record<K, M> & CtxOf<Members[M]>;
-      }[keyof Members];
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as any;
 }

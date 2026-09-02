@@ -64,45 +64,43 @@ g.use((g) => withAddress(g, 'shipping'));`}</pre>
 <p>
   The one thing a chain deliberately does not express: branches that produce DIFFERENT shapes
   with a discriminated union between them (a hub's destinations, a generator's version
-  subgraphs). Two combinators structure that hub. <code>branchOn</code> declares the
-  discriminator FIELD itself and dispatches on it:
+  subgraphs). One combinator structures that hub, in two forms — every branch is
+  discriminated; the only question is whether the key already exists or is derived here.
+  KEYED: the discriminator is a field (or computed) declared upstream, and the members
+  table is the switch as data — one entry per member graph, however many key values it
+  serves, the key literals typing the arms:
 </p>
 
-<pre>{`const publish = branchOn('destination', DESTINATION, {
-  s3: s3Graph, email: emailGraph, webhook: webhookGraph,
-});
+<pre>{`const publish = defineGraph()
+  .field('destination', DESTINATION)
+  .use(branch('destination', [
+    [['s3'], s3Graph], [['email'], emailGraph], [['webhook'], webhookGraph],
+  ]));
 // State = { destination: 's3' } & S3Ctx | { destination: 'email' } & EmailCtx | ...
-// Extract<State, { destination: 's3' }> is exactly the s3 shape`}</pre>
+// Extract<State, { destination: 's3' }> is exactly the s3 shape.
+// A grouped pair is ONE arm with a literal-union key:
+//   [['SD1', 'SDXL'], sd]  ->  { destination: 'SD1' | 'SDXL' } & SdCtx`}</pre>
 
 <p>
-  <code>branch</code> dispatches on a value DERIVED from external context instead — the shape
-  of a version-family form, where the ecosystem picks the subgraph:
+  TAGGED: the key is DERIVED from external context and stamped into state as a computed —
+  the shape of a version-family form, where the ecosystem picks the subgraph:
 </p>
 
 <pre>{`export const wan = branch(
   'wanVersion',                                // tag: the picked MEMBER KEY lands
-  (ext: WanExt) => versionOf(c._ext.ecosystem),   //   in state under this key
+  (ext: WanExt) => versionOf(ext.ecosystem),   //   in state under this key
   { 'v2.1': v21, 'v2.2': v22, 'v2.5': v25 }
 ).effect(({ patch, state, next }) => { ... }); // the family's coupling, inline
 // Extract<State, { wanVersion: 'v2.5' }> is exactly that member's shape —
-// no member re-declares which member it is. Omit the tag for an untagged hub.`}</pre>
+// no member re-declares which member it is. Pass { emit: false } to keep the
+// tag in state (UI and rules read it) but off the parsed data's wire.`}</pre>
 
 <p>
-  When the dispatch is a <code>switch</code> rather than a lookup key — or the members have no
-  meaningful names at all — the pick may return the member GRAPH directly, and the manifest
-  disappears (a RECORD-LESS branch). The state type is the union of the pick's return sites;
-  members' rule units still ride along:
+  There is deliberately no untagged form: a pick function's control flow is invisible to the
+  type system, so an untagged branch could not type its arms. A dispatch that looks untagged
+  is either keyed (the discriminator is a field) or tagged with <code>emit: false</code>
+  (derived but private).
 </p>
-
-<pre>{`const families = branch((ext: FamilyExt) => {
-  switch (ext.ecosystem) {
-    case 'Chroma': return chroma;
-    case 'Flux1':
-    case 'FluxKrea': return flux;
-    default: return sd;
-  }
-});
-// no record, no tag in state — each member graph declares nothing about the hub`}</pre>
 
 <p>
   Either way the hub is the same shape a graph is: <code>defs</code> holds every member's

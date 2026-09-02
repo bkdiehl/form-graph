@@ -896,3 +896,90 @@ The one legitimate async knock — submit-time validation needing the server
 (`parse()` → `await validateRemote(result.data)` → submit), not async
 resolution. If that materializes, add it as a documented pattern or a tiny
 `submitGuard` helper; do not touch the resolver.
+
+## Hub discrimination lands in branchOn, not per-family emits (2026-09-02)
+
+The first cut of discriminated handler types added a one-line
+`effectiveEcosystem` emit computed to every civitai family (~36 of them) so
+each arm's `ecosystem` carried a literal type. Briant rejected the boilerplate
+— rightly: the mapping from key to family already exists at each hub, and the
+per-family lines restated it 36 times. The discrimination now comes from
+`branchOn`, which needed four real fixes to serve as a hub head:
+
+- **Grouped-pairs members** — `branchOn(key, def, [[keys[], graph], ...])`,
+  one entry per family however many keys it serves, reading like a switch's
+  grouped cases while the key literals still type the arms
+  (`PairsToMembers` flattens to the record form; a repeated key resolves to
+  the last pair, like a later record entry).
+- **Function-form defs** — a definition rebuilt per pass from `_ext`
+  (dynamic option sets, gating), matching `.field`. It must be a SEPARATE
+  overload: folded into a union parameter, D falls back to its default and
+  the default's optional `emit` widens the wire map to
+  `Record<K, string | false>`, which evicts every key from `DataOf`
+  (`Omit<..., string>`) — two screens of misleading errors away from the
+  cause.
+- **Field options honored** — branchOn's field previously dropped
+  `scope`/`meta`/`correct`/`emit` and ignored the inherited scope path; it
+  now mirrors the graph resolve's option extraction.
+- **The discriminator flows into members' ext** — members resolve with
+  `ext + { [key]: picked }`, the same ctx-over-ext merge a mount performs for
+  prior fields; member needs surface through the returned GraphLike's Ext
+  (minus the key) so the MOUNT's NeedsCheck validates them where prior
+  fields can satisfy them.
+
+Also new, from the handler-typing gap: `InferData` / `InferState` /
+`InferArm` / `InferLooseData` — the `z.infer` counterparts for graphs,
+extracted structurally from `parse`'s signature so they work on any graph or
+hub and cannot drift from what parse returns. `InferArm` composes for nested
+discrimination (`InferArm<typeof hub, 'klingVersion', 'v3'>` pulls a
+family's internal branch arm straight from the root). `useForm` now
+preserves the store's full type instead of erasing the Data parameter — the
+per-arm emit eviction exposed that erasure.
+
+Process note, recorded on request: the emit-per-family cut was implemented
+across all families before the API's shape was discussed. The branchOn
+redesign kept every wire byte identical (the civitai differential suites are
+the proof), but the discussion should have happened after the first family,
+not the thirty-sixth.
+
+## branch and branchOn merge into one combinator (2026-09-02)
+
+Briant's readability review of `branchOn('ecosystem', def, members)` found the
+API confusing — the name reads as dispatching on something that exists, while
+it actually declared the field too — and asked whether the untagged,
+type-losing `branch(pick)` should exist at all. It should not: every dispatch
+falls into "the key already exists upstream" or "the key is derived here", and
+both can be typed. The surface is now ONE combinator, two forms:
+
+- **Keyed** — `branch(key, table)` dispatches on a field or computed declared
+  BEFORE the `.use`, so declaration keeps its familiar `.field` reading and
+  members receive the discriminator through the ordinary ctx-over-ext merge —
+  no special plumbing. The table is the switch as data: one pair per member
+  graph, however many key values it serves.
+- **Tagged** — `branch(key, pick, members, opts?)` unchanged, plus
+  `{ emit: false }` for a derived tag that lives in state (scoping and UI
+  reads intact) but stays off the wire — which is what every legitimate
+  untagged use actually wanted.
+
+The deleted pieces: untagged `branch(pick)` / `branch(pick, members)` (a pick
+function's control flow is invisible to the type system, so untagged arms
+could never be typed), and `branchOn` entirely — its declare-and-dispatch
+bundling is better written as `.field` + keyed `branch`, and folding a def
+parameter into the merged signature would have collided with the pick
+parameter (both functions).
+
+Type-size design: a keyed pair is ONE ARM with a literal-union discriminator
+(`[['SD1','SDXL'], sd]` → `{ ecosystem: 'SD1' | 'SDXL' } & SdCtx`), so a
+discriminated hub's arm count equals its family count — the same as the old
+undiscriminated union — rather than one arm per key. `InferArm` is
+SUBSET-matching rather than `Extract` for exactly this reason: a single
+requested literal must still find its grouped arm. Measured on the civitai
+port with everything in place: 1.85M types / 10.0M instantiations / 47s
+check on a cold full-app tsc — in line with the app's pre-existing budget.
+
+The civitai hubs came out ~15 lines from their ORIGINAL pre-discrimination
+text: the ecosystem defs reverted to plain string-typed fields (no enum, no
+narrowing helper), and only the dispatch changed — switch to table. Every
+wire byte stayed identical through both redesigns (the differential suites
+are the proof), and all four hubs, the family mode branches, and the root
+output dispatch now discriminate.

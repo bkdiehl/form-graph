@@ -1,7 +1,7 @@
 /**
  * The public surface — the GRAPH MODEL and its runtime, deliberately small:
  *
- * - Authoring: defineGraph / branch / branchOn (the runtime — createStore,
+ * - Authoring: defineGraph / branch (the runtime — createStore,
  *   parse — lives on the definitions), the def helpers via `form-graph/defs`,
  *   defFamily, and the types an author writes against.
  * - Runtime: store types and storage adapters. `FormStore` is type-only —
@@ -20,10 +20,13 @@ export { defFamily, type InferDefValue, type InferDefMeta } from './codec.js';
 export {
   defineGraph,
   branch,
-  branchOn,
   type DefInputValue,
   type Graph,
   type GraphOptions,
+  type InferData,
+  type InferState,
+  type InferArm,
+  type InferLooseData,
   type GraphLike,
   type GraphSource,
   type FieldDef,

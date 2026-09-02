@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { defineForm } from '../form.js';
 import { type Fields } from '../resolve.js';
 import { boolOf, enumOf, slider, textOf } from '../def-helpers.js';
-import { branchOn, defineGraph } from '../graph.js';
+import { branch, defineGraph } from '../graph.js';
 
 type Assert<T extends true> = T;
 type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
@@ -48,20 +48,23 @@ describe('the graph IS the form: runtime on the definition', () => {
   });
 
   it('hubs carry the runtime too', () => {
-    const hub = branchOn(
-      'kind',
-      enumOf({
-        options: [
-          { value: 'a', label: 'A' },
-          { value: 'b', label: 'B' },
-        ],
-        default: 'a',
-      }),
-      {
-        a: defineGraph().field('x', slider({ min: 0, max: 9, default: 1 })),
-        b: defineGraph().field('y', slider({ min: 0, max: 9, default: 2 })),
-      }
-    );
+    const hub = defineGraph()
+      .field(
+        'kind',
+        enumOf({
+          options: [
+            { value: 'a', label: 'A' },
+            { value: 'b', label: 'B' },
+          ],
+          default: 'a',
+        })
+      )
+      .use(
+        branch('kind', [
+          [['a'], defineGraph().field('x', slider({ min: 0, max: 9, default: 1 }))],
+          [['b'], defineGraph().field('y', slider({ min: 0, max: 9, default: 2 }))],
+        ] as const)
+      );
     const store = hub.createStore();
     expect(store.getState()).toEqual({ kind: 'a', x: 1 });
     store.set({ kind: 'b' });

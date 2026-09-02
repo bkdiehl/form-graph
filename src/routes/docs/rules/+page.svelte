@@ -56,13 +56,11 @@
     <code>createStore()</code>/<code>parse()</code>.
   </li>
   <li>
-    <strong>On a member of a TAGGED hub</strong> (<code>branchOn</code>, or <code>branch</code>
-    with a tag key): AUTO-SCOPED. A rule attached to the <code>v2.5</code> subgraph fires only
-    while <code>v2.5</code> is the picked branch — read from the tag in state (effectively:
-    patch over state), so it stays correct under any mounting form and a member-switching
-    patch fires the TARGET member's rules. A unit shared through a common prefix merges once.
-    An UNTAGGED hub has no state-resident discriminator, so its members' rules pass through
-    unscoped — self-guard them, or tag the hub.
+    <strong>On a branch member</strong>: AUTO-SCOPED, both forms. A rule attached to the
+    <code>v2.5</code> subgraph fires only while <code>v2.5</code> is the picked branch — read
+    from the discriminator in state (effectively: patch over state), so it stays correct
+    under any mounting form and a member-switching patch fires the TARGET member's rules. A
+    unit shared through a common prefix merges once.
   </li>
   <li>
     <strong>On the hub itself</strong> (<code>branch(...).effect(...)</code>): NOT auto-scoped

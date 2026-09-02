@@ -10,11 +10,12 @@ import { deepEqual } from '../core/deep-equal.js';
  * The store is stable across renders; `ext` is pushed in only when it actually
  * differs, so callers can pass a fresh object literal every render.
  */
-export function useForm<State, Ext>(
-  definition: { createStore(options: StoreOptions<Ext>): FormStore<State, Ext> },
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useForm<Ext, Store extends FormStore<any, Ext, any, any>>(
+  definition: { createStore(options: StoreOptions<Ext>): Store },
   options: StoreOptions<Ext>
-): FormStore<State, Ext> {
-  const storeRef = useRef<FormStore<State, Ext> | null>(null);
+): Store {
+  const storeRef = useRef<Store | null>(null);
   if (!storeRef.current) storeRef.current = definition.createStore(options);
   const store = storeRef.current;
 

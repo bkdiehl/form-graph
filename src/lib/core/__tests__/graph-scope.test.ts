@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { branchOn, defineGraph } from '../graph.js';
+import { branch, defineGraph } from '../graph.js';
 import { rootScope } from '../scope.js';
 import type { StorageAdapter } from '../store.js';
 
@@ -90,10 +90,10 @@ describe('graph-level scope', () => {
       output: z.enum(['a', 'b']),
       default: 'a' as const,
     };
-    const hub = branchOn('dest', DEST, { a: family, b: family });
     const wrapped = defineGraph({ scope: () => 'outer' })
       .field('eco', ECO)
-      .use(hub);
+      .field('dest', DEST)
+      .use(branch('dest', [[['a', 'b'], family]] as const));
     const storage = captureAdapter();
     const store = wrapped.createStore({ storage });
     store.set({ steps: 7, global: 8 });
