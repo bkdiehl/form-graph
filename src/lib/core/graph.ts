@@ -140,17 +140,24 @@ type UtoI<U> = (U extends unknown ? (x: U) => void : never) extends (x: infer I)
 export type DataOf<Ctx, W extends WireMap> = [keyof W] extends [never]
   ? Ctx // no emits: data IS the state type, identically — not a mapped copy
   : Ctx extends unknown // distribute over state unions (hub branches) — Omit on a union intersects keys
-    ? // a wire name also evicts the state key it shadows — a field whose name a
-      // computed emits needs no emit:false of its own
-      Omit<Ctx, keyof W | Extract<W[keyof W], string>> &
-        UtoI<
-          {
-            [K in keyof W]: W[K] extends string
-              ? Record<W[K], K extends keyof Ctx ? Ctx[K] : never>
-              : never;
-          }[keyof W]
-        >
+    ? // W is merged across every branch arm, but at runtime only the ACTIVE
+      // arm's records claim wires — so restrict W to this arm's own keys, or
+      // one arm's emitter would evict a key from an arm that never emits it
+      ArmDataOf<Ctx, { [K in keyof W & keyof Ctx]: W[K] }>
     : never;
+
+type ArmDataOf<Ctx, W extends WireMap> = [keyof W] extends [never]
+  ? Ctx
+  : // a wire name also evicts the state key it shadows — a field whose name a
+    // computed emits needs no emit:false of its own
+    Omit<Ctx, keyof W | Extract<W[keyof W], string>> &
+      UtoI<
+        {
+          [K in keyof W]: W[K] extends string
+            ? Record<W[K], K extends keyof Ctx ? Ctx[K] : never>
+            : never;
+        }[keyof W]
+      >;
 
 type EmitOf<D> = D extends { emit: infer E extends false | string } ? E : never;
 

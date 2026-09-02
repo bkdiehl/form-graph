@@ -38,20 +38,24 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
 		},
 		"./svelte": {
 			"types": "./dist/svelte/index.d.ts",
 			"svelte": "./dist/svelte/index.js",
-			"import": "./dist/svelte/index.js"
+			"import": "./dist/svelte/index.js",
+			"default": "./dist/svelte/index.js"
 		},
 		"./react": {
 			"types": "./dist/react/index.d.ts",
-			"import": "./dist/react/index.js"
+			"import": "./dist/react/index.js",
+			"default": "./dist/react/index.js"
 		},
 		"./defs": {
 			"types": "./dist/defs/index.d.ts",
-			"import": "./dist/defs/index.js"
+			"import": "./dist/defs/index.js",
+			"default": "./dist/defs/index.js"
 		}
 	},
 	"peerDependencies": {
