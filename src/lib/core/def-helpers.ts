@@ -178,3 +178,38 @@ export function boolOf(cfg: { default?: boolean } = {}): FieldDef<boolean, undef
   }));
   return { ...schemas, default: def };
 }
+
+/** The meta type a def declares, unwrapping the `(value) => M` function form. */
+type MetaFromDef<D> = D extends { meta: infer MF }
+  ? MF extends (value: never) => infer M
+    ? M
+    : MF
+  : undefined;
+
+/**
+ * The consistency contract `defineDef` checks a literal def against: T comes
+ * from the def's own `output` schema, so `default`/`coerce`/`correct`/
+ * `toOutput`/`meta` are validated against it — the same checking as
+ * `satisfies FieldDef<T, M>` without naming T.
+ */
+type ConsistentDef<D> = D extends { output: SchemaLike<infer T> }
+  ? FieldDef<T, MetaFromDef<D>, SchemaLike<T>>
+  : FieldDef<unknown>;
+
+/**
+ * Identity wrapper for hand-written defs and def-factory returns. Use it
+ * INSTEAD of a return-type annotation: annotating `: FieldDef<T, M>` widens
+ * `input` to `SchemaLike<unknown>`, which silently erases the def's typed
+ * write path (`DefInputValue` falls back to the parsed value type and
+ * controllers stop accepting raw input shapes). `defineDef` validates the
+ * object the way `satisfies FieldDef<T, M>` does — T inferred from `output` —
+ * while preserving the concrete schema types. One difference from
+ * `satisfies`: callback params (`correct`, `meta`, `coerce`) get no
+ * contextual type here, so annotate them; the check still rejects a wrong
+ * annotation.
+ */
+export function defineDef<const D extends { output: SchemaLike<unknown> }>(
+  def: D & ConsistentDef<D>
+): D {
+  return def;
+}

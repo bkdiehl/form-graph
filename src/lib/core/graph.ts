@@ -24,6 +24,12 @@ import { combineScope, type Scope, type ScopeValue } from './scope.js';
  * and every resolve restores the value it entered with. A graph's own scope
  * option appends to (or, via rootScope, replaces) this path; its fields and
  * mounted children see the result.
+ *
+ * 🔴 INVARIANT: resolve must stay synchronous end to end. An await inside
+ * resolve (an async def factory, a suspended mount) would interleave two
+ * resolves and each would read the other's scope path — fields silently
+ * persist under the wrong keys, with no error. If resolve ever needs to be
+ * async, this must become an explicit parameter threaded through resolve.
  */
 let currentInheritedScope: readonly ScopeValue[] = [];
 
@@ -285,8 +291,8 @@ export interface Graph<
    * transforms a standalone graph can't express (e.g. key prefixing).
    */
   use<C2 extends object, X2, D2 extends Record<string, AnyDef>, W2 extends WireMap>(
-    child: GraphSource<C2, X2, D2, W2> &
-      NeedsCheck<Ctx & ([Ext] extends [object] ? Ext : unknown), X2>
+    child: NeedsCheck<Ctx & ([Ext] extends [object] ? Ext : unknown), X2> &
+      GraphSource<C2, X2, D2, W2>
   ): Graph<Ctx & C2, Ext, Defs & D2, W & W2>;
   use<G>(fn: (g: this) => G): G;
 }

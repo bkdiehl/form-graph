@@ -30,6 +30,16 @@ GOOD.output.refine(...)   // ZodString survives
 const BAD: FieldDef<string> = { output: z.string().email(), default: '' };
 BAD.output.refine(...)    // error: SchemaLike<string> has no .refine`}</pre>
 
+<p>
+  <code>defineDef(&#123;...&#125;)</code> packages the same rule as a helper: an identity
+  wrapper that infers <code>T</code> from the definition&#39;s own <code>output</code> schema
+  and validates <code>default</code>/<code>correct</code>/<code>meta</code> against it, while
+  preserving every concrete schema type — use it for def-factory returns, where a return-type
+  annotation is the tempting (and silently erasing) form. One difference from
+  <code>satisfies</code>: callback params get no contextual type, so annotate them; a wrong
+  annotation is still rejected.
+</p>
+
 <h2><code>input</code> is optional — and live typing never touches it</h2>
 <p>
   Session edits (<code>set()</code>) write TRUSTED intent: a half-typed invalid value is held

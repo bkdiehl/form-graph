@@ -808,3 +808,51 @@ Two API ideas weighed with Briant and deliberately not taken:
   layer inside every branch type spends TS instantiation depth, the exact
   budget the data-graph engine died on. Revisit only if branch typing is
   reworked for other reasons.
+
+## Port-feedback round (2026-09-02): error ergonomics, defineDef, and two known limitations
+
+Flags out of the civitai generation-graph port's parity review, triaged with
+Briant. Three fixed:
+
+- **NeedsCheck brand now leads the `.use` error.** The intersection order in
+  the `.use` overload flipped to `NeedsCheck<...> & GraphSource<...>` — pure
+  message ergonomics. Before, an incompatible mount printed the fully expanded
+  GraphSource (two screens for a real family graph) with the one useful line —
+  `'mounted graph needs incompatible ctx at key': "model"` — at the very
+  bottom. With the brand first, the offending key is in the overload signature
+  itself, the second line of the diagnostic. Inference is unaffected: TS
+  infers from every intersection member.
+- **`defineDef` identity helper** (exported from core). The typed write path
+  (`DefInputValue`, controllers' `onChange: Value | In`) survives only when a
+  def keeps its concrete `input` schema type — a `: FieldDef<T, M>` return
+  annotation silently erases it. That was a documented rule with no
+  enforcement; `defineDef({...})` makes the wrong form unnecessary: it infers
+  T from the def's own `output` schema and validates
+  `default`/`correct`/`meta` against it (satisfies-grade), while preserving
+  the object's exact type. One ergonomic delta from `satisfies`: callback
+  params get no contextual type through the inference target, so they must be
+  annotated — the check still rejects a wrong annotation. Pinned in
+  `define-def.test.ts`.
+- **The sync-resolve invariant is now written down** at
+  `currentInheritedScope`: scope nesting threads through a module-level
+  variable with try/finally restore, correct only while resolve is
+  synchronous end to end. An await inside resolve would interleave two
+  resolves' scope paths and persist fields under wrong keys with no error. If
+  resolve ever goes async, the path must become an explicit parameter.
+
+Two flagged and deliberately not fixed:
+
+- **Correlated render-prop narrowing.** For a multi-family hub, a
+  controller's `value`/`meta`/`onChange` are independent unions across arms —
+  narrowing `meta` (`'min' in meta`) does not narrow `value`. The civitai
+  duration field (number sliders on most families, a `'5' | '10'` string enum
+  on kling legacy) needed runtime `typeof` guards and option-value matching
+  in `onChange`. A per-arm discriminated render-prop type would fix it but
+  multiplies the union work TS does per controller; parked as a known
+  limitation until a cheap encoding appears.
+- **A "refusing range" def helper stays app-side.** The port hand-rolled the
+  same shape four times (coercing bounded number input, strict output, falls
+  to default when out of range instead of clamping — kling v3 and grok
+  durations, ltx frame count, wan shift). It composes from existing pieces and encodes a product policy
+  (refuse vs snap), so it belongs in the app's shared defs, not the lib;
+  civitai's `defs.ts` grew a `refusingRangeDef` instead.

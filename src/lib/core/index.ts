@@ -30,6 +30,7 @@ export {
   type AnyFieldDef,
 } from './graph.js';
 export {
+  defineDef,
   slider,
   enumOf,
   textOf,
