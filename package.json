@@ -17,6 +17,7 @@
 		"release": "npm version patch && pnpm publish && git push --follow-tags",
 		"release:minor": "npm version minor && pnpm publish && git push --follow-tags",
 		"release:major": "npm version major && pnpm publish && git push --follow-tags",
+		"release:publish": "pnpm publish && git push --follow-tags",
 		"docs:api": "typedoc",
 		"check:types-budget": "node scripts/type-budget.mjs"
 	},
