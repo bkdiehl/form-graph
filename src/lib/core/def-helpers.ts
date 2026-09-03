@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { memoizedBy } from './codec.js';
 import type { FieldDef } from './graph.js';
 import type { Refinable, SchemaLike } from './types.js';
 
@@ -48,15 +49,7 @@ export function cachedFactory<A extends unknown[], R>(
   build: (...args: A) => R,
   keyOf: (...args: A) => string = (...args) => JSON.stringify(args)
 ): (...args: A) => R {
-  const cache = new Map<string, R>();
-  return (...args: A): R => {
-    const key = keyOf(...args);
-    const hit = cache.get(key);
-    if (hit !== undefined) return hit;
-    const made = build(...args);
-    cache.set(key, made);
-    return made;
-  };
+  return memoizedBy(build, keyOf);
 }
 
 function snapToStep(val: number, step: number, min: number, max: number): number {

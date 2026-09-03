@@ -22,14 +22,6 @@ export interface StoreOptions<Ext> {
   /** Seed values — treated as boundary input, so their input schemas run. */
   defaults?: Record<string, unknown>;
   storage?: StorageAdapter;
-  /**
-   * Session memory for ADOPTED DEFAULTS — a plain Map the caller keeps at
-   * module scope so the session's view of "what the form showed" survives the
-   * store unmounting and remounting (a tab switch). The store adopts every
-   * displayed default into intent as an ephemeral entry regardless; this Map
-   * only externalizes that memory. Never persisted, dies with the page.
-   */
-  sessionMemory?: Map<string, unknown>;
   /** Set false to silence the codec-churn warning (see `getCodecChurn`). */
   warnOnCodecChurn?: boolean;
 }
@@ -91,12 +83,6 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     for (const [address, value] of Object.entries(options.storage?.load() ?? {})) {
       if (value !== undefined) this.intent.set(address, boundaryEntry(value));
     }
-    // Session memory wins over storage (memory-first reads): it can only hold
-    // adopted defaults — a durable write for the same address would have
-    // evicted it from the Map via syncSessionMemory.
-    for (const [address, value] of options.sessionMemory ?? []) {
-      if (value !== undefined) this.intent.set(address, ephemeralEntry(value));
-    }
     const pending = new Map<string, IntentEntry>();
     for (const [key, value] of Object.entries(options.defaults ?? {})) {
       if (value !== undefined) pending.set(key, boundaryEntry(value));
@@ -123,19 +109,11 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
       if (this.intent.has(record.address)) continue;
       // No entry at the resolved address: the value is the default (or the
       // bare-key fallback, which reads the same either way) — after this,
-      // every active field has a key/value in the map.
+      // every active field has a key/value in the map. Adoption is RAM-only
+      // and dies with the store: a remounted or fresh store re-derives
+      // today's defaults, which is the deliberate trade (see DEVLOG,
+      // adopted defaults).
       this.intent.set(record.address, ephemeralEntry(record.value));
-    }
-    this.syncSessionMemory();
-  }
-
-  /** The caller's Map mirrors the ephemeral entries, nothing else. */
-  private syncSessionMemory(): void {
-    const memory = this.options.sessionMemory;
-    if (!memory) return;
-    memory.clear();
-    for (const [address, entry] of this.intent) {
-      if (entry.ephemeral) memory.set(address, entry.value);
     }
   }
 

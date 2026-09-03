@@ -132,13 +132,17 @@ export const durationDef = cachedFactory((cfg: { min: number; max: number }) => 
 }));`}</pre>
 
 <p>
-  The config is the cache key (JSON), so it must be function-free; a <code>keyOf</code> second
-  argument narrows the key when parts of the config don't shape the schemas. For a schema built
-  from LIVE ctx (a gate set, a discriminant) use <code>defFamily(build)</code> instead and key
-  on exactly the values the schema reads — that dependency is something only the author knows.
-  A factory that builds schemas inline on every pass is what the store's codec-churn warning
-  points at; it compares SCHEMA identity (input AND output) across passes, so cached factories
-  and hoisted defs pass clean while genuine per-pass construction is named.
+  <code>defFamily</code> and <code>cachedFactory</code> are ONE mechanism — build once per
+  distinct args, JSON as the key — behind two signatures: <code>defFamily(build)</code> takes
+  function-free args (primitives or plain config objects) and keys on all of them;
+  <code>cachedFactory(build, keyOf?)</code> adds a custom key extractor for configs where some
+  parts don't shape the schemas. Use whichever reads better; they share an implementation and
+  may fold into one export in 0.4.0. For a schema built from LIVE ctx (a gate set, a
+  discriminant), key on exactly the values the schema reads — that dependency is something
+  only the author knows. A factory that builds schemas inline on every pass is what the
+  store's codec-churn warning points at; it compares SCHEMA identity (input AND output) across
+  passes, so cached factories and hoisted defs pass clean while genuine per-pass construction
+  is named.
 </p>
 
 <p>

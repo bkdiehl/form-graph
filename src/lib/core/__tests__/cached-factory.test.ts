@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { defFamily } from '../codec.js';
 import { cachedFactory } from '../def-helpers.js';
 
 describe('cachedFactory', () => {
@@ -13,6 +14,16 @@ describe('cachedFactory', () => {
     expect(a1).toBe(a2);
     expect(b).not.toBe(a1);
     expect(build).toHaveBeenCalledTimes(2);
+  });
+
+  it('defFamily takes JSON-able CONFIG OBJECTS, not just primitives — one mechanism', () => {
+    const build = vi.fn((cfg: { min: number; presets: readonly { value: number }[] }) => ({
+      built: cfg.min,
+    }));
+    const family = defFamily(build);
+    const a = family({ min: 1, presets: [{ value: 5 }] });
+    expect(family({ min: 1, presets: [{ value: 5 }] })).toBe(a);
+    expect(build).toHaveBeenCalledTimes(1);
   });
 
   it('keyOf narrows the cache key below the full config', () => {

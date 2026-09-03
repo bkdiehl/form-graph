@@ -122,9 +122,9 @@ wan.effect({
   exactly like a user choice, storage saves stay user-writes-only, and a fresh
   session re-derives today's defaults. Per-address adoption keeps per-bucket
   defaults (turbo vs base variants) independent — no per-field policy needed.
-  Pass <code>sessionMemory</code> (a plain Map you keep at module scope) in
-  <code>StoreOptions</code> if the store unmounts and remounts within a page
-  (a tab switch) and the session's view should survive it.
+  Adoption is RAM-only and dies with the store: a store that unmounts and
+  remounts mid-session re-derives untouched defaults from durable state — a
+  deliberate trade, self-sealing on the field's first real write.
 </p>
 <p>
   What rules remain FOR in this area: genuine cross-field coupling — a

@@ -1061,3 +1061,35 @@ caller keeps at module scope) externalizes the session view across store
 remounts; deliberately NOT sessionStorage — reload re-deriving is the
 feature. This supersedes the "sticky selections" rules recipe, which now
 documents the built-in and keeps rules for genuine retargeting coupling.
+
+## Post-0.3.2 review: caching consolidated; one question left open (2026-09-03)
+
+Self-audit of the 0.3.1/0.3.2 batch found two flags.
+
+Consolidated now: defFamily and cachedFactory were one idea wearing two
+coats (plus the helpers' internal memo — a third). They now share one core
+(memoizedBy, internal), defFamily's primitives-only constraint is widened to
+function-free JSON-able args (the runtime always stringified; the
+restriction was type-level), and the docs teach them as one mechanism with
+two signatures. Candidate fold into a single export at 0.4.0, before
+anything external depends on the pair.
+
+Open question, recorded so it stays a decision: StoreOptions.sessionMemory
+treats a symptom — it exists because consumers recreate the store per mount.
+The road not taken is a detached-store story (store outlives the component;
+mounts attach), which would delete the option. The Map won on cost (six
+lines, React-managed lifecycle) not on architecture. If a detached store
+ever lands, re-examine sessionMemory against it rather than keeping both.
+
+## sessionMemory removed same-day: flag 2 resolved by deletion (2026-09-03)
+
+The open question above closed the other way. Consumer review pinned down
+what the Map actually protected: only the window between a default being
+displayed and that field's first durable write, and only when a sibling
+changes AND the store dies inside it — a strictly milder echo of the
+original flap, self-sealing on any real write. Neither fix was worth its
+cost (the detached store imports an SSR-singleton sharp edge; persisting
+defaults trades away across-session freshness). So: option deleted hours
+after shipping, before anyone external could depend on it — the honest
+0.x move — and the residual behavior is now a pinned test
+(session-memory.test.ts, "adoption is RAM-only") instead of an option.

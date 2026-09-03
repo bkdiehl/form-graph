@@ -71,27 +71,31 @@ describe('adopted defaults (session memory)', () => {
     expect(state(second).category).toBe('b-default'); // re-derived fresh
   });
 
-  it('a sessionMemory Map carries adoption across a remount', () => {
-    const memory = new Map<string, unknown>();
-    const first = graph.createStore({ ext: {}, sessionMemory: memory });
-    expect(state(first).category).toBe('a-default');
+  it('adoption is RAM-only: a remounted store re-derives from durable state', () => {
+    // The DELIBERATE trade (sessionMemory was removed): a store death between
+    // a sibling change and the field's first durable write re-derives the
+    // default under the NEW durable state. Self-sealing — any explicit write
+    // to the field ends the window forever.
+    const save = vi.fn();
+    let record: Record<string, unknown> = {};
+    const storage = {
+      load: () => record,
+      save: (r: Record<string, unknown>) => {
+        record = r;
+        save(r);
+      },
+    };
+    const first = graph.createStore({ ext: {}, storage });
     first.set({ mode: 'b' });
-    // remount: new store, same Map, no storage
-    const second = graph.createStore({ ext: {}, sessionMemory: memory });
-    expect(state(second).category).toBe('a-default'); // still what the session showed
+    expect(state(first).category).toBe('a-default'); // sticky in RAM
+    const second = graph.createStore({ ext: {}, storage }); // tab-switch remount
+    expect(state(second).category).toBe('b-default'); // re-derived, by design
   });
 
-  it('a user write replaces the adopted default and evicts it from the Map', () => {
-    const memory = new Map<string, unknown>();
+  it('a user write replaces the adopted default and persists', () => {
     const save = vi.fn();
-    const store = graph.createStore({
-      ext: {},
-      sessionMemory: memory,
-      storage: { load: () => undefined, save },
-    });
-    expect(memory.get('category')).toBe('a-default');
+    const store = graph.createStore({ ext: {}, storage: { load: () => undefined, save } });
     store.set({ category: 'chosen' });
-    expect(memory.has('category')).toBe(false);
     expect((save.mock.calls.at(-1)![0] as Record<string, unknown>).category).toBe('chosen');
     store.set({ mode: 'b' });
     expect(state(store).category).toBe('chosen'); // durable choice still wins

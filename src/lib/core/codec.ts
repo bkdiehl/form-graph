@@ -52,17 +52,36 @@ export type RegistryMetas<R extends CodecRegistry> = {
  *     aspectRatioCodec({ options: TABLE[res], default: '16:9' }));
  *   // in resolve:  f.field('aspectRatio', AR(resolution))
  *
- * Parameters must be primitives (they form the cache key) and should come
- * from a finite set — each distinct combination is cached for the module's
- * lifetime.
+ * Parameters are the cache key (JSON-serialized), so they must be
+ * function-free — primitives or plain config objects — and should come from
+ * a finite set: each distinct combination is cached for the module's
+ * lifetime. `cachedFactory` is this exact mechanism with a custom key
+ * extractor; they are ONE idea, and may fold into one export in 0.4.0.
  */
-export function defFamily<
-  Args extends readonly (string | number | boolean | null | undefined)[],
-  C,
->(build: (...args: Args) => C): (...args: Args) => C {
+export function defFamily<Args extends readonly CacheableArg[], C>(
+  build: (...args: Args) => C
+): (...args: Args) => C {
+  return memoizedBy(build, (...args) => JSON.stringify(args));
+}
+
+/** A cacheable factory argument: anything JSON round-trips — no functions. */
+export type CacheableArg =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly CacheableArg[]
+  | { readonly [key: string]: CacheableArg };
+
+/** The one memo core behind defFamily and cachedFactory. */
+export function memoizedBy<Args extends readonly unknown[], C>(
+  build: (...args: Args) => C,
+  keyOf: (...args: Args) => string
+): (...args: Args) => C {
   const cache = new Map<string, C>();
   return (...args: Args) => {
-    const key = JSON.stringify(args);
+    const key = keyOf(...args);
     if (!cache.has(key)) cache.set(key, build(...args));
     return cache.get(key)!;
   };
