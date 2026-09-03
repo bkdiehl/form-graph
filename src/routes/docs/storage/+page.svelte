@@ -76,3 +76,22 @@ const adapter = debouncedStorage(myServerAdapter, 500);`}</pre>
 
 readIntentValue(stored, 'instanceType', 'gpu');  // scoped bucket, bare-key fallback
 readIntentBuckets(stored, 'instanceType');       // { gpu: ..., compute: ... }`}</pre>
+
+<h2>Seeding a record from outside</h2>
+<p>
+  The persisted format is one flat object of <code>address → raw value</code>, so a migration
+  from another storage system can build a record and write it under the store's key before the
+  first mount. <code>scopedAddress</code> is the write-side counterpart of the readers — it
+  applies the same escaping the store uses, so never glue <code>key + '@' + part</code> by hand:
+</p>
+<pre>{`import { scopedAddress } from 'form-graph';
+
+const record = {
+  prompt: old.prompt,                                   // bare key: global memory
+  [scopedAddress('steps', 'SDXL')]: old.sdxlSteps,      // 'steps@SDXL'
+};
+localStorage.setItem('my-form', JSON.stringify(record));`}</pre>
+<p>
+  Values are copied raw: the boundary input schemas validate them on first resolve, so a stale
+  or malformed value degrades to the field's default instead of corrupting the store.
+</p>

@@ -56,6 +56,30 @@ export const actions = {
   estimation and other best-effort reads where one bad field shouldn't void the rest.
 </p>
 
+<h2>Extracting types</h2>
+<p>
+  Handlers downstream of <code>parse</code> shouldn't re-declare what the graph already knows.
+  Four utility types extract it from the graph value itself:
+</p>
+
+<pre>{`import type { InferData, InferState, InferArm, InferLooseData } from 'form-graph';
+
+type Data  = InferData<typeof form>;   // the parsed discriminated union (result.data)
+type State = InferState<typeof form>;  // the resolved state snapshot
+
+// One arm of the union, selected by a discriminator value. Subset-matching,
+// so it works when a branch pair groups several keys into one arm:
+type UpscaleData = InferArm<typeof form, 'mode', 'upscale'>;
+
+// Every field optional and unknown — the shape of raw/stored input:
+type Loose = InferLooseData<typeof form>;`}</pre>
+
+<p>
+  <code>InferArm</code> distributes over a union of discriminator values, so
+  <code>InferArm&lt;G, 'mode', 'a' | 'b'&gt;</code> is the union of both arms. Type a per-branch
+  handler as a function of its arm and the compiler holds the wire contract for you.
+</p>
+
 <h2>Introspection</h2>
 <p>
   Because branches are plain code, enumeration is execution: <code>enumerateBranches</code> walks
