@@ -1023,3 +1023,41 @@ Port-consistency review findings, folded in:
   civitai checkpoint def records substitutions into a request-scoped
   collector from inside its input transform — cache that and request B
   records into request A).
+
+## Considered and rejected (2026-09-03): a stickyDefault def option
+
+A civitai field report: a ctx-dependent default (ecosystem per workflow)
+re-derives when the sibling changes, and the user experiences the displayed
+default moving as the form discarding their choice. Tempting lib fix: a
+`stickyDefault: true` def option that commits a resolved default to intent.
+
+Rejected because the same form holds the counter-example: wan's per-variant
+cfg/steps defaults MUST follow the model (pinned by the differential suites)
+— stickiness is domain policy with both answers present in one form, and the
+expressing primitive already exists as a five-line rule. Documented instead
+as the "sticky selections" recipe on the rules page, including the two
+sharp edges found in the field: don't pin across a scope-bucket change
+(clobbers the bucket's own memory), don't pin a field inactive in the target
+branch (bare-key leak).
+
+## Adopted defaults: the store remembers what it showed (2026-09-03)
+
+Third round of the sticky-selection design, and the resting place. The
+civitai field report (a ctx-dependent default flapping under a sibling
+change) first produced a pin RULE, then a proposed `persist: 'resolved'`
+def option — both rejected in review with the consumer: the first makes
+every author rediscover the pattern, the second forces a per-field policy
+choice the address structure already encodes.
+
+Final design, the consumer's: reads are memory-first. A field that resolves
+by default gets the value recorded as an EPHEMERAL intent entry at its
+active address — displayed defaults stick like choices within a session;
+`save()` filters ephemeral entries so localStorage stays user-writes-only;
+a fresh session re-derives today's defaults (product changes reach untouched
+fields). Per-address adoption preserves per-bucket variant defaults with no
+opt-outs. `setExt` evicts ephemeral entries (late-hydrating flags/limits
+must not be frozen out). `StoreOptions.sessionMemory` (a plain Map the
+caller keeps at module scope) externalizes the session view across store
+remounts; deliberately NOT sessionStorage — reload re-deriving is the
+feature. This supersedes the "sticky selections" rules recipe, which now
+documents the built-in and keeps rules for genuine retargeting coupling.

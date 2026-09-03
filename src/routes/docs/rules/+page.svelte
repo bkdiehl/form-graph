@@ -114,3 +114,20 @@ wan.effect({
     unacceptable.
   </li>
 </ul>
+
+<h2>Sticky selections are BUILT IN: adopted defaults</h2>
+<p>
+  A field that falls through to its default has that value ADOPTED as session
+  memory at its active address: the displayed default survives sibling changes
+  exactly like a user choice, storage saves stay user-writes-only, and a fresh
+  session re-derives today's defaults. Per-address adoption keeps per-bucket
+  defaults (turbo vs base variants) independent — no per-field policy needed.
+  Pass <code>sessionMemory</code> (a plain Map you keep at module scope) in
+  <code>StoreOptions</code> if the store unmounts and remounts within a page
+  (a tab switch) and the session's view should survive it.
+</p>
+<p>
+  What rules remain FOR in this area: genuine cross-field coupling — a
+  selection that must RETARGET another selection when the pair becomes invalid
+  (redirects, substitutions). Stickiness itself no longer needs a rule.
+</p>

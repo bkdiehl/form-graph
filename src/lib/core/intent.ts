@@ -13,6 +13,13 @@ import type { Codec, FieldError, SchemaIssue, SchemaLike } from './types.js';
 export interface IntentEntry {
   readonly value: unknown;
   readonly trusted: boolean;
+  /**
+   * An ADOPTED DEFAULT: the session's memory of what the form showed, not a
+   * user assertion. Read like trusted intent (what you see is what you keep),
+   * but never persisted — storage saves filter these out, so across sessions
+   * an untouched field re-derives today's default.
+   */
+  readonly ephemeral?: true;
 }
 
 /**
@@ -37,6 +44,11 @@ export type PendingValues = ReadonlyMap<string, IntentEntry>;
 
 export const trustedEntry = (value: unknown): IntentEntry => ({ value, trusted: true });
 export const boundaryEntry = (value: unknown): IntentEntry => ({ value, trusted: false });
+export const ephemeralEntry = (value: unknown): IntentEntry => ({
+  value,
+  trusted: true,
+  ephemeral: true,
+});
 
 export function intentFromRaw(raw: Record<string, unknown> | undefined): Map<string, IntentEntry> {
   const intent = new Map<string, IntentEntry>();

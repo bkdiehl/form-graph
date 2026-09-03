@@ -1,5 +1,5 @@
 import { diffSnapshot } from './diff.js';
-import { boundaryEntry, trustedEntry, type IntentEntry, type ParseCache } from './intent.js';
+import { boundaryEntry, ephemeralEntry, trustedEntry, type IntentEntry, type ParseCache } from './intent.js';
 import { addressKey } from './scope.js';
 import { resolve, type Resolution, type Resolver } from './resolve.js';
 import type { CodecRegistry } from './codec.js';
@@ -22,6 +22,14 @@ export interface StoreOptions<Ext> {
   /** Seed values — treated as boundary input, so their input schemas run. */
   defaults?: Record<string, unknown>;
   storage?: StorageAdapter;
+  /**
+   * Session memory for ADOPTED DEFAULTS — a plain Map the caller keeps at
+   * module scope so the session's view of "what the form showed" survives the
+   * store unmounting and remounting (a tab switch). The store adopts every
+   * displayed default into intent as an ephemeral entry regardless; this Map
+   * only externalizes that memory. Never persisted, dies with the page.
+   */
+  sessionMemory?: Map<string, unknown>;
   /** Set false to silence the codec-churn warning (see `getCodecChurn`). */
   warnOnCodecChurn?: boolean;
 }
@@ -83,6 +91,12 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     for (const [address, value] of Object.entries(options.storage?.load() ?? {})) {
       if (value !== undefined) this.intent.set(address, boundaryEntry(value));
     }
+    // Session memory wins over storage (memory-first reads): it can only hold
+    // adopted defaults — a durable write for the same address would have
+    // evicted it from the Map via syncSessionMemory.
+    for (const [address, value] of options.sessionMemory ?? []) {
+      if (value !== undefined) this.intent.set(address, ephemeralEntry(value));
+    }
     const pending = new Map<string, IntentEntry>();
     for (const [key, value] of Object.entries(options.defaults ?? {})) {
       if (value !== undefined) pending.set(key, boundaryEntry(value));
@@ -90,7 +104,39 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
 
     this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.defs as CodecRegistry | undefined);
     this.commitPending(pending);
+    this.adoptDefaults();
     this.snapshot = diffSnapshot(null, this.resolution, this.errors).snapshot;
+  }
+
+  /**
+   * The session remembers what it showed: a field that fell through to its
+   * default gets that value recorded as EPHEMERAL intent at its active
+   * address — so the displayed value survives sibling changes exactly like a
+   * user choice (the flapping-default fix), while storage saves filter it out
+   * and a fresh session re-derives today's default. Per-address recording is
+   * what keeps per-bucket defaults (turbo vs base variants) independent.
+   */
+  private adoptDefaults(): void {
+    for (const key of this.resolution.keys) {
+      const record = this.resolution.records.get(key)!;
+      if (record.isComputed || record.value === undefined) continue;
+      if (this.intent.has(record.address)) continue;
+      // No entry at the resolved address: the value is the default (or the
+      // bare-key fallback, which reads the same either way) — after this,
+      // every active field has a key/value in the map.
+      this.intent.set(record.address, ephemeralEntry(record.value));
+    }
+    this.syncSessionMemory();
+  }
+
+  /** The caller's Map mirrors the ephemeral entries, nothing else. */
+  private syncSessionMemory(): void {
+    const memory = this.options.sessionMemory;
+    if (!memory) return;
+    memory.clear();
+    for (const [address, entry] of this.intent) {
+      if (entry.ephemeral) memory.set(address, entry.value);
+    }
   }
 
   /**
@@ -126,9 +172,12 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     return this.resolution.notes;
   }
 
+  /** Durable intent only — adopted defaults are session memory, never saved. */
   getIntent(): Record<string, unknown> {
     const plain: Record<string, unknown> = {};
-    for (const [key, entry] of this.intent) plain[key] = entry.value;
+    for (const [key, entry] of this.intent) {
+      if (!entry.ephemeral) plain[key] = entry.value;
+    }
     return plain;
   }
 
@@ -176,6 +225,11 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
 
   setExt(ext: Ext): void {
     this.ext = ext;
+    // Adopted defaults may be stale under the new ext (flags/limits hydrating
+    // after first render) — evict them and re-adopt from the fresh resolve.
+    for (const [address, entry] of [...this.intent]) {
+      if (entry.ephemeral) this.intent.delete(address);
+    }
     this.recompute();
   }
 
@@ -298,6 +352,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
   private recompute(pending?: ReadonlyMap<string, IntentEntry>): boolean {
     this.resolution = resolve(this.resolver, this.intent, this.ext, this.cache, pending, this.defs as CodecRegistry | undefined);
     if (pending) this.commitPending(pending);
+    this.adoptDefaults();
     this.trackCodecChurn();
 
     // Drop stale errors for fields whose value moved; validate() refreshes the rest.
