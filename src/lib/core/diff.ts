@@ -24,7 +24,10 @@ export function diffSnapshot<State>(
       key,
       value: record.value,
       meta: record.meta,
-      error: errors.get(key) ?? record.refineError ?? record.boundaryError,
+      // Refine failures are NOT live: like the output schema they narrow,
+      // they surface through validate()/parse — a pristine required field
+      // must not scold before a submit attempt.
+      error: errors.get(key) ?? record.boundaryError,
       note: record.note,
       isComputed: record.isComputed,
     };

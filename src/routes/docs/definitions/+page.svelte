@@ -163,9 +163,11 @@ export const durationDef = cachedFactory((cfg: { min: number; max: number }) => 
   refine: images?.length ? undefined : (output) => output.min(1, 'Prompt is required'),
 }))`}</pre>
 <p>
-  A failing refine keeps the value in place with a live <code>error</code> on the snapshot and
-  fails submit/parse — refusal for the user to resolve, where <code>correct</code> is
-  substitution the form resolves itself.
+  A failing refine keeps the value in place and fails submit/parse; the <code>error</code>
+  reaches the snapshot at <code>validate()</code> — like the output schema it narrows, refine
+  judges at submit, so a pristine required field doesn't scold before the user ever acts. Once
+  surfaced, the error lifts on the first pass whose refinement passes again. Refusal for the
+  user to resolve, where <code>correct</code> is substitution the form resolves itself.
 </p>
 
 <h2>Registry</h2>

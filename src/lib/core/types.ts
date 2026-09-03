@@ -146,7 +146,6 @@ export interface FieldRecord<T = unknown, M = unknown> {
   /** The refined output schema for this pass (FieldOptions.refine); replaces codec.output at submit. */
   refined: SchemaLike<unknown> | undefined;
   /** Live refinement failure — a value the user must resolve. */
-  refineError: FieldError | undefined;
   /** The correction note from this pass, when `correct` replaced the value. */
   note: ResolutionNote | undefined;
 }

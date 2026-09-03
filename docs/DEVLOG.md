@@ -1093,3 +1093,16 @@ defaults trades away across-session freshness). So: option deleted hours
 after shipping, before anyone external could depend on it — the honest
 0.x move — and the residual behavior is now a pinned test
 (session-memory.test.ts, "adoption is RAM-only") instead of an option.
+
+## Refine errors are submit-time, not live (2026-09-04)
+
+Field report from the civitai port: a pristine empty prompt showed "Prompt
+is required" the moment its family mounted — the churn migration moved
+requiredness from the output-schema spread (judged at validate/parse) onto
+refine (judged live per the original design), silently changing WHEN the
+error appears. The v1-parity truth and the better UX agree: refine narrows
+the OUTPUT contract, so it judges when the output contract judges — at
+validate()/parse. The live snapshot no longer carries refine errors; a
+surfaced error is re-judged on recompute (bounded to fields currently in
+error) so it lifts as soon as a pass's refinement passes. Boundary errors
+stay live (they describe the stored value, not the submission).

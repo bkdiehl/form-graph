@@ -4,6 +4,7 @@ import { addressKey } from './scope.js';
 import { resolve, type Resolution, type Resolver } from './resolve.js';
 import type { CodecRegistry } from './codec.js';
 import { validateResolution } from './validate.js';
+import { runSchema } from './run-schema.js';
 import type { FieldError, FieldSnapshot, ResolutionNote, Snapshot, ValidationResult } from './types.js';
 
 export interface StorageAdapter {
@@ -333,10 +334,16 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     this.adoptDefaults();
     this.trackCodecChurn();
 
-    // Drop stale errors for fields whose value moved; validate() refreshes the rest.
+    // Drop stale errors for fields whose value moved; validate() refreshes the
+    // rest. A field whose REFINEMENT lifted (deps changed, value didn't) is
+    // re-judged here — bounded to fields currently carrying an error.
     for (const key of [...this.errors.keys()]) {
       const record = this.resolution.records.get(key);
       if (!record || record.value !== this.snapshot.fields.get(key)?.value) {
+        this.errors.delete(key);
+        continue;
+      }
+      if (record.refined && runSchema(record.refined, record.value).success) {
         this.errors.delete(key);
       }
     }

@@ -48,9 +48,11 @@ export interface FieldOptions<T, M, O extends SchemaLike<T> = SchemaLike<T>> {
   /**
    * Narrows the codec's OUTPUT schema under this pass's conditions, in the
    * schema library's own vocabulary: `(s) => s.refine(...)` for zod. A failing
-   * value keeps its place, carries a live `error` on the snapshot, and fails
-   * submit/parse. Rebuilt each pass — the closure always sees
-   * current values, so there is nothing to declare and nothing to go stale.
+   * value keeps its place and fails submit/parse; the error surfaces at
+   * validate() — submit-time like the output schema, so a pristine required
+   * field doesn't scold pre-submit — and lifts on the first passing pass.
+   * Rebuilt each pass — the closure always sees current values, so there is
+   * nothing to declare and nothing to go stale.
    */
   refine?: (output: O & Refinable<T>) => SchemaLike<T>;
   /**
@@ -177,15 +179,12 @@ class Collector implements Fields {
     if (value === undefined) {
       value = resolveDefault(opts?.default) ?? resolveDefault(codec.default);
     }
-    // Refinement: build the narrowed output schema and judge the value now,
-    // so the error is live on the snapshot rather than appearing at submit.
-    // Per-pass cost: one small schema wrapper plus one safeParse.
+    // Refinement: build the narrowed output schema for validate()/parse to
+    // judge — refine errors are submit-time, like the output schema they
+    // narrow. Per-pass cost: one small schema wrapper, no safeParse.
     let refined: SchemaLike<unknown> | undefined;
-    let refineError;
     if (opts?.refine) {
       refined = opts.refine(codec.output as O & Refinable<T>) as SchemaLike<unknown>;
-      const judged = runSchema(refined, value);
-      if (!judged.success) refineError = toFieldError(judged.error.issues);
     }
 
     const overridden = opts !== undefined && 'meta' in opts;
@@ -226,7 +225,6 @@ class Collector implements Fields {
       emit: opts?.emit,
       boundaryError: parsed?.error,
       refined,
-      refineError,
       note: undefined,
     });
 
@@ -252,7 +250,6 @@ class Collector implements Fields {
       emit: opts?.emit,
       boundaryError: undefined,
       refined: undefined,
-      refineError: undefined,
       note: undefined,
     });
     return value;
@@ -269,10 +266,6 @@ class Collector implements Fields {
     const from = record.value;
     record.value = value;
     if (record.metaFn) record.meta = record.metaFn(value);
-    if (record.refined) {
-      const judged = runSchema(record.refined, value);
-      record.refineError = judged.success ? undefined : toFieldError(judged.error.issues);
-    }
     const note: ResolutionNote = { key, kind: reason, detail: { from, to: value, ...detail } };
     record.note = note;
     this.notes.push(note);

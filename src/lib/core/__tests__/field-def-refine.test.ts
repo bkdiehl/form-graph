@@ -24,17 +24,19 @@ describe('FieldDef.refine', () => {
         : (output: z.ZodString) => output.min(1, 'Prompt is required'),
     }));
 
-  it('a failing refine keeps the value and carries a live error', () => {
+  it('a failing refine is NOT live — a pristine required field must not scold', () => {
     const store = graph.createStore({ ext: {} });
-    const snap = store.getSnapshot().fields.get('prompt');
-    expect(snap?.error?.message).toBe('Prompt is required');
-    expect(snap?.value).toBe('');
+    expect(store.getSnapshot().fields.get('prompt')?.error).toBeUndefined();
   });
 
-  it('the refinement follows the pass conditions', () => {
+  it('validate() surfaces the refine error (the submit attempt)', () => {
     const store = graph.createStore({ ext: {} });
+    const result = store.validate();
+    expect(result.success).toBe(false);
+    expect(store.getSnapshot().fields.get('prompt')?.error?.message).toBe('Prompt is required');
+    // and it follows the pass conditions: images attached -> requirement gone
     store.set({ hasImages: true });
-    expect(store.getSnapshot().fields.get('prompt')?.error).toBeUndefined();
+    expect(store.validate().success).toBe(true);
   });
 
   it('parse enforces the refined output', () => {

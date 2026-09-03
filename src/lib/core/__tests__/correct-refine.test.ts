@@ -91,17 +91,18 @@ describe('refine: the output contract narrowed per pass, in zod vocabulary', () 
     },
   });
 
-  it('a refined-out value keeps its place, carries a LIVE error, and fails submit', () => {
+  it('a refined-out value keeps its place; the error surfaces at validate(), not live', () => {
     const store = form.createStore({ ext: { gated: ['b'] } });
     store.set({ mode: 'b' });
 
-    // live, before any submit
+    // NOT live — like the output schema it narrows, refine judges at submit
     expect(store.getField('mode')?.value).toBe('b');
-    expect(store.getField('mode')?.error?.message).toBe('Mode is gated');
+    expect(store.getField('mode')?.error).toBeUndefined();
 
     const result = store.validate();
     expect(result.success).toBe(false);
     if (!result.success) expect(result.errors.mode?.message).toBe('Mode is gated');
+    expect(store.getField('mode')?.error?.message).toBe('Mode is gated');
   });
 
   it('server parse applies the same refinement', () => {
@@ -113,7 +114,7 @@ describe('refine: the output contract narrowed per pass, in zod vocabulary', () 
   it('the refinement lifts when the deps change', () => {
     const store = form.createStore({ ext: { gated: ['b'] } });
     store.set({ mode: 'b' });
-    expect(store.getField('mode')?.error).toBeDefined();
+    expect(store.validate().success).toBe(false);
     store.setExt({ gated: [] });
     expect(store.getField('mode')?.error).toBeUndefined();
     expect(store.validate().success).toBe(true);
@@ -144,9 +145,12 @@ describe('refine: the output contract narrowed per pass, in zod vocabulary', () 
     });
 
     const store = form.createStore({ defaults: { n: 8 } });
-    expect(store.getField('n')?.error).toBeUndefined();
+    expect(store.validate().success).toBe(true);
     store.set({ cap: 5 });
+    // submit-time: the stale-free closure sees the live cap when judged
+    expect(store.validate().success).toBe(false);
     expect(store.getField('n')?.error?.message).toBe('over cap');
+    // the surfaced error lifts as soon as a pass's refinement passes again
     store.set({ cap: 20 });
     expect(store.getField('n')?.error).toBeUndefined();
   });
