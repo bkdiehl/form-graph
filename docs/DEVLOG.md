@@ -1106,3 +1106,10 @@ validate()/parse. The live snapshot no longer carries refine errors; a
 surfaced error is re-judged on recompute (bounded to fields currently in
 error) so it lifts as soon as a pass's refinement passes. Boundary errors
 stay live (they describe the stored value, not the submission).
+
+Addendum: the re-empty asymmetry is CHOSEN — after a surfaced error lifts,
+emptying the field again shows nothing until the next validate(). That is
+v1-parity-exact (its errors map had identical mechanics). Continuous
+revalidation after first submit (RHF-style) would need touched/surfaced
+tracking — a deliberate future feature with its own design round, not a
+bug fix rider.
