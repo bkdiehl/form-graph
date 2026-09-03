@@ -1,4 +1,4 @@
-import type { Codec, FieldError, InferSchemaInput, SchemaLike, ValidationResult } from './types.js';
+import type { Codec, FieldError, InferSchemaInput, Refinable, SchemaLike, ValidationResult } from './types.js';
 import {
   FormDefinition,
   type DefsInput,
@@ -76,6 +76,14 @@ export interface FieldDef<T, M = undefined, O extends SchemaLike<T> = SchemaLike
   meta?: M | ((value: T) => M);
   scope?: Scope;
   correct?: (value: T) => { value: T; reason: string; detail?: Record<string, unknown> } | undefined;
+  /**
+   * Per-pass narrowing over the CACHED base: receives this def's output
+   * schema and returns the narrowed one, judged live each pass (one small
+   * wrapper + one safeParse). Use this instead of rebuilding `output`
+   * inline per pass — a fresh output schema every pass is exactly what the
+   * codec-churn warning names.
+   */
+  refine?(output: O & Refinable<T>): SchemaLike<T>;
   /**
    * Wire disposition: a string emits this key's value under that name in
    * parsed data; false keeps it out of parsed data entirely (it still
@@ -437,6 +445,8 @@ function make<Ctx extends object, Ext>(
         if (def.meta !== undefined) opts.meta = def.meta as FieldOptions<unknown, unknown>['meta'];
         if (def.correct !== undefined) opts.correct = def.correct as FieldOptions<unknown, unknown>['correct'];
         if (def.emit !== undefined) opts.emit = def.emit;
+        if (def.refine !== undefined)
+          opts.refine = def.refine as FieldOptions<unknown, unknown>['refine'];
         bag[e.key] = ctx[e.key] = f.field(e.key, codec, opts);
       }
       return ctx as Ctx;

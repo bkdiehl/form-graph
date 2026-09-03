@@ -31,6 +31,34 @@ const memo = <S>(key: string, build: () => S): S => {
   return hit;
 };
 
+/**
+ * The same caching the built-in helpers use, packaged for an app's OWN def
+ * factories: the factory's result is built once per distinct config and
+ * reused on every later call — which is what makes calling it from a field
+ * factory (re-run every resolve pass) free after the first pass.
+ *
+ * The config is the cache key (JSON-serialized), so it must be
+ * JSON-serializable and function-free; pass `keyOf` to key on something
+ * narrower. Unlike the built-ins, this caches the WHOLE def — meta included —
+ * so per-pass meta belongs at the call site (spread the cached def and
+ * override), not in the config. `defFamily` is the primitive-args sibling for
+ * ctx-dependent schemas, where the author names the deps explicitly.
+ */
+export function cachedFactory<A extends unknown[], R>(
+  build: (...args: A) => R,
+  keyOf: (...args: A) => string = (...args) => JSON.stringify(args)
+): (...args: A) => R {
+  const cache = new Map<string, R>();
+  return (...args: A): R => {
+    const key = keyOf(...args);
+    const hit = cache.get(key);
+    if (hit !== undefined) return hit;
+    const made = build(...args);
+    cache.set(key, made);
+    return made;
+  };
+}
+
 function snapToStep(val: number, step: number, min: number, max: number): number {
   const snapped = Math.round((val - min) / step) * step + min;
   return Math.min(max, Math.max(min, Number(snapped.toFixed(10))));

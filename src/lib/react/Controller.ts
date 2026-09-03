@@ -5,6 +5,7 @@ import type {
   FormStore,
   InferDefMeta,
   InferDefValue,
+  ResolutionNote,
 } from '../core/index.js';
 import type { CodecRegistry } from '../core/codec.js';
 import { useOptionalFormStore } from './context.js';
@@ -24,6 +25,8 @@ export interface ControllerRenderProps<Value, Meta, In = Value> {
    */
   onChange: (next: Value | In) => void;
   isComputed: boolean;
+  /** Set when `correct` replaced this value this pass — render "we adjusted this" inline. */
+  note: ResolutionNote | undefined;
 }
 
 export interface ControllerProps<Value, Meta> {
@@ -134,6 +137,7 @@ export function Controller<Value = unknown, Meta = unknown>({
     error: field.error,
     onChange,
     isComputed: field.isComputed,
+    note: field.note,
   });
 }
 

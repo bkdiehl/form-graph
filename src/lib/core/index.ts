@@ -33,6 +33,7 @@ export {
   type AnyFieldDef,
 } from './graph.js';
 export {
+  cachedFactory,
   defineDef,
   slider,
   enumOf,

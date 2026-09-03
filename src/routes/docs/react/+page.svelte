@@ -35,6 +35,13 @@ function PromptInput() {
   );
 }`}</pre>
 
+<p>
+  The render props are <code>value</code>, <code>meta</code>, <code>error</code>,
+  <code>onChange</code>, <code>isComputed</code>, and <code>note</code> — the resolution note
+  set when a <code>correct</code> rule replaced the value this pass, for rendering a "we
+  adjusted this" hint inline.
+</p>
+
 <h2>Typed fields</h2>
 <p>
   <code>useTypedField(store, name)</code> derives the snapshot's value/meta types from the form's

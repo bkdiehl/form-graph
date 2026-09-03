@@ -983,3 +983,43 @@ narrowing helper), and only the dispatch changed — switch to table. Every
 wire byte stayed identical through both redesigns (the differential suites
 are the proof), and all four hubs, the family mode branches, and the root
 output dispatch now discriminate.
+
+## Codec-churn tracker keys on schema identity; cachedFactory exported (2026-09-03)
+
+The civitai port's first live session showed the churn warning firing on
+every function-form field — including ones spreading fully-hoisted schemas.
+The tracker compared the CODEC OBJECT across passes, but a def factory
+returns a fresh object every pass by design; the store's parse cache is keyed
+on the intent entry, so object churn costs nothing. Only rebuilding the
+schemas inside does. The tracker now compares `codec.input ?? codec.output`
+identity (codec-churn.test.ts pins both directions), and the warning text
+says to hoist the schemas, not "the codec".
+
+Same session, second finding: the built-in helpers cache their schemas by
+config key, but a consumer writing its OWN factories (civitai transcribed
+v1's snap/refuse semantics rather than using `slider`/`enumOf`) had nothing
+to reach for except hand-rolling the same memo. `cachedFactory(build, keyOf?)`
+is now exported: whole-def caching keyed on JSON of the config (function-free
+by contract), with `keyOf` to narrow. Division of labor stands: config-shaped
+defs → cachedFactory; ctx-shaped schemas → defFamily keyed on exactly what
+they read; per-pass meta stays outside the cache at the call site.
+
+## Review before 0.3.1: refine on FieldDef, note on Controller, tracker checks both schemas (2026-09-03)
+
+Port-consistency review findings, folded in:
+
+- The tracker's schema-identity check compared `input ?? output` — a cached
+  input masked a per-pass rebuilt output, which is exactly the port's
+  requiredness-by-output-spread pattern. Both schemas are checked now.
+- That pattern existed because the graph layer had no `refine`: the engine's
+  per-pass narrowing (cached base + one small wrapper per pass) stopped at
+  FieldOptions. FieldDef now carries `refine` — method syntax, deliberately:
+  a property arrow puts O in a contravariant position and breaks every
+  def-union arm inference (three test files' pins went red before the
+  bivariant method form).
+- `FieldSnapshot.note` promised "render 'we adjusted this' inline" but the
+  react Controller never surfaced it; render props now include `note`.
+- Docs: never cache a schema that closes over per-request state (the
+  civitai checkpoint def records substitutions into a request-scoped
+  collector from inside its input transform — cache that and request B
+  records into request A).

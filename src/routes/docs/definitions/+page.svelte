@@ -117,9 +117,51 @@ boolOf(true)`}</pre>
   </li>
 </ul>
 <p>
-  So: use helpers freely, spread-and-override for custom schemas, and if a fully hand-built
-  definition is ever hot, memoize its schemas yourself with <code>defFamily(build)</code> —
-  the explicit escape hatch you'll likely never need.
+  So: use helpers freely, spread-and-override for custom schemas — and give an app's OWN def
+  factories the same treatment the built-ins get with <code>cachedFactory</code>:
+</p>
+
+<pre>{`import { cachedFactory } from 'form-graph';
+
+// Built once per distinct config, reused on every later pass.
+export const durationDef = cachedFactory((cfg: { min: number; max: number }) => ({
+  input: z.coerce.number().optional(),
+  output: z.number().min(cfg.min).max(cfg.max),
+  default: cfg.min,
+  meta: cfg,
+}));`}</pre>
+
+<p>
+  The config is the cache key (JSON), so it must be function-free; a <code>keyOf</code> second
+  argument narrows the key when parts of the config don't shape the schemas. For a schema built
+  from LIVE ctx (a gate set, a discriminant) use <code>defFamily(build)</code> instead and key
+  on exactly the values the schema reads — that dependency is something only the author knows.
+  A factory that builds schemas inline on every pass is what the store's codec-churn warning
+  points at; it compares SCHEMA identity (input AND output) across passes, so cached factories
+  and hoisted defs pass clean while genuine per-pass construction is named.
+</p>
+
+<p>
+  <strong>Never cache a schema that closes over per-request state.</strong> A transform that
+  captures, say, a request-scoped collector from ext and gets cached will keep writing into the
+  FIRST request's collector forever. Cache only what the config determines; take per-request
+  effects through <code>correct</code> on the (uncached, cheap) def object instead.
+</p>
+
+<h2>Per-pass narrowing: refine</h2>
+<p>
+  When only the STRICTNESS of a field varies per pass — required unless images are attached, a
+  ceiling that depends on a sibling — don't rebuild <code>output</code>; keep the cached base
+  and narrow it with <code>refine</code>, which builds one small wrapper per pass:
+</p>
+<pre>{`.field('prompt', ({ images }) => ({
+  ...PROMPT, // cached/hoisted base def
+  refine: images?.length ? undefined : (output) => output.min(1, 'Prompt is required'),
+}))`}</pre>
+<p>
+  A failing refine keeps the value in place with a live <code>error</code> on the snapshot and
+  fails submit/parse — refusal for the user to resolve, where <code>correct</code> is
+  substitution the form resolves itself.
 </p>
 
 <h2>Registry</h2>

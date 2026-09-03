@@ -63,7 +63,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
    * A one-off identity change is legitimate (a branch switched, or a codec's
    * options genuinely depend on context), so only a sustained streak is reported.
    */
-  private codecIdentity = new Map<string, unknown>();
+  private codecIdentity = new Map<string, { input: unknown; output: unknown }>();
   private codecChurnStreak = new Map<string, number>();
   private reportedChurn = new Set<string>();
 
@@ -258,10 +258,21 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
       const codec = this.resolution.records.get(key)?.codec;
       if (!codec) continue;
 
+      // Schema identity, not codec-object identity: a def FACTORY returns a
+      // fresh object every pass by design, and that costs nothing — the
+      // expensive part is rebuilding the schemas inside it. `{ ...HOISTED }`
+      // is clean; an inline `z.object(...)` per pass is the churn. BOTH
+      // schemas are checked — a cached input must not mask a per-pass
+      // rebuilt output (the requiredness-by-output-spread pattern).
+      const inputIdentity = codec.input;
+      const outputIdentity = codec.output;
       const previous = this.codecIdentity.get(key);
-      this.codecIdentity.set(key, codec);
+      this.codecIdentity.set(key, { input: inputIdentity, output: outputIdentity });
 
-      if (previous === undefined || previous === codec) {
+      if (
+        previous === undefined ||
+        (previous.input === inputIdentity && previous.output === outputIdentity)
+      ) {
         this.codecChurnStreak.set(key, 0);
         continue;
       }
@@ -276,9 +287,9 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
       ) {
         this.reportedChurn.add(key);
         console.warn(
-          `[form-graph] Field "${key}" gets a new codec on every pass. Hoist the codec ` +
-            `to module scope or memoise its factory — per-pass schema construction is ` +
-            `the dominant cost on the keystroke path.`
+          `[form-graph] Field "${key}" rebuilds its schemas on every pass. Hoist the ` +
+            `input/output schemas (or the whole def) to module scope — per-pass schema ` +
+            `construction is the dominant cost on the keystroke path.`
         );
       }
     }
