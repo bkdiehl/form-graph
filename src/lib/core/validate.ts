@@ -64,8 +64,10 @@ export function validateResolution<State>(resolution: Resolution<State>): {
         data[wire] = record.codec.toOutput ? record.codec.toOutput(record.value) : result.data;
     } else {
       if (wire !== null) data[wire] = record.value;
-      // an emit:false field still GUARDS — its error keys by graph name
-      errors.set(wire ?? key, toFieldError(result.error.issues));
+      // Errors key by GRAPH name, always: an error describes a FIELD the user
+      // must fix, and the graph key is what snapshots, scoped validate and
+      // setError address fields by. Only DATA carries wire names.
+      errors.set(key, toFieldError(result.error.issues));
     }
   }
 

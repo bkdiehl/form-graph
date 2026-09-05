@@ -11,8 +11,12 @@ import type { CodecRegistry } from '../core/codec.js';
  * is only the bridge into Svelte's reactivity, and must stay that thin.
  */
 
+// All four params `any`, not defaulted: Codecs appears in method PARAMETER
+// positions (typed validate/setError keys), so a concrete store is not
+// assignable to `FormStore<any, any, unknown>` — the same variance gotcha as
+// the React binding's `Store extends FormStore<any, Ext, any, any>`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyStore = FormStore<any, any>;
+type AnyStore = FormStore<any, any, any, any>;
 
 export interface Reactive<T> {
   readonly current: T;
@@ -70,7 +74,10 @@ export type FieldsOf<Codecs> = {
  *   INFERRED from the store argument, which carries it from the form.
  */
 export function typedFields<State, Ext, Codecs extends CodecRegistry>(
-  store: FormStore<State, Ext, Codecs>
+  // Data defaulted to State would reject any store from a graph using `emit`
+  // (Data ≠ State there) — same variance family as the AnyStore widening.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  store: FormStore<State, Ext, Codecs, any>
 ): FieldsOf<Codecs> {
   const cache = new Map<string, Reactive<FieldSnapshot<unknown, unknown> | null>>();
   return new Proxy({} as FieldsOf<Codecs>, {
@@ -87,7 +94,10 @@ export function typedFields<State, Ext, Codecs extends CodecRegistry>(
 }
 
 /** Subscribes to the whole state. Wakes on any change — prefer `field` for controls. */
-export function formState<State, Ext = unknown>(store: FormStore<State, Ext>): Reactive<State> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function formState<State, Ext = unknown>(
+  store: FormStore<State, Ext, any, any>
+): Reactive<State> {
   const subscribe = createSubscriber((update) => store.subscribe(update));
   return {
     get current() {
@@ -98,3 +108,4 @@ export function formState<State, Ext = unknown>(store: FormStore<State, Ext>): R
 }
 
 export { default as Field } from './Field.svelte';
+export { syncExt } from './syncExt.svelte.js';

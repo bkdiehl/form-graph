@@ -12,7 +12,7 @@ import { useOptionalFormStore } from './context.js';
 import { useField } from './useField.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyStore = FormStore<any, any>;
+type AnyStore = FormStore<any, any, any, any>;
 
 export interface ControllerRenderProps<Value, Meta, In = Value> {
   value: Value;

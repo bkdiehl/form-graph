@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { z } from 'zod';
-import { field, formState, typedFields } from '../index.js';
+import { field, formState, syncExt, typedFields } from '../index.js';
 import { codec } from '../../core/codec.js';
 import { defineForm } from '../../core/form.js';
 import { type Fields } from '../../core/resolve.js';
+import { defineGraph } from '../../core/graph.js';
 import { defaultExt, miniForm } from '../../__fixtures__/mini-generation.js';
 
 /**
@@ -143,6 +144,91 @@ describe('typedFields', () => {
     store.set({ steps: 30 });
     flushSync();
     expect(value).toBe(30);
+    cleanup();
+  });
+});
+
+describe('svelte binding: external errors (0.4)', () => {
+  it('setError wakes ONLY the judged field; clearError wakes it again', () => {
+    const store = miniForm.createStore({ ext: defaultExt });
+    const prompt = field<string>(store, 'prompt');
+    const steps = field<number>(store, 'steps');
+
+    let promptRuns = 0;
+    let stepsRuns = 0;
+    const cleanup = $effect.root(() => {
+      $effect(() => {
+        void prompt.current;
+        promptRuns++;
+      });
+      $effect(() => {
+        void steps.current;
+        stepsRuns++;
+      });
+    });
+    flushSync();
+    expect({ promptRuns, stepsRuns }).toEqual({ promptRuns: 1, stepsRuns: 1 });
+
+    store.setError('prompt', { message: 'refused by the audit' });
+    flushSync();
+    expect({ promptRuns, stepsRuns }).toEqual({ promptRuns: 2, stepsRuns: 1 });
+    expect(prompt.current?.error?.message).toBe('refused by the audit');
+
+    store.clearError('prompt');
+    flushSync();
+    expect({ promptRuns, stepsRuns }).toEqual({ promptRuns: 3, stepsRuns: 1 });
+    expect(prompt.current?.error).toBeUndefined();
+
+    cleanup();
+  });
+});
+
+describe('svelte binding: syncExt (0.4)', () => {
+  // A field whose DEFAULT derives from ext makes every sync observable.
+  const tierGraph = defineGraph<{ tier: string }>().field('label', ({ _ext }) => ({
+    input: z.string().optional(),
+    output: z.string(),
+    default: _ext.tier,
+  }));
+
+  it('ext that changed BEFORE mount reaches the store (the strand case)', () => {
+    const store = tierGraph.createStore({ ext: { tier: 'free' } });
+    expect(store.getState().label).toBe('free');
+
+    const source = $state({ current: { tier: 'gold' } }); // already hydrated at setup
+    const cleanup = $effect.root(() => {
+      syncExt(store, () => source.current);
+    });
+    flushSync();
+    expect(store.getState().label).toBe('gold');
+    cleanup();
+  });
+
+  it('a deep-equal ext push is a store-level no-op; a real change re-derives; a user write survives both', () => {
+    const store = tierGraph.createStore({ ext: { tier: 'free' } });
+    let notifications = 0;
+    store.subscribe(() => notifications++);
+
+    const source = $state({ current: { tier: 'free' } });
+    const cleanup = $effect.root(() => {
+      syncExt(store, () => source.current);
+    });
+    flushSync();
+    expect(notifications).toBe(0); // setup push was deep-equal
+
+    source.current = { tier: 'free' }; // fresh object, same value
+    flushSync();
+    expect(notifications).toBe(0);
+
+    source.current = { tier: 'gold' };
+    flushSync();
+    expect(store.getState().label).toBe('gold'); // adopted default re-derived
+
+    store.set({ label: 'mine' });
+    source.current = { tier: 'free' };
+    flushSync();
+    expect(store.getState().label).toBe('mine'); // user write outlives ext churn
+
     cleanup();
   });
 });

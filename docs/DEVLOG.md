@@ -1113,3 +1113,81 @@ v1-parity-exact (its errors map had identical mechanics). Continuous
 revalidation after first submit (RHF-style) would need touched/surfaced
 tracking — a deliberate future feature with its own design round, not a
 bug fix rider.
+
+## 0.4 lands the two small features first: setError + validate(keys) (2026-09-04)
+
+Build plan in docs/proposal-0.4.md, decided against the civitai training-form
+rewrite. Shipped in this round, with `.` joining the reserved structural
+characters ahead of the dotted member-path grammar (`runs[a1b2].engine` —
+array-intent-addressing.md amended):
+
+- `setError(key, {message, code?})` / `clearError(key)` — the door for ASYNC
+  validity judgments into the sync engine. External errors are live on the
+  snapshot (unlike refines: they are judgments already made, not contracts to
+  judge later), win over an engine error on the same key, fail validate() and
+  output(), and are never persisted. Staleness the engine owns: a user write
+  to the field, or the field leaving the active branch. No source/provenance
+  parameter — the caller's code knows where its own errors came from
+  (decided in review; RHF-shaped on purpose).
+- `validate(keys?)` mirrors set's shape: no argument judges the whole active
+  graph as before; a key or list judges only those fields, surfacing and
+  clearing errors for them alone — a step's "Next" cannot scold or absolve a
+  later step. An inactive key is vacuously valid. A scoped success vouches
+  only for the named fields.
+
+Still open in this 0.4 round: `list()` (proposal §1), the real project.
+
+Addendum (same day, from Briant's review round): the scoped validate returns
+`ScopedValidationResult` — success WITHOUT `data` — because the full typed
+projection on a scoped success over-promises (only the named fields were
+judged). And `validate`/`setError`/`clearError` keys are registry-typed
+(`FieldKeys<Codecs>`: `keyof` the registry, plain string for untyped stores),
+so a typo'd key dies at compile time instead of passing vacuously. Using
+Codecs in parameter positions ended its phantom-only variance: every
+`AnyStore` alias and loose store parameter widened from
+`FormStore<any, any>` (Codecs defaulting to `unknown`, now unassignable) to
+`FormStore<any, any, any, any>` — the same variance gotcha the React
+binding's `useForm` hit in the civitai port.
+
+Svelte parity for the round (same day): the 0.4 store methods are
+framework-free, but the SVELTE binding now pins them too — `field()` wakes
+only the judged field on setError/clearError (the isolation table's claim,
+proven on the second framework) — and gains `syncExt(store, () => ext)`,
+the twin of React useForm's ext-sync half (creation needs no helper in
+Svelte; the deepEqual-guarded setExt is the part consumers would hand-roll
+wrong). Deliberately NOT mirrored until a Svelte consumer exists: context
+helpers, MultiField, a pre-bound typed Field. Standing rule from this
+round: a new binding-level feature ships in BOTH bindings in the same
+round — list()'s useList/<ListElement> get Svelte twins with the same
+render-isolation pin.
+
+## The 0.4 round's adversarial review: four confirmed bugs, all fixed (2026-09-04)
+
+A fresh-eyes correctness review of the uncommitted round confirmed four
+bugs; the fixes are root-cause, not patches:
+
+1. **Errors key by GRAPH name, always** (validateResolution). They were
+   keyed by wire name, which made an emit-renamed field's error
+   undisplayable on the snapshot (pre-existing) and let the scoped validate
+   wave through an invalid field whose wire name a computed claims (new —
+   a step gate passing an invalid step). One key space now: errors describe
+   FIELDS; only data carries wire names.
+2. **External errors judged at the choke point.** setError on an inactive
+   key used to poison full validate()/output() with an error no snapshot
+   could display, then vanish on any unrelated write. Now: setError refuses
+   inactive keys (also absorbing the async-lands-after-branch-switch race),
+   judgedErrors() and output() filter to active keys as defense, and the
+   recompute sweep stays as hygiene.
+3. **setExt no-ops on a deep-equal ext**, which made syncExt stateless —
+   its shadow `previous` copy had stranded ext that hydrated BEFORE mount
+   (the SvelteKit load/remount shape). syncExt now pushes unconditionally
+   at setup and on change; the store owns the equality guard.
+4. **useFormState (react) rejected every typed store** — the one variance
+   site the widening sweep missed; svelte typedFields also defaulted Data
+   to State, rejecting stores from emit-using graphs. Both widened.
+
+Plus the review's named test gaps closed: emit-rename and computed-claim
+scoped-validate pins, snapshot-visibility of a standing external error
+across a scoped validate, the strand case for syncExt, and a saved.length
+guard on the never-persisted test (it could pass vacuously if save never
+fired).

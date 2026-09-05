@@ -58,7 +58,9 @@ because the address then names its list, so itemIds need uniqueness only
 within their list. The cost is that `.` becomes a structural character,
 reserved in keys alongside the others (enforcement is a pre-step of the
 0.4 build; keys containing `.` are rejected the way `@ / [ ] %` already
-are).*
+are). itemIds must escape `.` too (alongside `]`) or a dotted id corrupts
+path parsing; `.` inside scope VALUES needs no escaping — path parsing ends
+at the first `@`.*
 
 Decisions folded into that shape:
 

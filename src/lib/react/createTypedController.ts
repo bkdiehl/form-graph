@@ -5,7 +5,7 @@ import type { FormDefinition } from '../core/form.js';
 import { Controller, type ControllerProps, type ControllerRenderProps } from './Controller.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyStore = FormStore<any, any>;
+type AnyStore = FormStore<any, any, any, any>;
 
 export type TypedController<R extends CodecRegistry> = <K extends keyof R & string>(
   props: TypedControllerProps<R, K>

@@ -3,7 +3,7 @@
   import type { FormStore } from '$lib/core/index.js';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { store, name }: { store: FormStore<any, any>; name: string } = $props();
+  const { store, name }: { store: FormStore<any, any, any, any>; name: string } = $props();
 
   // Initial-value capture is intentional: the parent keys its {#each} by name,
   // so a changed name remounts this component rather than mutating the props.

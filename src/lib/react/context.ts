@@ -2,7 +2,7 @@ import { createContext, createElement, useContext, type ReactNode } from 'react'
 import type { FormStore } from '../core/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyStore = FormStore<any, any>;
+type AnyStore = FormStore<any, any, any, any>;
 
 const FormContext = createContext<AnyStore | null>(null);
 

@@ -1,3 +1,4 @@
+import { deepEqual } from './deep-equal.js';
 import { diffSnapshot } from './diff.js';
 import { boundaryEntry, ephemeralEntry, trustedEntry, type IntentEntry, type ParseCache } from './intent.js';
 import { addressKey } from './scope.js';
@@ -5,7 +6,17 @@ import { resolve, type Resolution, type Resolver } from './resolve.js';
 import type { CodecRegistry } from './codec.js';
 import { validateResolution } from './validate.js';
 import { runSchema } from './run-schema.js';
-import type { FieldError, FieldSnapshot, ResolutionNote, Snapshot, ValidationResult } from './types.js';
+import type {
+  FieldError,
+  FieldSnapshot,
+  ResolutionNote,
+  ScopedValidationResult,
+  Snapshot,
+  ValidationResult,
+} from './types.js';
+
+/** Registry-typed field keys; plain string when the store carries no registry. */
+type FieldKeys<Codecs> = unknown extends Codecs ? string : keyof Codecs & string;
 
 export interface StorageAdapter {
   load(): Record<string, unknown> | undefined;
@@ -48,6 +59,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
   private intent = new Map<string, IntentEntry>();
   private cache: ParseCache = new WeakMap();
   private errors = new Map<string, FieldError>();
+  private externalErrors = new Map<string, FieldError>();
   private resolution: Resolution<State>;
   private snapshot: Snapshot<State>;
   private ext: Ext;
@@ -185,6 +197,13 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
       ? this.reconciler(patch, this.snapshot.state, this.ext)
       : patch;
 
+    // A user write supersedes an external judgment against the field — the
+    // same staleness rule the engine applies to its own surfaced errors.
+    // BOTH key sets: the key the user wrote AND whatever the reconciler
+    // rewrote it into — either way, the user acted on that field.
+    for (const key of Object.keys(patch)) this.externalErrors.delete(key);
+    for (const key of Object.keys(resolved)) this.externalErrors.delete(key);
+
     const pending = new Map<string, IntentEntry>();
     for (const [key, value] of Object.entries(resolved)) {
       if (value === undefined) {
@@ -203,6 +222,10 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
   }
 
   setExt(ext: Ext): void {
+    // A deep-equal ext is a semantic no-op — same resolution, same re-adopted
+    // defaults — so skip the evict/recompute. This is also what lets a
+    // stateless ext-sync helper (svelte syncExt) call unconditionally.
+    if (deepEqual(this.ext, ext)) return;
     this.ext = ext;
     // Adopted defaults may be stale under the new ext (flags/limits hydrating
     // after first render) — evict them and re-adopt from the fresh resolve.
@@ -225,20 +248,96 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     }
     this.intent = keep;
     this.errors.clear();
+    this.externalErrors.clear();
     this.recompute();
     this.options.storage?.save(this.getIntent());
   }
 
-  /** Runs output schemas, records errors on fields, and notifies. */
-  validate(): ValidationResult<Data, State> {
-    const { errors, data } = validateResolution(this.resolution);
-    this.errors = errors;
-    this.publish(diffSnapshot(this.snapshot, this.resolution, this.errors));
+  /**
+   * Attach an EXTERNAL validity judgment to a field — the door for async
+   * results (a server-side audit, a failed cost check) into the sync engine.
+   * Participates in the snapshot's error and in validate()/output(); never
+   * persisted. Cleared by a user write to the field, by the field leaving the
+   * active branch, or explicitly via clearError().
+   */
+  setError(key: FieldKeys<Codecs>, error: { message: string; code?: string }): void {
+    // A judgment against an INACTIVE field binds nothing — and must not lie
+    // in wait for the branch to arrive. Silently dropping also absorbs the
+    // race where an async result lands after a branch switch.
+    if (!this.resolution.records.has(key)) return;
+    this.externalErrors.set(key, {
+      message: error.message,
+      code: error.code ?? 'external',
+      issues: [{ message: error.message, path: [] }],
+    });
+    this.publish(diffSnapshot(this.snapshot, this.resolution, this.judgedErrors()));
+  }
 
-    if (errors.size > 0) {
-      return { success: false, errors: Object.fromEntries(errors) };
+  clearError(key: FieldKeys<Codecs>): void {
+    if (!this.externalErrors.delete(key)) return;
+    this.publish(diffSnapshot(this.snapshot, this.resolution, this.judgedErrors()));
+  }
+
+  /**
+   * Engine errors overlaid with external judgments (external wins per key).
+   * Judged at THIS choke point, an external error against an inactive key
+   * blocks nothing — covering both a judgment set while the field was
+   * already inactive and the race where a branch switch lands after an
+   * async judgment fired (recompute's sweep is hygiene, not the guard).
+   */
+  private judgedErrors(): ReadonlyMap<string, FieldError> {
+    if (this.externalErrors.size === 0) return this.errors;
+    const merged = new Map(this.errors);
+    for (const [key, error] of this.externalErrors) {
+      if (this.resolution.records.has(key)) merged.set(key, error);
     }
-    return { success: true, data: data as Data, state: this.snapshot.state };
+    return merged;
+  }
+
+  /**
+   * Runs output schemas, records errors on fields, and notifies. Mirrors
+   * `set`'s shape: no argument judges the whole active graph; a key or key
+   * list judges ONLY those fields (a wizard step's "Next"), surfacing and
+   * clearing errors for them alone — other fields' surfaced errors are left
+   * untouched. The scoped form returns no `data`: its success vouches only
+   * for the named fields, and the full projection would over-promise.
+   */
+  validate(): ValidationResult<Data, State>;
+  validate(keys: FieldKeys<Codecs> | readonly FieldKeys<Codecs>[]): ScopedValidationResult;
+  validate(
+    keys?: string | readonly string[]
+  ): ValidationResult<Data, State> | ScopedValidationResult {
+    const { errors, data } = validateResolution(this.resolution);
+
+    if (keys === undefined) {
+      this.errors = errors;
+      const judged = this.judgedErrors();
+      this.publish(diffSnapshot(this.snapshot, this.resolution, judged));
+      if (judged.size > 0) {
+        return { success: false, errors: Object.fromEntries(judged) };
+      }
+      return { success: true, data: data as Data, state: this.snapshot.state };
+    }
+
+    const scoped = new Map<string, FieldError>();
+    for (const key of typeof keys === 'string' ? [keys] : keys) {
+      if (!this.resolution.records.has(key)) continue; // inactive — nothing to judge
+      const failure = errors.get(key);
+      if (failure) {
+        this.errors.set(key, failure);
+        scoped.set(key, failure);
+      } else {
+        this.errors.delete(key);
+      }
+      const external = this.externalErrors.get(key);
+      if (external) scoped.set(key, external);
+    }
+    this.publish(diffSnapshot(this.snapshot, this.resolution, this.judgedErrors()));
+
+    if (scoped.size > 0) {
+      return { success: false, errors: Object.fromEntries(scoped) };
+    }
+    return { success: true };
   }
 
   /**
@@ -248,10 +347,13 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
    */
   output(): Data {
     const { errors, data } = validateResolution(this.resolution);
-    if (errors.size > 0) {
+    const external = [...this.externalErrors.keys()].filter((key) =>
+      this.resolution.records.has(key)
+    );
+    if (errors.size > 0 || external.length > 0) {
       throw new Error(
         'output(): the form is invalid (' +
-          [...errors.keys()].join(', ') +
+          [...new Set([...errors.keys(), ...external])].join(', ') +
           '). Use validate() for a checked result, or parsePartial() for best-effort data.'
       );
     }
@@ -347,8 +449,13 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
         this.errors.delete(key);
       }
     }
+    // An external judgment against a field the branch deactivated can block
+    // nothing — drop it with the branch, like every other per-branch state.
+    for (const key of [...this.externalErrors.keys()]) {
+      if (!this.resolution.records.has(key)) this.externalErrors.delete(key);
+    }
 
-    const result = diffSnapshot(this.snapshot, this.resolution, this.errors);
+    const result = diffSnapshot(this.snapshot, this.resolution, this.judgedErrors());
     this.publish(result);
     return result.changed.size > 0;
   }

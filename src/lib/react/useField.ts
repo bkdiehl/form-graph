@@ -3,7 +3,7 @@ import type { FieldSnapshot, FormStore, InferDefMeta, InferDefValue } from '../c
 import type { CodecRegistry } from '../core/codec.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyStore = FormStore<any, any>;
+type AnyStore = FormStore<any, any, any, any>;
 
 /**
  * Subscribes to one field. Returns null when the field is not active in the

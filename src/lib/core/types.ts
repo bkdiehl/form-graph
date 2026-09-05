@@ -181,3 +181,12 @@ export type ValidationResult<Data, State> =
       computedKeys?: readonly string[];
     }
   | { success: false; errors: Record<string, FieldError>; notes?: readonly ResolutionNote[] };
+
+/**
+ * The result of a KEY-SCOPED validate — deliberately without `data`: a scoped
+ * success vouches only for the named fields, so handing back the full typed
+ * projection would over-promise. A step gate wants the boolean and the errors.
+ */
+export type ScopedValidationResult =
+  | { success: true }
+  | { success: false; errors: Record<string, FieldError> };

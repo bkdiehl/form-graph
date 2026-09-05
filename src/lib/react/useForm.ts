@@ -34,7 +34,8 @@ export function useForm<Ext, Store extends FormStore<any, Ext, any, any>>(
  * Subscribes to the whole snapshot. Re-renders on any change — prefer
  * `useField` for controls.
  */
-export function useFormState<State>(store: FormStore<State, unknown>): State {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useFormState<State>(store: FormStore<State, any, any, any>): State {
   return useSyncExternalStore(
     (cb) => store.subscribe(cb),
     () => store.getSnapshot().state,
