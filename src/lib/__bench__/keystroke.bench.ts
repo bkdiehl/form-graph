@@ -96,6 +96,13 @@ const heavyExt: HeavyExt = { limits: { maxResources: 5 } };
 const heavyStore = heavyForm.createStore({ ext: heavyExt, warnOnCodecChurn: false });
 const hoistedStore = hoistedForm.createStore({ ext: heavyExt });
 const miniStore = miniForm.createStore({ ext: defaultExt });
+// revalidate:'touched' with EVERY field pre-touched — the worst case the
+// bounded re-judge can cost on a keystroke
+const touchedStore = hoistedForm.createStore({ ext: heavyExt, revalidate: 'touched' });
+for (const key of touchedStore.getSnapshot().keys) {
+  const value = touchedStore.getField(key)?.value;
+  if (!touchedStore.getField(key)?.isComputed) touchedStore.set({ [key]: value });
+}
 
 let n = 0;
 
@@ -110,6 +117,10 @@ describe('keystroke path (resolve + diff + notify)', () => {
 
   bench('mini form (~9 fields): one keystroke', () => {
     miniStore.set({ prompt: `a cat ${n++}` });
+  });
+
+  bench("heavy form, revalidate:'touched', ALL 35 fields touched", () => {
+    touchedStore.set({ prompt: `a cat ${n++}` });
   });
 
   bench('heavy form: keystroke that changes nothing (early-out)', () => {

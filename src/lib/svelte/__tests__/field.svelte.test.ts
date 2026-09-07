@@ -280,3 +280,28 @@ describe('svelte binding: list handle (0.4)', () => {
     cleanup();
   });
 });
+
+describe("svelte binding: revalidate 'touched' (0.5)", () => {
+  it('a live-surfaced error wakes the field subscriber like any snapshot change', () => {
+    const strict = defineGraph().field('epochs', {
+      input: z.coerce.number().optional(),
+      output: z.number().max(20, 'Too many'),
+      default: 5,
+    });
+    const store = strict.createStore({ ext: undefined, revalidate: 'touched' });
+    const epochs = field<number>(store, 'epochs');
+    let seen: (string | undefined)[] = [];
+    const cleanup = $effect.root(() => {
+      $effect(() => {
+        seen.push(epochs.current?.error?.message);
+      });
+    });
+    flushSync();
+    store.set({ epochs: 99 });
+    flushSync();
+    store.set({ epochs: 3 });
+    flushSync();
+    expect(seen).toEqual([undefined, 'Too many', undefined]);
+    cleanup();
+  });
+});

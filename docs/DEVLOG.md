@@ -1390,3 +1390,55 @@ membership as trusted intent, so a pure add() (or add-then-remove) leaves
 the list key in dirtyFields — an op IS a user write, consistent with
 ops-as-ordinary-writes; an unsaved-changes prompt keyed on isDirty will
 count it.
+
+## 0.5 round 2: revalidate 'touched' — live errors after engagement (2026-09-07)
+
+The third of the RHF-gap trio, built to the three ratified decisions
+(touched = WRITTEN, the store stays UI-blind; option `revalidate:
+'submit' | 'touched'` defaulting to 'submit'; judge on every recompute
+once touched). The hard half predated it: the bounded re-judge from the
+refine round already LIFTS surfaced errors live — this adds the other
+direction, surfacing NEW failures for touched keys, judging exactly what
+validate() would (refined ?? output). Touched keys ride the same
+raw+resolved patch-key pair that clears external errors; reset clears
+them; RAM-only.
+
+The invariant guard, measured (keystroke bench, same box, same run):
+default mode 0.0142ms mean on the hoisted 35-field form — baseline band,
+byte-identical guard green (a differential pin also holds: touched
+invalid field shows nothing until validate() under the default). Worst
+case with ALL 35 fields touched: 0.0223ms — +8µs for 35 live schema
+executions, bounded as designed; a new bench case pins it permanently.
+Both bindings needed nothing (errors ride snapshots); one reactivity pin
+each anyway.
+
+Round-2 review addenda (correctness + minimalism passes, same day). Three
+confirmed findings, fixed at the root:
+
+1. Touched is now ADDRESS-keyed, marked in commitPending on trusted
+   entries only — field-keyed touched let a sibling scope bucket's
+   re-derived pristine default scold live ("pristine never scolds" held
+   for keys, not buckets). Address-keying also survives branch-away-and-
+   back correctly, and boundary seeds (defaults/remix) can never mark
+   touched.
+2. The judge loop is now AUTHORITATIVE in both directions for touched
+   fields (judges every active touched record; deletes on pass) — a
+   surfaced error whose CONDITIONAL refinement disappeared used to stick
+   live while validate() said success. diffSnapshot deep-equals errors,
+   so re-setting an identical error notifies nobody.
+3. The refined-vs-output judge path was unpinned (mutating to bare
+   codec.output stayed green) — pinned, plus the refinement-removal lift
+   and the scoped-bucket case.
+
+Judgement calls recorded as decided, with pins: set(key, undefined)
+leaves the field touched — undirty (the write is gone) but judged (the
+user ACTED there; RHF behaves the same on clear); remove() sweeps the
+element's bucket from touched alongside intent, so a later element never
+inherits scolds; duplicate() copies values but NOT touched — the copy is
+quiet until validated, consistent with membership-op-touches-list-only.
+
+Bench re-run after address-keying (the loop now iterates active keys and
+matches by record.address): default 0.0116ms, all-35-touched 0.0177ms —
++6µs worst case, better than the pre-fix +8µs; docs updated to match.
+Minimalism pass verdict: near-minimal (~25 lib lines); its one applied
+trim is the revalidate docstring (the docs page owns the long form).

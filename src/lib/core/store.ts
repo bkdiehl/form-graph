@@ -1,6 +1,13 @@
 import { deepEqual } from './deep-equal.js';
 import { diffSnapshot } from './diff.js';
-import { boundaryEntry, ephemeralEntry, trustedEntry, type IntentEntry, type ParseCache } from './intent.js';
+import {
+  boundaryEntry,
+  ephemeralEntry,
+  toFieldError,
+  trustedEntry,
+  type IntentEntry,
+  type ParseCache,
+} from './intent.js';
 import { addressKey, elementPrefix } from './scope.js';
 import { resolve, type Resolution, type Resolver } from './resolve.js';
 import type { CodecRegistry } from './codec.js';
@@ -59,6 +66,12 @@ export interface StoreOptions<Ext> {
   storage?: StorageAdapter;
   /** Set false to silence the codec-churn warning (see `getCodecChurn`). */
   warnOnCodecChurn?: boolean;
+  /**
+   * When errors surface. `'submit'` (default): only at validate()/parse.
+   * `'touched'`: a field the user has written is judged on every recompute —
+   * touched = written, the store stays UI-blind. Pristine fields never scold.
+   */
+  revalidate?: 'submit' | 'touched';
 }
 
 /** Consecutive passes of identity churn before a key is reported. */
@@ -83,6 +96,13 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
   private cache: ParseCache = new WeakMap();
   private errors = new Map<string, FieldError>();
   private externalErrors = new Map<string, FieldError>();
+  /**
+   * ADDRESSES the user has written — the `revalidate: 'touched'` gate.
+   * Address-keyed, not field-keyed: a sibling scope bucket re-deriving its
+   * own pristine default under the same field key must not scold. Marked in
+   * commitPending (where a trusted entry resolves its address); RAM-only.
+   */
+  private touchedAddresses = new Set<string>();
   private resolution: Resolution<State>;
   private snapshot: Snapshot<State>;
   private ext: Ext;
@@ -165,6 +185,9 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
       // Committing the SAME entry object preserves the boundary parse cache.
       this.intent.set(address, entry);
       if (address !== key) this.intent.delete(key);
+      // Only TRUSTED entries are user writes — boundary seeds (defaults
+      // option, remix) must not mark a field touched.
+      if (entry.trusted) this.touchedAddresses.add(address);
     }
   }
 
@@ -248,7 +271,8 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     // A user write supersedes an external judgment against the field — the
     // same staleness rule the engine applies to its own surfaced errors.
     // BOTH key sets: the key the user wrote AND whatever the reconciler
-    // rewrote it into — either way, the user acted on that field.
+    // rewrote it into — either way, the user acted on that field. (Touched
+    // marking happens in commitPending, where the write's ADDRESS resolves.)
     for (const key of Object.keys(patch)) this.externalErrors.delete(key);
     for (const key of Object.keys(resolved)) this.externalErrors.delete(key);
 
@@ -297,6 +321,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     this.intent = keep;
     this.errors.clear();
     this.externalErrors.clear();
+    this.touchedAddresses.clear();
     this.recompute();
     this.options.storage?.save(this.getIntent());
   }
@@ -486,6 +511,9 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
         for (const address of [...this.intent.keys()]) {
           if (address.startsWith(prefix) && inBucket(address)) this.intent.delete(address);
         }
+        for (const address of [...this.touchedAddresses]) {
+          if (address.startsWith(prefix) && inBucket(address)) this.touchedAddresses.delete(address);
+        }
         for (const errorKey of [...this.externalErrors.keys()]) {
           if (errorKey.startsWith(prefix)) this.externalErrors.delete(errorKey);
         }
@@ -615,6 +643,24 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     // nothing — drop it with the branch, like every other per-branch state.
     for (const key of [...this.externalErrors.keys()]) {
       if (!this.resolution.records.has(key)) this.externalErrors.delete(key);
+    }
+
+    // revalidate: 'touched' — the OTHER direction of the bounded re-judge:
+    // the loop above lifts surfaced errors; this judges every ACTIVE field
+    // whose current address the user has written, with the same schema
+    // validate() would (refined ?? output). Authoritative in both
+    // directions for touched fields — it also DELETES, so an error whose
+    // conditional refinement disappeared lifts live instead of sticking
+    // (diffSnapshot deep-equals errors, so a re-set identical error
+    // notifies nobody).
+    if (this.options.revalidate === 'touched') {
+      for (const key of this.resolution.keys) {
+        const record = this.resolution.records.get(key)!;
+        if (!record.codec || !this.touchedAddresses.has(record.address)) continue;
+        const result = runSchema(record.refined ?? record.codec.output, record.value);
+        if (result.success) this.errors.delete(key);
+        else this.errors.set(key, toFieldError(result.error.issues));
+      }
     }
 
     const result = diffSnapshot(this.snapshot, this.resolution, this.judgedErrors());

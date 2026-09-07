@@ -61,6 +61,18 @@ const offOne = store.subscribe('steps', onSteps);      // one key only`}</pre>
   <li><code>prune(predicate)</code> — delete intent entries by address, for targeted cleanup.</li>
 </ul>
 
+<h2>When errors surface: <code>revalidate</code></h2>
+<pre>{`const store = form.createStore({ ext, revalidate: 'touched' });`}</pre>
+<p>
+  Default (<code>'submit'</code>): refine/output failures show only at
+  <code>validate()</code>/<code>parse</code> — a pristine required field never scolds.
+  <code>'touched'</code>: a field the user has WRITTEN is judged on every recompute — new
+  failures surface live and lift live, still only for touched fields, so pristine fields
+  stay quiet in both modes. Touched means <em>written</em>: the store is UI-blind, so blur is
+  not a store concept (a binding can layer blur-based touch later if needed). Cost, measured:
+  the worst case — every field of a 35-field form touched — adds ~6µs to a keystroke.
+</p>
+
 <h2>External errors: async judgments in a sync engine</h2>
 <pre>{`store.setError('triggerWord', { message: 'This phrase is not allowed.' });
 store.clearError('triggerWord');`}</pre>
