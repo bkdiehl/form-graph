@@ -83,6 +83,10 @@ what the types say.
 - **Async validity, sync engine.** `setError(key, {message})` is the door for server verdicts
   (an audit refusal, a failed cost check): live on the field, fails validate, cleared the
   moment the user writes — never persisted.
+- **RHF-grade form UX, opt-in.** `isDirty`/`dirtyFields` (the intent map IS the dirty
+  tracker), `focusFirstError` (first offender in declaration order, wizard-step scoped),
+  and `revalidate: 'touched'` — live errors for fields the user has written, pristine
+  fields never scolded, measured at ~6µs worst-case on a 35-field form.
 - **Full recompute, isolated renders.** Every change recomputes the whole snapshot; a
   reference-preserving diff means only controls whose data moved re-render.
 - **Framework-free core, first-class bindings.** All semantics live in the core store; the
