@@ -69,6 +69,7 @@ BAD.output.refine(...)    // error: SchemaLike<string> has no .refine`}</pre>
 
 slider({ min: 1, max: 50, step: 1, default: 25, presets: [...] })
 // meta: { min, max, step, presets? } — presets are meta, outside the schema cache key
+// lenient input REPAIRS: out-of-range snaps into bounds; only a non-number defaults
 
 enumOf({
   options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B', disabled: true }],

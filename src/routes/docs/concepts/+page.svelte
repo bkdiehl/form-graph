@@ -37,14 +37,19 @@
   bare key, so unscoped writes (raw server input, remixes) still land.
 </p>
 
-<pre>{`.field('model', (c) => ({ ...checkpointDef(c), scope: c.ecosystemGroup }))`}</pre>
+<pre>{`// spread onto any def or helper — scope is a field option, not a codec property
+.field('model', (c) => ({ ...checkpointDef(c), scope: c.ecosystemGroup }))
+.field('steps', (c) => ({ ...slider({ min: 1, max: c.eco === 'flux' ? 2000 : 3000 }), scope: c.eco }))`}</pre>
 
 <h2>Dual schemas and trust</h2>
 <p>
   Every value knows where it came from. UI writes are trusted and stored verbatim; boundary
   values (storage, URL, remix, raw server input) run the lenient <code>input</code> schema
-  lazily, falling back to the default on failure — a corrupt stored value can never wedge the
-  form. The strict <code>output</code> schema runs only on demand: submit, <code>output()</code>,
+  lazily. A lenient schema may REPAIR rather than reject — <code>slider</code>'s input snaps an
+  out-of-range value to the nearest step inside the bounds, on the theory that a ceiling that
+  moved shouldn't erase the user's setting. Only a value the input schema rejects outright
+  falls back to the default (the rejection surfaces as the field's snapshot
+  <code>error</code>). Either way, a corrupt stored value can never wedge the form. The strict <code>output</code> schema runs only on demand: submit, <code>output()</code>,
   server <code>parse()</code> — and, with <code>revalidate: 'touched'</code>, on every recompute
   for fields the user has written. The helpers cache schema construction on the exact values a
   schema is built from, so per-pass definitions cost object literals, not zod.

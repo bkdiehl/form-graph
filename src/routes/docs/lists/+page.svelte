@@ -100,7 +100,9 @@ runs.move(id, index)`}</pre>
     types by path SHAPE (<code>`$&#123;string&#125;[$&#123;string&#125;].$&#123;string&#125;`</code>).
   </li>
   <li>
-    Server <code>parse</code> takes path-keyed raw records; array-of-objects ingestion
-    (<code>parse(&#123; runs: [&#123;…&#125;] &#125;)</code>) is a planned follow-up.
+    Server <code>parse</code> takes intent-shaped records — <code>parse(store.getIntent())</code>
+    round-trips lists losslessly (membership entry + path-keyed values; see Server parsing).
+    Array-of-objects ingestion (<code>parse(&#123; runs: [&#123;…&#125;] &#125;)</code>) from a
+    non-form-graph caller is a planned follow-up.
   </li>
 </ul>

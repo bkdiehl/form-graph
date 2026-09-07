@@ -90,12 +90,13 @@ export class FormDefinition<State, Ext, Codecs extends CodecRegistry = CodecRegi
   }
 
   /**
-   * One-shot resolution over KEY-addressed values (raw server input,
-   * introspection pins). They run through the pending layer, so scoped fields
-   * find them by key — scope buckets are a store concern, invisible here.
+   * One-shot resolution over an intent-shaped record (raw server input,
+   * introspection pins). Read the way the store reads: scoped address wins,
+   * bare key serves any field — so a persisted intent record and plain
+   * key-addressed raw both resolve.
    */
-  resolve(valuesByKey: Intent, ext: Ext): Resolution<State> {
-    return resolve(this.config.resolve, new Map(), ext, new WeakMap(), valuesByKey, this.defs);
+  resolve(values: Intent, ext: Ext): Resolution<State> {
+    return resolve(this.config.resolve, values, ext, new WeakMap(), undefined, this.defs);
   }
 
   /**

@@ -115,3 +115,65 @@ describe('field errors carry EVERY issue, with paths', () => {
     expect(error.message).toBe(error.issues[0]!.message);
   });
 });
+
+/**
+ * parse reads an intent-shaped record the way the store reads it: a scoped
+ * address wins for the field it names, a bare key serves any field. Without
+ * this, `parse(store.getIntent())` silently parsed defaults for every scoped
+ * field — success-shaped data loss (found by the 0.4 cold-start docs test).
+ */
+describe('parse over scoped addresses', () => {
+  const eco = codec<'flux' | 'sdxl', undefined>({
+    output: z.enum(['flux', 'sdxl']),
+    input: z.enum(['flux', 'sdxl']).optional(),
+    default: 'flux',
+  });
+  const stepsCodec = codec<number>({ output: z.number(), input: z.coerce.number().optional() });
+  const form = defineForm({
+    resolve: (f: Fields) => {
+      const ecosystem = f.field('ecosystem', eco);
+      const steps = f.field('steps', stepsCodec, {
+        default: ecosystem === 'flux' ? 1000 : 1500,
+        scope: ecosystem,
+      });
+      return { ecosystem, steps };
+    },
+  });
+
+  it('honors a scoped address for the active scope', () => {
+    const result = form.parse({ ecosystem: 'flux', 'steps@flux': 1500 }, undefined);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.steps).toBe(1500);
+  });
+
+  it('ignores an inactive bucket; the active one wins over the bare key', () => {
+    const result = form.parse(
+      { ecosystem: 'sdxl', 'steps@flux': 111, 'steps@sdxl': 222, steps: 333 },
+      undefined
+    );
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.steps).toBe(222);
+  });
+
+  it('still serves a scoped field from a bare key (key-addressed raw)', () => {
+    const result = form.parse({ ecosystem: 'flux', steps: 777 }, undefined);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.steps).toBe(777);
+  });
+
+  it('round-trips a store intent record with scoped writes', () => {
+    const store = form.createStore({});
+    store.set({ ecosystem: 'flux' });
+    store.set({ steps: 1600 });
+    store.set({ ecosystem: 'sdxl' });
+    store.set({ steps: 2600 });
+    store.set({ ecosystem: 'flux' });
+
+    const result = form.parse(store.getIntent() as Record<string, unknown>, undefined);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ecosystem).toBe('flux');
+      expect(result.data.steps).toBe(1600);
+    }
+  });
+});

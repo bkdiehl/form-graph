@@ -119,7 +119,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
    * A one-off identity change is legitimate (a branch switched, or a codec's
    * options genuinely depend on context), so only a sustained streak is reported.
    */
-  private codecIdentity = new Map<string, { input: unknown; output: unknown }>();
+  private codecIdentitySeen = new Map<string, Array<{ input: unknown; output: unknown }>>();
   private codecChurnStreak = new Map<string, number>();
   private reportedChurn = new Set<string>();
 
@@ -589,15 +589,24 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
       // is clean; an inline `z.object(...)` per pass is the churn. BOTH
       // schemas are checked — a cached input must not mask a per-pass
       // rebuilt output (the requiredness-by-output-spread pattern).
+      //
+      // Judged against every pair this key has SHOWN (a bounded, oldest-out
+      // list): a cached factory alternating between branch configs revisits
+      // known pairs; true churn mints a fresh pair every pass and never
+      // matches. The current pair is ALWAYS recorded — a key that settles
+      // on a stable pair recovers within one pass, however it got there.
       const inputIdentity = codec.input;
       const outputIdentity = codec.output;
-      const previous = this.codecIdentity.get(key);
-      this.codecIdentity.set(key, { input: inputIdentity, output: outputIdentity });
-
-      if (
-        previous === undefined ||
-        (previous.input === inputIdentity && previous.output === outputIdentity)
-      ) {
+      const seen = this.codecIdentitySeen.get(key) ?? [];
+      if (seen.some((pair) => pair.input === inputIdentity && pair.output === outputIdentity)) {
+        this.codecChurnStreak.set(key, 0);
+        continue;
+      }
+      const isFirstResolve = seen.length === 0;
+      seen.push({ input: inputIdentity, output: outputIdentity });
+      if (seen.length > 16) seen.shift();
+      this.codecIdentitySeen.set(key, seen);
+      if (isFirstResolve) {
         this.codecChurnStreak.set(key, 0);
         continue;
       }

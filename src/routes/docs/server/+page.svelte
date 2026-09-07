@@ -24,6 +24,29 @@ result.data;         // the discriminated union, strict-validated
 result.computedKeys; // which keys were derived, not user input
 result.notes;        // substitution notes (see below)`}</pre>
 
+<h2>What to send: <code>store.getIntent()</code> is the wire format</h2>
+
+<p>
+  The client payload is the store's own intent record — <code>store.getIntent()</code> — sent as
+  JSON. <code>parse</code> reads it exactly the way the store reads it: a scoped address
+  (<code>steps&#64;flux</code>) wins for the field it names, a bare key serves any field, a
+  list's membership rides as its own entry (<code>runs: ['s0','a1b2']</code>) with element
+  values under path keys (<code>runs[s0].epochs</code>). Every entry is treated as boundary
+  input server-side — lenient input schemas run regardless of how the client stored it.
+</p>
+
+<pre>{`// client
+await fetch('/api/submit', { body: JSON.stringify(store.getIntent()) });
+
+// server — the identical pipeline, from the identical record
+const result = form.parse(raw, ext);`}</pre>
+
+<p>
+  Plain key-addressed raw (<code>{`{ prompt, steps }`}</code> from any external caller) parses
+  too — the scoped-address form is what makes the client's own submit lossless, including
+  per-branch memory the user isn't currently looking at.
+</p>
+
 <h2>SvelteKit form action</h2>
 
 <pre>{`// +page.server.ts

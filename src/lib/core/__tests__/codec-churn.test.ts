@@ -24,6 +24,34 @@ describe('codec churn tracking', () => {
     expect(store.getCodecChurn()).toEqual([]);
   });
 
+  it('alternating between two CACHED defs under a switching branch is NOT churn', () => {
+    const FLUX = { input: z.number().optional(), output: z.number().max(2000), default: 1000 };
+    const SDXL = { input: z.number().optional(), output: z.number().max(3000), default: 1500 };
+    const graph = defineGraph<Record<string, never>>()
+      .field('eco', { input: z.string().optional(), output: z.string(), default: 'flux' })
+      .field('steps', ({ eco }) => ({ ...(eco === 'flux' ? FLUX : SDXL), scope: eco }));
+    const store = graph.createStore({ ext: {}, warnOnCodecChurn: false });
+    for (let i = 0; i < 8; i++) store.set({ eco: i % 2 === 0 ? 'sdxl' : 'flux' });
+    expect(store.getCodecChurn()).toEqual([]);
+  });
+
+  it('a key that SETTLES on a stable pair past the seen cap recovers', () => {
+    // 20 distinct cached defs — more than the tracker's 16-pair window.
+    const DEFS = Array.from({ length: 20 }, (_, i) => ({
+      input: z.coerce.number().optional(),
+      output: z.number().max(100 + i),
+      default: 1,
+    }));
+    const graph = defineGraph<Record<string, never>>()
+      .field('idx', { input: z.coerce.number().optional(), output: z.number(), default: 0 })
+      .field('steps', ({ idx }) => DEFS[idx]!);
+    const store = graph.createStore({ ext: {}, warnOnCodecChurn: false });
+    for (let i = 0; i < 20; i++) store.set({ idx: i });
+    // settled: identity is now stable — recomputes must not read as churn
+    for (let i = 0; i < 5; i++) store.set({ steps: i });
+    expect(store.getCodecChurn()).toEqual([]);
+  });
+
   it('a cached input does NOT mask a per-pass rebuilt output', () => {
     const HOISTED_INPUT = z.string().optional();
     const graph = defineGraph<Record<string, never>>()

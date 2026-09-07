@@ -18,10 +18,16 @@
   <li>
     <code>getField(key)</code> — one field's snapshot (<code>value</code>, <code>meta</code>,
     <code>error</code>, <code>note</code>, <code>isComputed</code>), or <code>null</code> while
-    the key is inactive in the current branch.
+    the key is inactive in the current branch. In the core, <code>value</code> is
+    <code>unknown</code> and <code>meta</code> untyped — per-key types live in the bindings
+    (<code>typedFields</code>, <code>useTypedField</code>, the svelte
+    <code>field&lt;T, M&gt;</code> helper); headless code casts or goes through those.
   </li>
   <li><code>getNotes()</code> — this resolution's notes (corrections and advisories).</li>
-  <li><code>getIntent()</code> — DURABLE intent (adopted defaults filtered), scoped addresses included.</li>
+  <li>
+    <code>getIntent()</code> — DURABLE intent (adopted defaults filtered), scoped addresses
+    included; also the submit wire format (see Server parsing).
+  </li>
   <li><code>getComputedKeys()</code> — the derived keys in the active branch.</li>
   <li>
     <code>isDirty()</code> / <code>dirtyFields()</code> — what the user has WRITTEN this

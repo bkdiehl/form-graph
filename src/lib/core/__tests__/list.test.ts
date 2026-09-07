@@ -334,3 +334,65 @@ describe('list(): review-round pins', () => {
     expect(() => store.validate()).toThrow(/Duplicate wire key "runs"/);
   });
 });
+
+/**
+ * The submit wire format: parse(store.getIntent()) round-trips a store that
+ * holds lists — membership (its own record), path-keyed element values, and
+ * scope buckets all read server-side exactly as the store reads them.
+ */
+describe('list(): store -> parse round-trip', () => {
+  // epochs is SCOPED per engine, so its intent lands in a per-element
+  // bucket (`runs[s0].epochs@kohya`) — the shape that made these tests
+  // real pins: with parse reading only bare keys they resolve defaults.
+  const EPOCHS = { input: z.coerce.number().optional(), output: z.number().min(1).max(50) };
+  const scopedRun = defineGraph<Record<string, never>>()
+    .field(
+      'engine',
+      enumOf({
+        options: [
+          { value: 'kohya', label: 'Kohya' },
+          { value: 'musubi', label: 'Musubi' },
+        ],
+        default: 'kohya',
+      })
+    )
+    .field('epochs', ({ engine }) => ({
+      ...EPOCHS,
+      default: engine === 'kohya' ? 5 : 8,
+      scope: engine,
+    }));
+  const scopedTraining = defineGraph<Record<string, never>>().use(
+    list('runs', scopedRun, { min: 1, max: 5 })
+  );
+
+  it('parse(getIntent()) reproduces membership, element values and scope buckets', () => {
+    const store = scopedTraining.createStore({ ext: {} });
+    const handle = store.list('runs');
+    const added = handle.add();
+    if (!added.success) throw new Error('add refused');
+    store.set({ 'runs[s0].epochs': 12 });
+    store.set({ [`runs[${added.id}].engine`]: 'musubi' });
+    store.set({ [`runs[${added.id}].epochs`]: 9 });
+
+    const result = scopedTraining.parse(store.getIntent() as Record<string, unknown>, {});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const runs = (result.data as { runs: Array<{ engine: string; epochs: number }> }).runs;
+      expect(runs).toHaveLength(2);
+      expect(runs[0]).toMatchObject({ engine: 'kohya', epochs: 12 });
+      expect(runs[1]).toMatchObject({ engine: 'musubi', epochs: 9 });
+    }
+  });
+
+  it('an untouched list round-trips too: parse re-seeds the same deterministic ids', () => {
+    const store = scopedTraining.createStore({ ext: {} });
+    store.set({ 'runs[s0].epochs': 9 });
+    const result = scopedTraining.parse(store.getIntent() as Record<string, unknown>, {});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const runs = (result.data as { runs: Array<{ epochs: number }> }).runs;
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.epochs).toBe(9);
+    }
+  });
+});

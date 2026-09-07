@@ -1442,3 +1442,60 @@ matches by record.address): default 0.0116ms, all-35-touched 0.0177ms —
 +6µs worst case, better than the pre-fix +8µs; docs updated to match.
 Minimalism pass verdict: near-minimal (~25 lib lines); its one applied
 trim is the revalidate docstring (the docs page owns the long form).
+
+## 2026-09-07 — cold-start findings: parse reads scoped addresses; churn tracker learns identity sets
+
+A zero-context agent building against the published 0.4.0 from the docs alone
+(the pre-pitch usability test) surfaced two library defects. Both fixed.
+
+1. **`parse` now reads intent-shaped records.** `FormDefinition.resolve` fed
+   raw values through the PENDING layer (key-addressed only), so
+   `parse(store.getIntent())` returned `success: true` while silently dropping
+   every scoped address — `steps@flux: 1500` parsed as the default. Success-
+   shaped data loss, the worst failure mode we ship. Fix: file raw into the
+   INTENT layer instead; the collector's read order (scoped address, then bare
+   key) then serves both a persisted intent record and plain key-addressed raw,
+   and every entry stays boundary-typed (lenient input schemas run regardless).
+   `store.getIntent()` is now the documented submit wire format — pinned by
+   scoped round-trip tests and two list round-trips (including an untouched
+   list, whose ephemeral membership re-seeds the same deterministic ids
+   server-side).
+
+2. **The codec-churn warning no longer fires on cached alternation.** The
+   tracker compared against only the PREVIOUS pass's schema identity, so a
+   cached factory alternating between two configs under a switching
+   discriminant (`slider({max: eco==='flux'?2000:3000})` — the definitions
+   page's own blessed pattern) hit the streak limit and warned "rebuilds its
+   schemas on every pass", which was false. It now remembers the identity
+   pairs a key has SHOWN (capped at 16): a revisited pair is not churn; true
+   churn mints a fresh pair every pass and never matches. Warning timing for
+   real churn is unchanged.
+
+Doc fixes from the same test: a "what to send" section on the server page
+(the wire format was documented nowhere), core `getField` marked untyped on
+the store page, slider's repair-not-reject boundary semantics on the
+definitions and concepts pages, and a second worked `scope` spread example.
+
+Review addenda (correctness + minimalism passes, same day). Two confirmed
+findings, fixed:
+
+1. The capped seen-list had a regression the old algorithm lacked: a pair
+   arriving past the 16-pair cap was never recorded, so a key that SETTLED
+   on a stable identity past the cap streaked forever — reachable by
+   browsing ~20 per-ecosystem cached defs, then reported as churn on every
+   unrelated keystroke. Fixed by always recording the current pair
+   (oldest-out eviction): the list is now a superset of the old
+   previous-pass memory, so recovery is never worse than before. Pinned by
+   a 20-def settle test, which fails against the pre-eviction version.
+2. The two list round-trip tests were vacuous as pins for the parse fix —
+   their fixture had no scoped member field, so both passed with the fix
+   reverted. Rebuilt on a member graph whose epochs is scoped per engine
+   (bucket shape `runs[s0].epochs@kohya`); all five parse/list pins now
+   verified red under a HEAD revert of form.ts.
+
+Minimalism verdict: both fixes minimal (parse is a pure argument-slot
+move; the seen-array beats last-two-pairs, which still false-warns on a
+three-way discriminant, and a token-keyed Set, which needs the same cap
+plus composite keys). Applied trims: isFirstResolve restructure, comment
+and docstring tightening, doc dedupes (wire-format restatement, repair
+rationale stated once).
