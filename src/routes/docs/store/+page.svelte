@@ -21,7 +21,7 @@
     the key is inactive in the current branch.
   </li>
   <li><code>getNotes()</code> — this resolution's notes (corrections and advisories).</li>
-  <li><code>getIntent()</code> — the raw intent record, scoped addresses included.</li>
+  <li><code>getIntent()</code> — DURABLE intent (adopted defaults filtered), scoped addresses included.</li>
   <li><code>getComputedKeys()</code> — the derived keys in the active branch.</li>
   <li>
     <code>isDirty()</code> / <code>dirtyFields()</code> — what the user has WRITTEN this
@@ -55,7 +55,7 @@ const offOne = store.subscribe('steps', onSteps);      // one key only`}</pre>
     binding's <code>syncExt</code>).
   </li>
   <li>
-    <code>reset(&#123; exclude &#125;)</code> — clears intent. Excluded KEYS keep everything
+    <code>reset(&#123; exclude &#125;)</code> — clears intent, surfaced and external errors, and touched state. Excluded KEYS keep everything
     they've accumulated, every scoped bucket included.
   </li>
   <li><code>prune(predicate)</code> — delete intent entries by address, for targeted cleanup.</li>
@@ -89,7 +89,7 @@ store.clearError('triggerWord');`}</pre>
 
 <h2>Getting data out</h2>
 <pre>{`const result = store.validate();   // { success, data | errors } — the checked path
-const state  = store.output();     // State — THROWS naming the failing keys
+const data   = store.output();     // Data — same shape as parse().data; THROWS naming failing keys
 const part   = form.parsePartial(raw, ext); // best-effort: per-key results, no throw`}</pre>
 <p>
   <code>validate()</code> is for submit flows that render errors; <code>output()</code> is for

@@ -3,8 +3,8 @@
 A standalone npm library: branch-routed forms with one definition serving both the client
 store and server parsing. This repo is the library (`src/lib`), its docs site + live demos
 (`src/routes`), an engine-level integration corpus (`src/lib/generation`), and v1 porting
-scratch (`src/v1`). The flagship consumer is civitai's generation form
-(`C:\work\worktrees\form-graph-port`, `src/shared/form-graph/generation`) — breaking
+scratch (`src/v1`). The flagship consumer is civitai's generation form — merged to
+civitai `main` (`C:\work\civitai`, `src/shared/form-graph/generation`) — breaking
 changes here must land there in the same working session.
 
 ## Commands

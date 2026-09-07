@@ -99,7 +99,7 @@
     section can know alone: billing mirrors shipping unless
     unchecked (the address section is instantiated <em>twice</em>, under different keys, each
     with its own memory), and invoicing is passed down to the payment section as
-    <code>allowInvoice</code> from the contact section's answer. There is no subform machinery —
+    <code>isBusiness</code> through its Ext at the mount point, from the contact section's answer. There is no subform machinery —
     a resolver is a function, and functions compose.
   </p>
 

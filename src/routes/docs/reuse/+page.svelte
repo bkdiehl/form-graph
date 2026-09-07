@@ -51,7 +51,7 @@ export const payment = defineGraph<{ isBusiness: boolean }>()
 // mounting is chain-linear; payment's need is met by contact's field:
 const graph = defineGraph()
   .use(contact)
-  .field('billingSameAsShipping', boolOf(true))
+  .field('billingSameAsShipping', boolOf({ default: true }))
   .use(payment);`}</pre>
 
 <p>

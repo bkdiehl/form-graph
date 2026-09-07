@@ -36,11 +36,14 @@ export const actions = {
   },
 };`}</pre>
 
-<p>This exact pattern runs the <a href="{base}/demo">live demo</a>.</p>
+<p>
+  The <a href="{base}/demo">live demo</a> makes this same <code>parse()</code> call — the site
+  is statically hosted, so it runs in the page instead of a form action.
+</p>
 
 <h2>Substitution notes</h2>
 <p>
-  When an <code>f.correct</code> statement replaces a value — a retired model swapped for the default, a quantity
+  When a <code>correct</code> policy (the def's <code>correct</code> property) replaces a value — a retired model swapped for the default, a quantity
   clamped to a limit — the field can attach a note with a machine-readable reason. Notes ride on
   the parse result (on failures too), so the server can log, bill, or refuse based on <em>why</em>
   a value changed rather than diffing blindly.

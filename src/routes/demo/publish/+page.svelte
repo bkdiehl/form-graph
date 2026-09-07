@@ -78,10 +78,10 @@
   <p class="mt-4 max-w-[65ch] leading-relaxed text-muted">
     Rung five: the <em class="text-ink">hub pattern</em> — how a generator with dozens of model
     families stays sane. Each destination is a complete form in its own module (S3 even exports
-    a standalone <code>s3Form</code>); the hub's <code>switch</code> on the discriminator is
-    what ties them together, and its option list is built <em>from</em> the modules, so adding a
-    destination is one import. Each case returns that destination's shape tagged with the
-    discriminator — the state IS a discriminated union, and the panel below narrows it with a
+    a standalone <code>s3Form</code>); the hub declares the discriminator as an ordinary field and
+    <code>branch('destination', pairs)</code> dispatches on it, with the option list built
+    <em>from</em> the modules, so adding a destination is one import plus one pair. Each arm
+    contributes that destination's fields — the state IS a discriminated union, and the panel below narrows it with a
     plain <code>if</code>. The shared <code>retries</code> key is scoped per destination:
     webhook and email each remember their own.
   </p>

@@ -428,7 +428,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
   }
 
   /**
-   * The strict submission projection — typed as `State` on the same claim
+   * The strict submission projection — typed as `Data` on the same claim
    * `parse` makes: same keys, per-key output-validated (possibly stripped)
    * values. Never written back into state.
    */

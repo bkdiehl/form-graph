@@ -64,12 +64,14 @@ what the types say.
 - **Lenient boundaries, strict output.** Dual schemas per field: stored/remixed/raw values parse
   leniently and fall back to defaults; submit validates strictly, reporting every issue with its
   path. Nothing schema-shaped runs on the keystroke path.
-- **Auditable corrections.** `f.correct(key, value, reason)` replaces a value the system
-  invalidated — a resolver statement, not a hidden hook — and the reason rides to the server as
-  a note on every parse (failures included) and onto the field's snapshot for inline display.
+- **Auditable corrections.** A definition's `correct: (v) => ({ value, reason })` policy
+  replaces a value the system invalidated — a visible statement in the definition, not a hidden
+  hook — and the reason rides to the server as a note on every parse (failures included) and
+  onto the field's snapshot for inline display.
 - **Dynamic contracts in zod's own vocabulary.** `refine: (s) => s.refine(...)` narrows a
   field's output schema under the current conditions, deps-cached so typing never constructs a
-  schema, with a live per-field error.
+  schema, with a per-field error at validate/parse — live for written fields under
+  `revalidate: 'touched'`.
 - **Cross-field couplings without effect soup.** Rules are records keyed by the triggering
   field, run in one ordered pass per `set()` — cycles are unrepresentable, not detected.
 - **Collections as a combinator.** `list(key, memberGraph, {min, max})` mounts a member graph
@@ -136,9 +138,9 @@ const store = form.createStore({ ext, storage: persistedStorage('my-form') });
 
 | Import | Contents |
 | --- | --- |
-| `form-graph` | core: `defineGraph`, `branch`, `list`, store (incl. `setError`, scoped `validate`, `store.list`), introspection, `persistedStorage`, intent readers |
+| `form-graph` | core: `defineGraph`, `branch`, `list`, store (incl. `setError`, scoped `validate`, `store.list`, `isDirty`), `focusFirstError`, introspection, `persistedStorage`, intent readers |
 | `form-graph/svelte` | `typedFields`, `<Field>`, `field`, `formState`, `list`, `elementPath`, `syncExt` |
-| `form-graph/react` | `useForm`, `useField`, `useTypedField`, `Controller`, `createTypedController`, `FormProvider`, `useList`, `<ListElement>` |
+| `form-graph/react` | `useForm`, `useField`, `useTypedField`, `useFormState`, `Controller`, `MultiController`, `createTypedController`, `FormProvider`, `useList`, `<ListElement>` |
 | `form-graph/defs` | the definition helpers: sliders, enums, text, booleans — schemas cached automatically |
 
 ## Docs and demos
@@ -158,7 +160,7 @@ Locally, `pnpm dev` serves the same site.
 Pre-1.0. The API has been through several deliberate revisions and is settling, but every
 release before 1.0 may break it. Battle-testing is ongoing against a large production form
 (40+ branch families); the core engine, both bindings, and the persistence layer are covered
-by ~400 tests including compile-time type assertions, render-isolation contracts on both
+by ~430 tests including compile-time type assertions, render-isolation contracts on both
 frameworks, and a differential parity suite against the production implementation it replaces.
 
 Engineering history — the design decisions, measurements, and dead ends — lives in

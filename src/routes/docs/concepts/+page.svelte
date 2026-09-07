@@ -25,8 +25,8 @@
   Graphs are immutable values: continuing one with <code>.field()</code> makes a new graph, so a
   shared prefix is ordinary chaining and a shared section is a plain
   <code>Graph → Graph</code> function. The one thing a chain can't express — alternative
-  SHAPES with a discriminated union between them — stays a <code>switch</code> in the resolver,
-  composing whole graphs per branch (see the publish demo's hub).
+  SHAPES with a discriminated union between them — is the <code>branch</code> combinator's job:
+  a keyed table of member graphs (see the publish demo's hub).
 </p>
 
 <h2>Scoped memory</h2>
@@ -45,7 +45,8 @@
   values (storage, URL, remix, raw server input) run the lenient <code>input</code> schema
   lazily, falling back to the default on failure — a corrupt stored value can never wedge the
   form. The strict <code>output</code> schema runs only on demand: submit, <code>output()</code>,
-  server <code>parse()</code>. The helpers cache schema construction on the exact values a
+  server <code>parse()</code> — and, with <code>revalidate: 'touched'</code>, on every recompute
+  for fields the user has written. The helpers cache schema construction on the exact values a
   schema is built from, so per-pass definitions cost object literals, not zod.
 </p>
 
@@ -67,8 +68,9 @@
   <li>
     <strong>the output schema itself</strong> — a refusal, in zod's own vocabulary: narrow
     <code>output</code> conditionally (<code>.refine(...)</code>, <code>.min(...)</code>,
-    anything). The value keeps its place, carries a LIVE error, and fails submit. For mismatches
-    the USER must resolve.
+    anything). The value keeps its place and fails submit with a per-field error — live once
+    the user has written it, under <code>revalidate: 'touched'</code>. For mismatches the USER
+    must resolve.
   </li>
 </ul>
 
@@ -87,8 +89,8 @@
 }))
 
 .field('hazmatClass', (c) => ({
-  ...HAZMAT,
-  output: hazmatOutput.refine((v) => !(v === '1.4' && c.service === 'air'), {
+  ...HAZMAT, // cached base — narrow per pass with refine, never a rebuilt output
+  refine: (output) => output.refine((v) => !(v === '1.4' && c.service === 'air'), {
     message: 'Class 1.4 explosives cannot ship by air',
   }),
 }))`}</pre>

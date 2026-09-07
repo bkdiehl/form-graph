@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { defineGraph } from '$lib/index.js';
 import { boolOf, enumOf, slider, textOf } from '$lib/defs/index.js';
-import type { ZodType } from 'zod';
 
 // Demo ladder, rung 2: a real-world shape. Chained computed fields
 // (dimensional weight → billable weight → price), a gated service (disabled
@@ -22,7 +21,6 @@ const HAZMAT = enumOf({
   ],
   default: '3',
 });
-const hazmatOutput = HAZMAT.output as ZodType<'3' | '8' | '1.4'>;
 
 const cm = (max: number, dflt: number) => slider({ min: 1, max, default: dflt });
 
@@ -71,12 +69,12 @@ export const shippingForm = defineGraph()
       ? {
           ...HAZMAT,
           // Explosives exist as a legal choice — but not on a plane. REFUSES
-          // (live error + failed submit): the output contract, narrowed
-          // inline in zod's own vocabulary.
-          output: hazmatOutput.refine((value) => !(value === '1.4' && c.service === 'air'), {
-            message: 'Class 1.4 explosives cannot ship by air',
-            params: { kind: 'hazmat_air_forbidden' },
-          }),
+          // at submit: the output contract, narrowed in zod's own vocabulary.
+          refine: (output) =>
+            output.refine((value) => !(value === '1.4' && c.service === 'air'), {
+              message: 'Class 1.4 explosives cannot ship by air',
+              params: { kind: 'hazmat_air_forbidden' },
+            }),
         }
       : null
   )

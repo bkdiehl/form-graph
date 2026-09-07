@@ -6,7 +6,7 @@
   while a field is inactive in the current branch.
 </p>
 
-<pre>{`import { useForm, useField, FormProvider, Controller } from 'form-graph/react';
+<pre>{`import { useForm, useField, useFormStore, FormProvider, Controller } from 'form-graph/react';
 import { form } from './my-form';
 
 function GenerationForm({ ext }) {
@@ -37,7 +37,7 @@ function PromptInput() {
 
 <p>
   The render props are <code>value</code>, <code>meta</code>, <code>error</code>,
-  <code>onChange</code>, <code>isComputed</code>, and <code>note</code> — the resolution note
+  <code>onChange</code>, <code>isComputed</code>, <code>fieldProps</code> (see Focus on error), and <code>note</code> — the resolution note
   set when a <code>correct</code> rule replaced the value this pass, for rendering a "we
   adjusted this" hint inline.
 </p>

@@ -5,7 +5,7 @@
   import formSource from './job-form.ts?shiki';
   import { jobForm, STEPS } from './job-form.js';
 
-  const store = jobForm.createStore();
+  const store = jobForm.createStore({ ext: undefined, revalidate: 'touched' });
 
   let step = $state(0);
   let submitted = $state<string | null>(null);
@@ -87,7 +87,9 @@
     <code>store.validate(step.keys)</code> — it judges only that step's fields, so step 3's
     requireds can't scold on step 1, and going back shows everything remembered. Step 2 branches
     on employment type; its key list names <em>both</em> arms — the inactive one is vacuously
-    valid. Step 3's gate is a whole <code>list()</code>.
+    valid. Step 3's gate is a whole <code>list()</code>. The store runs
+    <code>revalidate: 'touched'</code>: after a failed "Next" surfaces an error (and
+    <code>focusFirstError</code> jumps to it), fixing the field clears it as you type.
   </p>
 
   <nav class="my-6 flex gap-2">

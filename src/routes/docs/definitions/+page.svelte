@@ -7,13 +7,15 @@
 
 <pre>{`interface FieldDef<T, M> {
   output: SchemaLike<T>;             // strict: submit / output() / server parse
-  input?: SchemaLike<T | undefined>; // lenient: storage, URLs, patches — undefined = fall to default
+  input?: SchemaLike<unknown>;       // lenient: storage, URLs, patches — undefined = fall to default
   default?: T | (() => T);
   meta?: M | ((value: T) => M);      // UI props; fn form for value-derived meta
   scope?: Scope;                     // where this field's memory lives
+  refine?(output): SchemaLike<T>;    // per-pass narrowing — judged with the output schema
   correct?: (value: T) => { value: T; reason: string; detail?: object } | undefined;
   coerce?: (raw: unknown) => T;      // fast path for trusted writes
   toOutput?: (value: T) => unknown;  // submission projection
+  emit?: false | string;             // wire disposition: rename, or keep off the wire
 }`}</pre>
 
 <h2>Keep the schema type: <code>satisfies</code>, never a type annotation</h2>
@@ -43,7 +45,9 @@ BAD.output.refine(...)    // error: SchemaLike<string> has no .refine`}</pre>
 <h2><code>input</code> is optional — and live typing never touches it</h2>
 <p>
   Session edits (<code>set()</code>) write TRUSTED intent: a half-typed invalid value is held
-  and rejected only at submit, with or without an input schema. The input schema guards only
+  and rejected only at submit (under the default <code>revalidate: 'submit'</code>; with
+  <code>'touched'</code>, a field the user has written is judged live — see The store), with
+  or without an input schema. The input schema guards only
   UNTRUSTED boundaries — storage reload, raw server input, URL params. Omit it, and those
   boundaries parse with the OUTPUT schema, leniently: an invalid stored value falls to the
   default, with the error recorded. That is the right behavior for most fields. Declare
@@ -74,7 +78,7 @@ enumOf({
 // value type: 'a' | 'b' — inferred, numeric enums included
 
 textOf({ maxLength: 200, required: true })
-boolOf(true)`}</pre>
+boolOf({ default: true })`}</pre>
 
 <h2>Conditional anything</h2>
 <p>
@@ -90,21 +94,21 @@ boolOf(true)`}</pre>
 
 <h2>Custom zod, inline</h2>
 <p>
-  The output schema is yours. Compose over a helper by spreading it and overriding — the base
-  schemas stay cached; only your wrapper builds per pass (a few µs):
+  The output schema is yours — but per-pass NARROWING goes through <code>refine</code>, not a
+  rebuilt <code>output</code>. Rebuilding <code>output</code> inline each pass is exactly what
+  the store's codec-churn warning names (it checks output identity too):
 </p>
 
 <pre>{`.field('hazmatClass', (c) => ({
-  ...HAZMAT,
-  output: hazmatOutput.refine((v) => !(v === '1.4' && c.service === 'air'), {
+  ...HAZMAT, // cached/hoisted base — its schemas never rebuild
+  refine: (output) => output.refine((v) => !(v === '1.4' && c.service === 'air'), {
     message: 'Class 1.4 explosives cannot ship by air',
   }),
 }))`}</pre>
 
 <p>
-  This spread IS the way to narrow an output per pass. (The engine also carries a
-  <code>FieldOptions.refine</code> hook for hand-written <code>f.field</code> resolvers — if
-  you're writing graphs, it's plumbing you never touch.)
+  Spread-and-override <code>output</code> only for a genuinely DIFFERENT schema, hoisted or
+  cached once — see "Per-pass narrowing: refine" below for the full semantics.
 </p>
 
 <h2>The performance model, measured</h2>
@@ -165,9 +169,11 @@ export const durationDef = cachedFactory((cfg: { min: number; max: number }) => 
 <p>
   A failing refine keeps the value in place and fails submit/parse; the <code>error</code>
   reaches the snapshot at <code>validate()</code> — like the output schema it narrows, refine
-  judges at submit, so a pristine required field doesn't scold before the user ever acts. Once
-  surfaced, the error lifts on the first pass whose refinement passes again. Refusal for the
-  user to resolve, where <code>correct</code> is substitution the form resolves itself.
+  judges at submit by default, so a pristine required field doesn't scold before the user ever
+  acts (under <code>revalidate: 'touched'</code>, fields the user has WRITTEN are judged on
+  every recompute — see The store; pristine fields stay quiet either way). Once surfaced, the
+  error lifts on the first pass whose refinement passes again. Refusal for the user to
+  resolve, where <code>correct</code> is substitution the form resolves itself.
 </p>
 
 <h2>Registry</h2>

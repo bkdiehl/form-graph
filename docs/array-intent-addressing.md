@@ -1,4 +1,4 @@
-# Array fields: the intent-address grammar (design, not yet implemented)
+# Array fields: the intent-address grammar (shipped: 0.4 `list()`)
 
 Status: **shipped (0.4, `list()`)** — grammar as amended below; `[` `]` `.`
 enforced in keys, itemIds escaped, `src/lib/core/list.ts` implements it.
@@ -87,12 +87,11 @@ Decisions folded into that shape:
 ## What is enforced NOW
 
 `scopedAddress` throws in all builds if a **key** contains any structural
-character: `@`, `/`, `[`, `]`, or `%`. Before this rule, a key containing `@`
+character: `@`, `/`, `[`, `]`, `%`, or `.`. Before this rule, a key containing `@`
 would silently corrupt address parsing; a key containing `[` would collide
 with the item grammar the day it ships. Guarded by
-`src/lib/core/__tests__/scoped-intent.test.ts`. **`.` is not yet in that
-set** — reserving it is the first commit of the 0.4 build, same enforcement
-site, same test file.
+`src/lib/core/__tests__/scoped-intent.test.ts`. `.` joined the set as the first commit of the 0.4 build — same enforcement site,
+same test file.
 
 Storage adapters need no changes: an address is still an opaque string key.
 The reservation only guarantees that when `[` appears in a stored address, it

@@ -57,7 +57,7 @@
     <em class="text-ink">projects</em> the service (with a note), while explosives on an air
     service <em class="text-ink">refuses</em> at submit. Hazmat demands an emergency contact
     (validated at output), and an international quote over $5000 flips insurance on
-    <em>for</em> you — which is the only way the signature question ever appears. Persisted to
+    <em>for</em> you — and the signature question appears whenever insurance is on, forced or chosen. Persisted to
     <strong class="text-ink">sessionStorage</strong>: reload keeps the quote, closing the tab
     discards it.
   </p>

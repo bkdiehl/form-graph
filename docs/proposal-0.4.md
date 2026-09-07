@@ -67,7 +67,7 @@ const trainingGraph = defineGraph<TrainingExt>()
   branch arms, computeds, corrections, adopted defaults — against the
   shared ext.
 - **Element identity, not index.** `store.list('runs')` exposes
-  `.add(seed?) → id`, `.remove(id)`, `.duplicate(id)`, `.move(id, index)`.
+  `.add(seed?) → {success, id}`, `.remove(id)`, `.duplicate(id)`, `.move(id, index)`.
   All go through the write path as gestures, so rules can react.
 - **`duplicate` copies the user-written entries** (decided): a duplicate is
   "the same choices" — derived values re-derive in the new element.

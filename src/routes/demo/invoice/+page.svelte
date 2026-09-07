@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { elementPath, field, list } from '$lib/svelte/index.js';
+  import { elementPath, field, formState, list } from '$lib/svelte/index.js';
   import { persistedStorage, type EnumDefMeta } from '$lib/core/index.js';
   import SourceCode from '../SourceCode.svelte';
   import formSource from './invoice-form.ts?shiki';
@@ -58,10 +58,25 @@
 
   const money = (n: number) =>
     (currency.current?.value === 'EUR' ? '€' : '$') + n.toLocaleString();
+
+  // isDirty/dirtyFields: the intent map IS the dirty tracker — an
+  // unsaved-changes indicator is a read, not machinery
+  const wholeForm = formState(store);
+  const dirty = $derived((void wholeForm.current, store.dirtyFields()));
 </script>
 
 <main>
-  <h1 class="font-display text-3xl font-bold tracking-tight">Invoice builder</h1>
+  <h1 class="font-display flex items-center gap-3 text-3xl font-bold tracking-tight">
+    Invoice builder
+    {#if dirty.length > 0}
+      <span
+        class="rounded-full border border-accent px-2.5 py-0.5 text-xs font-normal text-accent"
+        title={dirty.join(', ')}
+      >
+        {dirty.length} unsaved change{dirty.length === 1 ? '' : 's'}
+      </span>
+    {/if}
+  </h1>
   <p class="mt-4 max-w-[65ch] leading-relaxed text-muted">
     The <code>list()</code> demo: <code>items</code> is a collection of sub-records, each resolved
     through its own member graph — its own <code>kind</code> branch (a service row and a goods row

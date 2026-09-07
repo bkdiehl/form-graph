@@ -48,14 +48,14 @@
       problem:
         'Anything that persists choices eventually reloads a value the current config no longer accepts — a retired model id, a removed workflow key, a corrupt blob. Validate strictly on load and the form errors before the user touches it; skip validation and garbage flows into submissions.',
       mechanism:
-        'Every value knows where it came from. UI writes are trusted and stored verbatim. Boundary values — storage, URLs, remixes, raw server input — run a separate <em>lenient</em> input schema, lazily, falling back to the default on failure. The <em>strict</em> output schema runs only on demand: submit, <code>output()</code>, server parse. A corrupt value can cost one field’s memory; it can never wedge the form. And since nothing schema-shaped runs during typing, keystrokes stay flat at any form size.',
+        'Every value knows where it came from. UI writes are trusted and stored verbatim. Boundary values — storage, URLs, remixes, raw server input — run a separate <em>lenient</em> input schema, lazily, falling back to the default on failure. The <em>strict</em> output schema runs only on demand by default: submit, <code>output()</code>, server parse (opt into <code>revalidate: &#39;touched&#39;</code> for live errors on written fields, ~6µs worst case). A corrupt value can cost one field’s memory; it can never wedge the form. And since nothing schema-shaped runs during typing by default, keystrokes stay flat at any form size.',
     },
     {
       title: 'Silent corrections you can’t audit',
       problem:
         'Real forms correct user values: clamp a quantity to the account’s limit, substitute a retired checkpoint, force the locked model for a draft workflow. Do it silently and the server can’t tell a correction from a tampered request; error instead and you punish users for config changes they never saw.',
       mechanism:
-        'Two first-class reactions, split by whose problem it is. <code>f.correct(key, value, reason)</code> replaces the value — a visible statement in the resolver, with a machine-readable reason (<code>locked_default</code>, <code>ecosystem_mismatch</code>, …) riding on every parse result, failures included. <code>refine</code> narrows the output schema in zod’s own vocabulary and refuses, with a live error. The server doesn’t diff blindly; it reads why a value moved.',
+        'Two first-class reactions, split by whose problem it is. A definition’s <code>correct</code> policy replaces the value — a visible statement in the definition, with a machine-readable reason (<code>locked_default</code>, <code>ecosystem_mismatch</code>, …) riding on every parse result, failures included. <code>refine</code> narrows the output schema in zod’s own vocabulary and refuses at submit, with a per-field error. The server doesn’t diff blindly; it reads why a value moved.',
     },
     {
       title: 'Couplings become effect soup',
@@ -104,7 +104,7 @@
     <figcaption
       class="border-b border-line px-4 py-2 font-mono text-[0.65rem] tracking-widest text-faint uppercase"
     >
-      The whole idea — one resolver, annotated
+      The whole idea — the engine's resolver, annotated (authored via defineGraph/branch)
     </figcaption>
     <div class="overflow-x-auto p-4">
       {#each hero as line, i (i)}
@@ -151,13 +151,15 @@
     <p class="font-mono text-[0.65rem] tracking-[0.2em] text-accent uppercase">Scope</p>
     <h2 class="font-display mt-2 text-xl font-semibold">What this is not</h2>
     <p class="mt-3 max-w-[65ch] leading-relaxed text-muted">
-      form-graph is a contract engine, not a UI kit. It has no field-array choreography, no
-      wizard steps, no focus management — a form whose shape is static and whose fields are
-      independent is well served by the established form libraries, and pairing one of them with
-      a single form-graph field is a supported pattern, not a workaround. The line: if a feature
-      changes what the parsed output <em class="text-ink">means</em> or how a value is
-      <em class="text-ink">remembered</em>, it belongs here; if its subject is how the user moves
-      through the UI, it doesn’t.
+      form-graph is a contract engine, not a UI kit: no rendered components, no layout, no step
+      navigation chrome. The form-shaped mechanics ARE here — collections
+      (<code>list()</code>), wizard-step gates (scoped <code>validate</code>), dirty tracking,
+      focus-on-error — but a form whose shape is static and whose fields are independent is
+      well served by the established form libraries, and pairing one of them with a single
+      form-graph field is a supported pattern, not a workaround. The line: if a feature changes
+      what the parsed output <em class="text-ink">means</em> or how a value is
+      <em class="text-ink">remembered</em>, it belongs here; if its subject is how the UI
+      looks, it doesn’t.
     </p>
     <p class="mt-4 text-sm">
       <a href="{base}/docs" class="text-accent">Getting started →</a>
