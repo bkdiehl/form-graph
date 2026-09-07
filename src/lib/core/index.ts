@@ -44,6 +44,7 @@ export {
   type SliderDefMeta,
 } from './def-helpers.js';
 export { type InferDefs, type InferFieldValue } from './form.js';
+export { list, type ListOptions } from './list.js';
 export type { Intent, IntentEntry } from './intent.js';
 export {
   allPossibleKeys,
@@ -56,10 +57,11 @@ export {
   type BranchDescription,
   type Pins,
 } from './introspect.js';
-export type { FormStore, StorageAdapter, StoreOptions } from './store.js';
+export type { AnyFormStore, FormStore, StorageAdapter, StoreOptions } from './store.js';
 export { type Rule, type RuleCtx, type RuleMap, type EffectFn, type RuleUnit } from './rules.js';
 export { debouncedStorage, persistedStorage, type DebouncedStorageAdapter } from './storage.js';
 export {
+  elementPrefix,
   readIntentBuckets,
   readIntentValue,
   rootScope,
@@ -70,6 +72,9 @@ export {
 } from './scope.js';
 export type {
   FieldError,
+  ListHandle,
+  ListOpRefusal,
+  ListSnapshot,
   ResolutionNote,
   FieldRecord,
   FieldSnapshot,
@@ -80,5 +85,6 @@ export type {
   Snapshot,
   StandardSchemaResult,
   StandardSchemaV1,
+  ScopedValidationResult,
   ValidationResult,
 } from './types.js';

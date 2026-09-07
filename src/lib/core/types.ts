@@ -136,11 +136,23 @@ export interface FieldRecord<T = unknown, M = unknown> {
   /**
    * Wire disposition: undefined emits under the graph key, a string emits
    * under that name instead, false keeps the key out of parsed data entirely
-   * (it still resolves, validates, and holds intent). Validation errors key by
-   * the WIRE name — the external contract — except emit:false fields, which
-   * key by graph name (they have no wire name).
+   * (it still resolves, validates, and holds intent). Validation errors
+   * always key by GRAPH name — errors describe fields; only data carries
+   * wire names.
    */
   emit?: false | string;
+  /**
+   * Set on a list's MEMBERSHIP record: the ordered element ids plus the
+   * bounds its ops refuse against. Its value is the same id array; parsed
+   * data carries the assembled per-element objects instead.
+   */
+  list?: { ids: readonly string[]; min: number; max: number };
+  /**
+   * Set on every record resolved INSIDE a list element: which list (full
+   * path) and which element id. validateResolution groups element outputs
+   * into the list's data array by this.
+   */
+  element?: { list: string; id: string };
   /** Set when a boundary value failed its input schema and the default was used instead. */
   boundaryError: FieldError | undefined;
   /** The refined output schema for this pass (FieldOptions.refine); replaces codec.output at submit. */
@@ -190,3 +202,32 @@ export type ValidationResult<Data, State> =
 export type ScopedValidationResult =
   | { success: true }
   | { success: false; errors: Record<string, FieldError> };
+
+/**
+ * A list op that could not proceed; the membership is untouched.
+ * 'inactive' comes from the React binding's ops when the list left the
+ * active branch between render and click — the core `store.list()` throws
+ * for an inactive key instead (a programmer error, not a race).
+ */
+export type ListOpRefusal = { success: false; reason: 'min' | 'max' | 'unknown_id' | 'inactive' };
+
+/** The ops handle `store.list(key)` returns for an active list. */
+export interface ListHandle {
+  /** Element ids in order. */
+  readonly ids: readonly string[];
+  /** Appends a minted element; `seed` writes member fields of the new element. */
+  add(seed?: Record<string, unknown>): { success: true; id: string } | ListOpRefusal;
+  remove(id: string): { success: true } | ListOpRefusal;
+  /** Copies the source element's USER-WRITTEN entries; derived values re-derive. */
+  duplicate(id: string): { success: true; id: string } | ListOpRefusal;
+  move(id: string, index: number): { success: true } | ListOpRefusal;
+}
+
+/**
+ * The binding-facing view of a list — an eager `ids` snapshot plus the ops.
+ * One shared type for both frameworks, the FieldSnapshot precedent: React's
+ * useList and Svelte's list handle both return it.
+ */
+export interface ListSnapshot extends Pick<ListHandle, 'add' | 'remove' | 'duplicate' | 'move'> {
+  ids: readonly string[];
+}

@@ -27,11 +27,16 @@ so a release cannot skip the battery.
 
 ## Design invariants (each was litigated — don't relitigate silently)
 
-- **One `branch` combinator, two forms.** Keyed (`.field(key, def)` then
-  `branch(key, pairsTable)`) and tagged (`branch(key, pick, members, opts?)`). There is
-  deliberately **no untagged form and no `branchOn`**: a pick function's control flow is
-  invisible to the type system, so dispatch must ride a declared field or a tag. The
-  design trail is in `docs/DEVLOG.md`.
+- **Two combinators: `branch` and `list` — and no third without a proposal.** Branch is
+  keyed (`.field(key, def)` then `branch(key, pairsTable)`) or tagged
+  (`branch(key, pick, members, opts?)`); there is deliberately **no untagged form and no
+  `branchOn`**: a pick function's control flow is invisible to the type system, so
+  dispatch must ride a declared field or a tag. `list(key, memberGraph, {min,max})`
+  (0.4) mounts a member graph per element under dotted path keys
+  (`runs[a1b2].engine` — docs/array-intent-addressing.md); element records stay FLAT in
+  the resolution, which is what makes diff/subscriptions/scoped-validate/setError
+  list-aware for free — preserve that property in any change. The design trail is in
+  `docs/DEVLOG.md`.
 - **Resolution is synchronous.** Async work happens outside the graph and enters via ext.
   Considered and rejected — see the DEVLOG entry before proposing async resolvers.
 - **The lib owns the grammar; the consumer owns policy.** `scopedAddress` /

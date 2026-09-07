@@ -91,6 +91,48 @@ f.steps.current
 
 <p>The <a href="{base}/demo">demos</a> are built entirely this way.</p>
 
+<h2>Lists: <code>list</code> and <code>elementPath</code></h2>
+<pre>{`${'<'}script lang="ts">
+  import { elementPath, field, list } from 'form-graph/svelte';
+
+  const runs = list(store, 'runs');   // field()'s sibling: SUBSCRIBES (the -Of family builds defs)
+${'<'}/script>
+
+{#if runs.current}
+  {#each runs.current.ids as id (id)}
+    {@const p = elementPath('runs', id)}
+    <RunRow {store} {id} />   <!-- or inline: field(store, p('engine')) -->
+  {/each}
+  <button onclick={() => runs.current.add()}>Add</button>
+{/if}`}</pre>
+<p>
+  <code>list(store, key)</code> subscribes to the MEMBERSHIP entry only — add/remove/reorder
+  wake it, an element edit never does — and exposes the ops
+  (<code>add</code>/<code>remove</code>/<code>duplicate</code>/<code>move</code>, refusal-based;
+  see Collections). <code>elementPath('runs', id)</code> returns a namer for that element's
+  dotted paths: <code>p('engine')</code> → <code>runs[a1b2].engine</code>, which every helper on
+  this page accepts (<code>field</code>, <code>store.set</code>, <code>setError</code>,
+  <code>validate</code>). In a row component, derive the handles so a keyed row re-derives if
+  its id ever changes: <code>const engine = $derived(field(store, p('engine')))</code>. The
+  <a href="{base}/demo/invoice">invoice demo</a> is the worked example.
+</p>
+
+<h2><code>syncExt</code> — reactive ext, no hand-rolled guard</h2>
+<pre>{`syncExt(store, () => ({ tier: data.tier, flags: data.flags }));`}</pre>
+<p>
+  Store creation needs no helper in Svelte (a component script runs once), but ext that follows
+  reactive inputs does: <code>syncExt</code> pushes at setup — catching ext that hydrated
+  BEFORE mount, the SvelteKit load/remount shape — and on every change of the getter's
+  dependencies. <code>setExt</code> itself no-ops on a deep-equal ext, so the unconditional
+  pushes are free and there is no shadow copy to drift.
+</p>
+<p>
+  Argument order: the svelte helpers are all store-first (<code>list(store, key)</code> like
+  <code>field(store, name)</code>) because the store is always required — Svelte has no
+  ambient-store context for plain functions. React's <code>useList(key, store?)</code> is
+  key-first only because its store can be omitted via <code>&lt;FormProvider&gt;</code>.
+</p>
+
 <h2>Testing gotcha</h2>
 <p>
   Svelte 5 ships separate client and server runtimes. Under vitest, add

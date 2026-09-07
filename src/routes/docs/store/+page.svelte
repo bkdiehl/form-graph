@@ -43,7 +43,9 @@ const offOne = store.subscribe('steps', onSteps);      // one key only`}</pre>
   </li>
   <li>
     <code>setExt(ext)</code> — replace the external context wholesale; the form re-resolves.
-    Ext is never mutated in place — the store cannot see mutation.
+    Ext is never mutated in place — the store cannot see mutation. A deep-equal ext is a
+    no-op, so pushing unconditionally from a reactive source is free (see the Svelte
+    binding's <code>syncExt</code>).
   </li>
   <li>
     <code>reset(&#123; exclude &#125;)</code> — clears intent. Excluded KEYS keep everything
@@ -51,6 +53,20 @@ const offOne = store.subscribe('steps', onSteps);      // one key only`}</pre>
   </li>
   <li><code>prune(predicate)</code> — delete intent entries by address, for targeted cleanup.</li>
 </ul>
+
+<h2>External errors: async judgments in a sync engine</h2>
+<pre>{`store.setError('triggerWord', { message: 'This phrase is not allowed.' });
+store.clearError('triggerWord');`}</pre>
+<p>
+  Resolution stays synchronous; async results enter as VALUES through <code>set</code>/ext, and
+  as VALIDITY through <code>setError</code> — a server-side audit refusing a field, a cost check
+  failing a row. An external error is live on the field's snapshot, wins over an engine error on
+  the same key, fails <code>validate()</code>/<code>output()</code>, and is never persisted.
+  Staleness the engine owns: a user write to the field clears it, the field leaving the active
+  branch drops it, and <code>setError</code> against an inactive key binds nothing. Everything
+  else — clearing on a new request, choosing which async result wins — is your code, where you
+  already know the answer.
+</p>
 
 <h2>Getting data out</h2>
 <pre>{`const result = store.validate();   // { success, data | errors } — the checked path
@@ -61,6 +77,37 @@ const part   = form.parsePartial(raw, ext); // best-effort: per-key results, no 
   call sites that have already validated and want the narrowing; <code>parsePartial</code> is
   for progressive server handling. Server-side <code>form.parse(raw, ext)</code> is the same
   pipeline over a raw record — one behavior, client and server.
+</p>
+
+<h2>Scoped validation: wizard steps</h2>
+<pre>{`store.validate();                    // the whole active graph
+store.validate('triggerWord');       // one field
+store.validate(STEP2_KEYS);          // a step's fields — a wizard "Next"
+store.validate('runs');              // a whole list, every element`}</pre>
+<p>
+  The scoped form judges ONLY the named fields — surfacing and clearing errors for them alone,
+  so a step's "Next" can't scold (or absolve) a later step. Keys are typed against the graph;
+  an inactive key is vacuously valid, which is what lets one key list cover every branch arm. A
+  list key expands to all its elements. The scoped result is
+  <code>&#123; success &#125;</code> or <code>&#123; success: false, errors &#125;</code> —
+  deliberately without <code>data</code>: a scoped success vouches only for the named fields.
+  The graph itself stays step-agnostic; which keys form a step is your business, declared next
+  to the step's UI (see the <a href="/demo/wizard">wizard demo</a>).
+</p>
+
+<h2>Lists</h2>
+<pre>{`const runs = store.list('runs');     // throws for an inactive/unknown key
+runs.ids                              // element ids, in order
+runs.add({ engine: 'musubi' })        // { success: true, id } — seed writes member fields
+runs.remove(id)                       // { success: false, reason: 'min' } at the bound
+runs.duplicate(id)                    // copies USER-WRITTEN entries; derived values re-derive
+runs.move(id, index)`}</pre>
+<p>
+  The ops handle for a <code>list()</code> field (see Collections). Bounds REFUSE rather than
+  break: the store never holds an invalid membership, and a refusal carries its
+  <code>reason</code>. Element fields read and write through their dotted paths
+  (<code>store.set(&#123; 'runs[a1b2].engine': 'musubi' &#125;)</code>) — every store mechanism
+  on this page is path-aware.
 </p>
 
 

@@ -72,6 +72,17 @@ what the types say.
   schema, with a live per-field error.
 - **Cross-field couplings without effect soup.** Rules are records keyed by the triggering
   field, run in one ordered pass per `set()` — cycles are unrepresentable, not detected.
+- **Collections as a combinator.** `list(key, memberGraph, {min, max})` mounts a member graph
+  per element — each row with its own branches, computeds, errors, and persistence, addressed
+  by stable ids (`runs[a1b2].engine`). A root computed aggregates the rows like any upstream
+  value; render isolation (an edit wakes only its row, a reorder only the shell) is pinned by
+  render-count tests on both bindings.
+- **Wizards without a step registry.** `validate(step.keys)` judges only that step's fields —
+  a key list declared next to the step's UI, inactive branch arms vacuously valid, a whole
+  list as a single gate. The graph never learns what a step is.
+- **Async validity, sync engine.** `setError(key, {message})` is the door for server verdicts
+  (an audit refusal, a failed cost check): live on the field, fails validate, cleared the
+  moment the user writes — never persisted.
 - **Full recompute, isolated renders.** Every change recomputes the whole snapshot; a
   reference-preserving diff means only controls whose data moved re-render.
 - **Framework-free core, first-class bindings.** All semantics live in the core store; the
@@ -121,9 +132,9 @@ const store = form.createStore({ ext, storage: persistedStorage('my-form') });
 
 | Import | Contents |
 | --- | --- |
-| `form-graph` | core: `codec`, `defineForm`, `defineRules`, `defineFieldKit`, store, introspection, `persistedStorage`, intent readers |
-| `form-graph/svelte` | `typedFields`, `<Field>`, `field`, `formState` |
-| `form-graph/react` | `useForm`, `useField`, `useTypedField`, `Controller`, `createTypedController`, `FormProvider` |
+| `form-graph` | core: `defineGraph`, `branch`, `list`, store (incl. `setError`, scoped `validate`, `store.list`), introspection, `persistedStorage`, intent readers |
+| `form-graph/svelte` | `typedFields`, `<Field>`, `field`, `formState`, `list`, `elementPath`, `syncExt` |
+| `form-graph/react` | `useForm`, `useField`, `useTypedField`, `Controller`, `createTypedController`, `FormProvider`, `useList`, `<ListElement>` |
 | `form-graph/defs` | the definition helpers: sliders, enums, text, booleans — schemas cached automatically |
 
 ## Docs and demos
@@ -143,8 +154,8 @@ Locally, `pnpm dev` serves the same site.
 Pre-1.0. The API has been through several deliberate revisions and is settling, but every
 release before 1.0 may break it. Battle-testing is ongoing against a large production form
 (40+ branch families); the core engine, both bindings, and the persistence layer are covered
-by ~310 tests including compile-time type assertions and a 36-case differential parity
-suite against the production implementation it replaces.
+by ~400 tests including compile-time type assertions, render-isolation contracts on both
+frameworks, and a differential parity suite against the production implementation it replaces.
 
 Engineering history — the design decisions, measurements, and dead ends — lives in
 [docs/DEVLOG.md](docs/DEVLOG.md).

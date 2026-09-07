@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { z } from 'zod';
-import { field, formState, syncExt, typedFields } from '../index.js';
+import { elementPath, field, formState, list, syncExt, typedFields } from '../index.js';
 import { codec } from '../../core/codec.js';
 import { defineForm } from '../../core/form.js';
 import { type Fields } from '../../core/resolve.js';
 import { defineGraph } from '../../core/graph.js';
+import { list as defineList } from '../../core/list.js';
 import { defaultExt, miniForm } from '../../__fixtures__/mini-generation.js';
 
 /**
@@ -228,6 +229,53 @@ describe('svelte binding: syncExt (0.4)', () => {
     source.current = { tier: 'free' };
     flushSync();
     expect(store.getState().label).toBe('mine'); // user write outlives ext churn
+
+    cleanup();
+  });
+});
+
+describe('svelte binding: list handle (0.4)', () => {
+  const runGraph = defineGraph().field('epochs', {
+    input: z.coerce.number().optional(),
+    output: z.number(),
+    default: 5,
+  });
+  const host = defineGraph().use(defineList('runs', runGraph, { min: 2, max: 5 }));
+
+  it('the shell wakes on membership changes ONLY; element edits wake their field alone', () => {
+    const store = host.createStore();
+    const runs = list(store, 'runs');
+    const first = field<number>(store, elementPath('runs', 's0')('epochs'));
+
+    let shellRuns = 0;
+    let fieldRuns = 0;
+    const cleanup = $effect.root(() => {
+      $effect(() => {
+        void runs.current;
+        shellRuns++;
+      });
+      $effect(() => {
+        void first.current;
+        fieldRuns++;
+      });
+    });
+    flushSync();
+    expect({ shellRuns, fieldRuns }).toEqual({ shellRuns: 1, fieldRuns: 1 });
+    expect(runs.current?.ids).toEqual(['s0', 's1']);
+
+    store.set({ 'runs[s1].epochs': 9 }); // a SIBLING edit
+    flushSync();
+    expect({ shellRuns, fieldRuns }).toEqual({ shellRuns: 1, fieldRuns: 1 });
+
+    store.set({ 'runs[s0].epochs': 7 }); // this element's edit
+    flushSync();
+    expect({ shellRuns, fieldRuns }).toEqual({ shellRuns: 1, fieldRuns: 2 });
+    expect(first.current?.value).toBe(7);
+
+    const added = runs.current?.add();
+    flushSync();
+    expect(added?.success).toBe(true);
+    expect({ shellRuns, fieldRuns }).toEqual({ shellRuns: 2, fieldRuns: 2 });
 
     cleanup();
   });

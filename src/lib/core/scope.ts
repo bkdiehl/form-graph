@@ -89,6 +89,43 @@ export function addressKey(address: string): string {
 }
 
 /**
+ * Escapes an element id for the dotted member-path grammar
+ * (`runs[a1b2].engine` — docs/array-intent-addressing.md). `%` first (the
+ * escape prefix), then every character the path parser owns.
+ */
+export function escapeItemId(id: string): string {
+  return id
+    .replace(/%/g, '%25')
+    .replace(/\]/g, '%5D')
+    .replace(/\./g, '%2E')
+    .replace(/@/g, '%40')
+    .replace(/\//g, '%2F');
+}
+
+/** `runs` + `a1b2` -> `runs[a1b2].` — the key prefix every member field gets. */
+export function elementPrefix(listKey: string, id: string): string {
+  return `${listKey}[${escapeItemId(id)}].`;
+}
+
+/**
+ * Address builder for ENGINE-BUILT path keys (`runs[a1b2].engine`), which
+ * legitimately contain the structural characters `scopedAddress` rejects in
+ * user-declared keys. Only list resolution constructs paths, so the guard
+ * stays strict where authors type keys and is bypassed here by construction.
+ */
+export function pathScopedAddress(pathKey: string, scope: Scope | undefined): string {
+  if (scope === undefined) return pathKey;
+  if (isRootScope(scope)) {
+    return scope.parts.length ? pathScopedAddress(pathKey, scope.parts) : pathKey;
+  }
+  const parts = Array.isArray(scope) ? scope : [scope];
+  if (parts.length === 0) return pathKey;
+  return (
+    pathKey + SCOPE_SEPARATOR + parts.map((part) => escapePart(part as ScopeValue, pathKey)).join(PART_SEPARATOR)
+  );
+}
+
+/**
  * Reads one field's RAW stored value out of a persisted intent record (the
  * `load()`/`save()` format: address -> raw value) — scoped bucket first, bare
  * key as the fallback, mirroring the store's own read order.

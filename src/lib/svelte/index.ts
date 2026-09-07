@@ -1,5 +1,13 @@
 import { createSubscriber } from 'svelte/reactivity';
-import type { FieldSnapshot, FormStore, InferDefMeta, InferDefValue } from '../core/index.js';
+import {
+  elementPrefix,
+  type FieldSnapshot,
+  type FormStore,
+  type InferDefMeta,
+  type InferDefValue,
+  type ListHandle,
+  type ListSnapshot,
+} from '../core/index.js';
 import type { CodecRegistry } from '../core/codec.js';
 
 /**
@@ -109,3 +117,38 @@ export function formState<State, Ext = unknown>(
 
 export { default as Field } from './Field.svelte';
 export { syncExt } from './syncExt.svelte.js';
+
+/** `elementPath('runs', id)` -> a namer for that element's fields: `p('engine')` = `runs[a1b2].engine`. */
+export function elementPath(
+  listKey: string,
+  id: string
+): (field: string) => `${string}[${string}].${string}` {
+  const prefix = elementPrefix(listKey, id);
+  return (field: string) => (prefix + field) as `${string}[${string}].${string}`;
+}
+
+/**
+ * The list handle for Svelte — the twin of React's useList, and `field`'s
+ * sibling (subscribe, not build — the def builders are the -Of family). `current`
+ * subscribes to the MEMBERSHIP entry only: add/remove/reorder wake it,
+ * an element edit never does (the render-isolation contract). Null while
+ * the list is inactive in the current branch. Element fields read via
+ * `field(store, elementPath(key, id)('engine'))`.
+ */
+export function list(store: AnyStore, key: string): Reactive<ListSnapshot | null> {
+  const subscribe = createSubscriber((update) => store.subscribe(key, update));
+  return {
+    get current() {
+      subscribe();
+      if (!store.getField(key)) return null;
+      const handle = store.list(key);
+      return {
+        ids: handle.ids,
+        add: handle.add,
+        remove: handle.remove,
+        duplicate: handle.duplicate,
+        move: handle.move,
+      };
+    },
+  };
+}

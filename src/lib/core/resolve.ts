@@ -1,7 +1,7 @@
 import { readEntry, type Intent, type ParseCache, type PendingValues } from './intent.js';
 import type { CodecRegistry, InferDefMeta, InferDefValue } from './codec.js';
 import { runSchema } from './run-schema.js';
-import { scopedAddress, type Scope } from './scope.js';
+import { elementPrefix, pathScopedAddress, scopedAddress, type Scope } from './scope.js';
 import { toFieldError } from './intent.js';
 import type { Codec, FieldRecord, Refinable, ResolutionNote, SchemaLike } from './types.js';
 
@@ -129,10 +129,28 @@ export interface Resolution<State> {
   notes: ResolutionNote[];
 }
 
-class Collector implements Fields {
+/**
+ * The engine-internal face of the collector that list resolution drives.
+ * Prefix frames turn a member graph's bare keys into full element paths
+ * (`runs[a1b2].engine`) — records, addresses, pending lookups and
+ * subscriptions all flow through the full path, which is what keeps every
+ * downstream mechanism (diff, scoped validate, setError) list-aware for free.
+ */
+export interface ListFields extends Fields {
+  __pushElement(listPath: string, id: string): void;
+  __popElement(): void;
+  __listPath(key: string): string;
+  __annotateList(key: string, info: { ids: readonly string[]; min: number; max: number }): void;
+}
+
+class Collector implements Fields, ListFields {
   readonly records = new Map<string, FieldRecord>();
   readonly keys: string[] = [];
   readonly notes: ResolutionNote[] = [];
+
+  /** Accumulated element prefix (`runs[a1b2].`, nested lists stack). */
+  private prefix = '';
+  private frames: Array<{ list: string; id: string; restore: string }> = [];
 
   constructor(
     private readonly intent: Intent,
@@ -140,6 +158,30 @@ class Collector implements Fields {
     private readonly pending: PendingValues | undefined,
     private readonly registry?: CodecRegistry
   ) {}
+
+  __pushElement(listPath: string, id: string): void {
+    this.frames.push({ list: listPath, id, restore: this.prefix });
+    this.prefix = listPath ? `${elementPrefix(listPath, id)}` : this.prefix;
+  }
+
+  __popElement(): void {
+    const frame = this.frames.pop();
+    if (frame) this.prefix = frame.restore;
+  }
+
+  __listPath(key: string): string {
+    return this.prefix + key;
+  }
+
+  __annotateList(key: string, info: { ids: readonly string[]; min: number; max: number }): void {
+    const record = this.records.get(this.prefix + key);
+    if (record) record.list = info;
+  }
+
+  private currentElement(): { list: string; id: string } | undefined {
+    const frame = this.frames[this.frames.length - 1];
+    return frame ? { list: frame.list, id: frame.id } : undefined;
+  }
 
   field<T, M, O extends SchemaLike<T> = SchemaLike<T>>(
     key: string,
@@ -157,18 +199,25 @@ class Collector implements Fields {
         `No codec for field "${key}": pass one explicitly, or declare the key in the form's codecs.`
       );
     }
-    this.assertUnique(key);
 
-    const address = scopedAddress(key, opts?.scope);
+    // The bare key stays under the strict reserved-character guard; the full
+    // path is engine-built and uses the path-aware address builder.
+    const bare = scopedAddress(key, undefined);
+    const fullKey = this.prefix + bare;
+    this.assertUnique(fullKey);
+
+    const address = this.prefix
+      ? pathScopedAddress(fullKey, opts?.scope)
+      : scopedAddress(key, opts?.scope);
     // Read order: pending values arrive by KEY (a patch or boundary defaults)
     // and win this pass — the store commits them at `address` afterwards. The
     // bare-key fallback serves writes made while the field was inactive (which
     // had no resolved scope); an explicit write to the active field supersedes
     // it via commitPending's cleanup.
     const entry =
-      this.pending?.get(key) ??
+      this.pending?.get(fullKey) ??
       this.intent.get(address) ??
-      (address !== key ? this.intent.get(key) : undefined);
+      (address !== fullKey ? this.intent.get(fullKey) : undefined);
     const parsed = entry
       ? readEntry(entry, codec as Codec<unknown, unknown>, this.cache)
       : undefined;
@@ -215,7 +264,7 @@ class Collector implements Fields {
     const meta = bareMetaAt(value as T);
 
     this.record({
-      key,
+      key: fullKey,
       address,
       value: value as T,
       meta,
@@ -226,6 +275,7 @@ class Collector implements Fields {
       boundaryError: parsed?.error,
       refined,
       note: undefined,
+      element: this.currentElement(),
     });
 
     // The field's own correction policy.
@@ -238,10 +288,11 @@ class Collector implements Fields {
   }
 
   computed<T>(key: string, value: T, opts?: { emit?: false | string }): T {
-    this.assertUnique(key);
+    const fullKey = this.prefix + key;
+    this.assertUnique(fullKey);
     this.record({
-      key,
-      address: key,
+      key: fullKey,
+      address: fullKey,
       value,
       meta: undefined,
       metaFn: undefined,
@@ -251,12 +302,14 @@ class Collector implements Fields {
       boundaryError: undefined,
       refined: undefined,
       note: undefined,
+      element: this.currentElement(),
     });
     return value;
   }
 
   correct<T>(key: string, value: T, reason: string, detail?: Record<string, unknown>): T {
-    const record = this.records.get(key);
+    const fullKey = this.prefix + key;
+    const record = this.records.get(fullKey);
     if (!record) {
       throw new Error(`Cannot correct "${key}": no field with that key has been declared yet.`);
     }
@@ -266,7 +319,7 @@ class Collector implements Fields {
     const from = record.value;
     record.value = value;
     if (record.metaFn) record.meta = record.metaFn(value);
-    const note: ResolutionNote = { key, kind: reason, detail: { from, to: value, ...detail } };
+    const note: ResolutionNote = { key: fullKey, kind: reason, detail: { from, to: value, ...detail } };
     record.note = note;
     this.notes.push(note);
     return value;

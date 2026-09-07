@@ -1191,3 +1191,157 @@ scoped-validate pins, snapshot-visibility of a standing external error
 across a scoped validate, the strand case for syncExt, and a saved.length
 guard on the never-persisted test (it could pass vacuously if save never
 fired).
+
+## list() lands — the collection combinator (2026-09-04)
+
+Proposal §1 built, all four layers in one round:
+
+- **Engine**: member graphs resolve once per element under dotted path keys
+  (`runs[a1b2].engine`), records FLAT in the resolution — which is the whole
+  trick: diff, subscriptions, scoped validate and setError became
+  list-aware with zero new machinery. State carries `MemberState[]`;
+  validateResolution groups element outputs per element (wire claims are
+  per element — every element legitimately emits the same names) and
+  assembles lists innermost-first, so nesting works to any depth.
+- **Membership** is the list's own record: seed ids are DETERMINISTIC
+  (`s0`..`s{min-1}`) — identities, not indices — so a fresh session
+  re-derives the same seeds and per-element persistence binds across
+  sessions without persisting an untouched membership. Ids minted by add()
+  are random and land in durable intent with the op. Boundary memberships
+  outside bounds (or with duplicate ids) are corrected with a
+  `list_bounds` note, never obeyed.
+- **Ops** (`store.list(key)`): add(seed?)/remove/duplicate/move, refusal-
+  based bounds ({success:false, reason}); remove sweeps the element's whole
+  intent subtree and its external errors; duplicate copies USER-WRITTEN
+  entries only — a duplicate is "the same choices", derived values
+  re-derive.
+- **Bindings**: React useList (membership-only subscription) +
+  <ListElement> (an element-path context that useField/Controller/
+  MultiController now consume, so existing controls work unchanged inside
+  an element); Svelte list + elementPath. The render-isolation CONTRACT
+  is pinned on both frameworks: an element edit wakes only that element's
+  subscribers; add/remove/reorder wake only the shell.
+
+Known limits, deliberate this round: member-graph EFFECTS are not merged
+(rule patch keys wouldn't match element paths — design that when a
+consumer needs it); server parse takes path-keyed raw records (array-of-
+objects ingestion for `parse({runs: [{...}]})` is the ergonomic follow-up);
+the flat registry deliberately excludes member defs (cross-list collisions),
+so typedFields/registry-typed helpers cover root fields only — element
+access is shape-typed (`${string}[${string}].${string}`); and Data typing
+carries member STATE shapes (a member emit rename shows its runtime shape
+in data but not yet in the type).
+
+Addendum — the list() round's adversarial review (same day): four confirmed
+findings, fixed at the root:
+
+1. `validate('runs')` judged nothing (element errors key by full path, so
+   `errors.get('runs')` was always empty) — the scoped path now EXPANDS a
+   list key into its element records, nested lists included, plus the list
+   key itself for external errors. Pinned.
+2. remove()/duplicate() were scope-blind: with a scoped host, sibling
+   buckets share the deterministic seed ids, and the prefix-only sweep
+   destroyed ANOTHER family's element memory (and duplicate copied entries
+   into buckets whose membership never gets the new id). Ops now match the
+   current bucket's scope suffix; a rootScope()'d-out member field is
+   deliberately left alone (global memory is shared by design). Pinned both
+   ways.
+3. A list silently clobbered a claimed wire name — list wires now pre-seed
+   their group's claim map, so the collision throws like any duplicate.
+4. The React Controller element-write fix was untested (reverting it stayed
+   green) — the isolation test now fires the real change event and asserts
+   nothing leaks to the root key.
+
+Also from the round: React useList ops return {success:false, reason:'inactive'}
+instead of throwing when a click lands after a branch switch (core
+store.list() still throws — programmer error vs UI race); duplicate's
+insert-position and the min-pad branch gained non-vacuous pins; the
+"corrected, visibly" comment softened (a non-array membership falls to the
+seeded default via the ordinary boundary path). Accepted and documented,
+not fixed: `set({runs: undefined})` clears membership but leaves minted
+elements' entries in storage (the ops are the supported removal path), and
+a host rule on the membership key types its value as MemberState[] while
+receiving the id array — both queued for the member-effects design round.
+
+## API-consistency review of the 0.4 surface (2026-09-07)
+
+A dedicated consistency pass (terminology + shapes vs the pre-existing
+surface, consumer-perspective) before anything releases. Applied:
+
+- svelte `listOf` -> `list(store, key)` — it SUBSCRIBES; `-Of` means def
+  builder (enumOf/textOf/boolOf), and the svelte helpers are bare nouns
+  (field, formState). A file needing both aliases the core combinator
+  (`import { list as defineList }`), which real consumers rarely do — form
+  definitions and UI live in different files.
+- svelte `memberPath` -> `elementPath` — the scheme is member =
+  definition-side, element = instance-side (ListElement, elementPrefix,
+  record.element); one concept had two names across the bindings.
+- react `useElementPath` -> `useElementPrefix` (+ file/context rename): it
+  returns the trailing-dot PREFIX; `ElementPath` is a full field address.
+- `ListOpRefusal` unified to the package's `success` discriminant
+  ({success:false, reason}) — Briant's call: one discriminant word
+  everywhere beats the ops-vs-validation distinction fetch's `ok` precedent
+  would have bought.
+- `'unknown-id'` -> `'unknown_id'` (reason strings are snake_case:
+  list_bounds, ram_ceiling, locked_default).
+- One shared `ListSnapshot` in core (ids + ops — the FieldSnapshot
+  precedent); react's UseListResult and svelte's local twin deleted.
+- `store.list(key)` takes `FieldKeys` like its round-mates — a typo'd list
+  key is now a compile error (a negative runtime test casts past it).
+- `AnyFormStore` exported from core: the four-`any` store type every
+  consumer row component (and three internal binding files) was hand-
+  rolling with an eslint-disable.
+
+Kept deliberately, recorded here as decisions: react `useList(key, store?)`
+stays context-first (the proposal specified it; Controller is the
+precedent; useField's store-first shape predates the provider) and
+`<ListElement list= id=>` keeps `list` over Controller's `name` (it names
+which LIST the element belongs to; the element has no name).
+
+Found consistent, no change: the `list()` combinator's shape beside
+`branch`; `store.list()` as a bare-noun method (the `output()` precedent);
+`add(seed?)`'s set()-like loose record; `move` clamping while the other ops
+refuse (a clamped move still yields a valid membership — the correction
+philosophy); setError's in/out asymmetry and `clearError` singular; the
+scoped-validate overloads; `syncExt`; `elementPrefix` in the public
+address-grammar family; shape-typed element paths.
+
+RELEASE BLOCKER, not done here: the docs site documents 0.3 only — zero
+pages mention list()/ListHandle/store.list, setError/clearError, scoped
+validate (the store page now UNDERSTATES validate), syncExt, useList/
+ListElement, or the svelte list helpers. Write the docs pages before
+0.4.0 ships; the invoice + wizard demos are the worked examples to link.
+
+Addendum — why the bindings' list helpers take arguments in different
+orders (asked in review, recorded so it isn't re-litigated): the order
+falls out of whether the store can be OMITTED. React's `useList(key,
+store?)` defaults to the <FormProvider> store, and an optional parameter
+must come last — key-first is forced by the context fallback, not taste.
+Svelte has no context fallback and can't easily get one (getContext only
+works during component init; the svelte helpers are deliberately plain
+functions, callable in $effect.root and .svelte.ts modules), so its store
+is always required and `list(store, key)` simply matches every sibling
+(field, formState, typedFields, syncExt). Each helper follows ITS OWN
+binding's convention; the conventions differ because React has an
+ambient-store mechanism and Svelte doesn't. If a Svelte FormProvider
+equivalent ever ships, a context-first svelte helper can be added then.
+
+Second addendum, from the delta's own review pass: the `{success}`
+unification has one recorded consequence — a list op's return is now
+STRUCTURALLY assignable where a ScopedValidationResult is expected (the old
+`{ok}` shape was a compile error there). No live site mixes them, but the
+tsc guardrail between op results and validation-shaped code is gone; that
+is the price of one discriminant word, paid knowingly. (This DEVLOG's
+earlier 0.4 entries are kept CURRENT with the shipped names/shapes — the
+rename/unification narration in the consistency entry is the history.)
+
+The docs pass landed same day, closing the release blocker above: a new
+Collections page (the combinator, element paths, ops, validation/data
+assembly, the isolation contract, current limits), the store page gains
+external errors + scoped validation + store.list (and no longer
+understates validate), the react and svelte pages gain their list
+sections with both recorded rationales (context-first vs store-first),
+the svelte page gains syncExt, and the README gains the collections/
+wizard/async-validity bullets, the updated entry-points table, and
+current test counts. The definitions page's "may fold in 0.4.0"
+prediction (written before 0.4 existed) now says "a future minor."

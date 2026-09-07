@@ -1,8 +1,10 @@
 # Array fields: the intent-address grammar (design, not yet implemented)
 
-Status: **decided grammar, reserved characters enforced; no array API ships yet.**
-This exists so the one decision that gets more expensive after people persist
-data is made *before* v0.1.0, not retrofitted after.
+Status: **shipped (0.4, `list()`)** — grammar as amended below; `[` `]` `.`
+enforced in keys, itemIds escaped, `src/lib/core/list.ts` implements it.
+This doc originally existed so the one decision that gets more expensive
+after people persist data was made *before* v0.1.0, not retrofitted after —
+which is exactly how it played out.
 
 ## The problem
 

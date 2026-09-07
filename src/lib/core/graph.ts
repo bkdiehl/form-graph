@@ -33,6 +33,11 @@ import { combineScope, type Scope, type ScopeValue } from './scope.js';
  */
 let currentInheritedScope: readonly ScopeValue[] = [];
 
+/** For foreign mountables (list.ts) that need the scope path graphs accumulate. */
+export function inheritedScopeParts(): readonly ScopeValue[] {
+  return currentInheritedScope;
+}
+
 /**
  * PROTOTYPE E — the field as ONE FUNCTION returning its whole definition.
  *

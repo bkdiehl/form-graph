@@ -10,3 +10,6 @@ export { createTypedController, type TypedControllerProps } from './createTypedC
 export { FormProvider, useFormStore, useOptionalFormStore } from './context.js';
 export { useField, useTypedField } from './useField.js';
 export { useForm, useFormState } from './useForm.js';
+export { useElementPrefix } from './elementPrefix.js';
+export { ListElement, useList } from './list.js';
+export type { ListSnapshot } from '../core/index.js';

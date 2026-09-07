@@ -1,13 +1,16 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import type { FieldSnapshot, FormStore, InferDefMeta, InferDefValue } from '../core/index.js';
 import type { CodecRegistry } from '../core/codec.js';
+import { useElementPrefix } from './elementPrefix.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyStore = FormStore<any, any, any, any>;
 
 /**
  * Subscribes to one field. Returns null when the field is not active in the
- * current branch.
+ * current branch. Inside a <ListElement>, `name` is the bare member key —
+ * the element path prefixes it, so the same control works at the root and
+ * in any element.
  *
  * The subscription only fires when the field's snapshot *reference* changes, and
  * `diffSnapshot` preserves that reference for structurally-unchanged fields — so
@@ -17,13 +20,14 @@ export function useField<Value = unknown, Meta = unknown>(
   store: AnyStore | null,
   name: string
 ): FieldSnapshot<Value, Meta> | null {
+  const full = useElementPrefix() + name;
   const subscribe = useCallback(
-    (cb: () => void) => (store ? store.subscribe(name, cb) : () => undefined),
-    [store, name]
+    (cb: () => void) => (store ? store.subscribe(full, cb) : () => undefined),
+    [store, full]
   );
   const getSnapshot = useCallback(
-    () => (store ? (store.getField(name) as FieldSnapshot<Value, Meta> | null) : null),
-    [store, name]
+    () => (store ? (store.getField(full) as FieldSnapshot<Value, Meta> | null) : null),
+    [store, full]
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

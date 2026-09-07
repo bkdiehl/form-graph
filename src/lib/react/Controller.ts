@@ -1,4 +1,4 @@
-import { useCallback, useRef, useSyncExternalStore, type ReactElement } from 'react';
+import { useCallback, useMemo, useRef, useSyncExternalStore, type ReactElement } from 'react';
 import type {
   DefInputValue,
   FieldError,
@@ -9,6 +9,7 @@ import type {
 } from '../core/index.js';
 import type { CodecRegistry } from '../core/codec.js';
 import { useOptionalFormStore } from './context.js';
+import { useElementPrefix } from './elementPrefix.js';
 import { useField } from './useField.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,8 +126,14 @@ export function Controller<Value = unknown, Meta = unknown>({
   const contextStore = useOptionalFormStore();
   const store = storeProp ?? contextStore;
 
+  // useField applies the element path itself; the WRITE must target the same
+  // full path or an element control would silently write the root key.
+  const fullName = useElementPrefix() + name;
   const field = useField<Value, Meta>(store, name);
-  const onChange = useCallback((next: unknown) => store?.set({ [name]: next }), [store, name]);
+  const onChange = useCallback(
+    (next: unknown) => store?.set({ [fullName]: next }),
+    [store, fullName]
+  );
 
   if (!store) throw new Error('<Controller> needs a `store` prop or a <FormProvider>');
   if (!field) return null;
@@ -172,7 +179,9 @@ export function MultiController<
   });
 }
 
-function useMultiFieldValues(store: AnyStore | null, names: readonly string[]) {
+function useMultiFieldValues(store: AnyStore | null, bareNames: readonly string[]) {
+  const prefix = useElementPrefix();
+  const names = useMemo(() => bareNames.map((name) => prefix + name), [prefix, bareNames]);
   const subscribe = useCallback(
     (cb: () => void) => (store ? store.subscribe(cb) : () => undefined),
     [store]
@@ -190,12 +199,14 @@ function useMultiFieldValues(store: AnyStore | null, names: readonly string[]) {
       prev.length === fields.length && fields.every((snap, i) => snap === prev[i]);
     if (!unchanged) {
       const value: Record<string, unknown> = {};
-      names.forEach((name, i) => {
+      // read prefixed, key BARE — the render prop's record types by the
+      // names the caller wrote
+      bareNames.forEach((name, i) => {
         value[name] = (fields[i] as { value?: unknown } | null | undefined)?.value;
       });
       cacheRef.current = { fields, value };
     }
     return cacheRef.current.value;
-  }, [store, names]);
+  }, [store, names, bareNames]);
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

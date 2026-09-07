@@ -21,6 +21,7 @@
         { href: '/docs/definitions', label: 'Definitions' },
         { href: '/docs/store', label: 'The store' },
         { href: '/docs/rules', label: 'Effects' },
+        { href: '/docs/lists', label: 'Collections' },
         { href: '/docs/reuse', label: 'Reuse' },
         { href: '/docs/storage', label: 'Storage' },
         { href: '/docs/introspection', label: 'Introspection' },

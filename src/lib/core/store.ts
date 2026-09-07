@@ -1,7 +1,7 @@
 import { deepEqual } from './deep-equal.js';
 import { diffSnapshot } from './diff.js';
 import { boundaryEntry, ephemeralEntry, trustedEntry, type IntentEntry, type ParseCache } from './intent.js';
-import { addressKey } from './scope.js';
+import { addressKey, elementPrefix } from './scope.js';
 import { resolve, type Resolution, type Resolver } from './resolve.js';
 import type { CodecRegistry } from './codec.js';
 import { validateResolution } from './validate.js';
@@ -10,13 +10,36 @@ import type {
   FieldError,
   FieldSnapshot,
   ResolutionNote,
+  ListHandle,
   ScopedValidationResult,
   Snapshot,
   ValidationResult,
 } from './types.js';
 
-/** Registry-typed field keys; plain string when the store carries no registry. */
-type FieldKeys<Codecs> = unknown extends Codecs ? string : keyof Codecs & string;
+/**
+ * A dotted element path (`runs[a1b2].engine`). Ids are runtime-minted, so
+ * element addressing types by SHAPE — root keys stay exactly registry-typed.
+ */
+type ElementPath = `${string}[${string}].${string}`;
+
+/** Distributed over a state union: any arm's key counts (computeds, list keys). */
+type StateKeysOf<State> = State extends unknown ? keyof State & string : never;
+
+/** Registry- and state-typed field keys; plain string when the store carries no registry. */
+type FieldKeys<Codecs, State> = unknown extends Codecs
+  ? string
+  : (keyof Codecs & string) | StateKeysOf<State> | ElementPath;
+
+/**
+ * A store of ANY shape — the type for code that takes a store PROP (a row
+ * component, a generic control) without caring what form it belongs to. All
+ * four params `any`, deliberately: `Codecs` appears in method parameter
+ * positions, so a concrete store is not assignable to `FormStore<any, any>`
+ * (whose Codecs defaults to `unknown`) — the variance gotcha every binding
+ * hit privately before this alias existed.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyFormStore = FormStore<any, any, any, any>;
 
 export interface StorageAdapter {
   load(): Record<string, unknown> | undefined;
@@ -260,7 +283,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
    * persisted. Cleared by a user write to the field, by the field leaving the
    * active branch, or explicitly via clearError().
    */
-  setError(key: FieldKeys<Codecs>, error: { message: string; code?: string }): void {
+  setError(key: FieldKeys<Codecs, State>, error: { message: string; code?: string }): void {
     // A judgment against an INACTIVE field binds nothing — and must not lie
     // in wait for the branch to arrive. Silently dropping also absorbs the
     // race where an async result lands after a branch switch.
@@ -273,7 +296,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     this.publish(diffSnapshot(this.snapshot, this.resolution, this.judgedErrors()));
   }
 
-  clearError(key: FieldKeys<Codecs>): void {
+  clearError(key: FieldKeys<Codecs, State>): void {
     if (!this.externalErrors.delete(key)) return;
     this.publish(diffSnapshot(this.snapshot, this.resolution, this.judgedErrors()));
   }
@@ -303,7 +326,7 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
    * for the named fields, and the full projection would over-promise.
    */
   validate(): ValidationResult<Data, State>;
-  validate(keys: FieldKeys<Codecs> | readonly FieldKeys<Codecs>[]): ScopedValidationResult;
+  validate(keys: FieldKeys<Codecs, State> | readonly FieldKeys<Codecs, State>[]): ScopedValidationResult;
   validate(
     keys?: string | readonly string[]
   ): ValidationResult<Data, State> | ScopedValidationResult {
@@ -320,17 +343,31 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     }
 
     const scoped = new Map<string, FieldError>();
-    for (const key of typeof keys === 'string' ? [keys] : keys) {
-      if (!this.resolution.records.has(key)) continue; // inactive — nothing to judge
-      const failure = errors.get(key);
-      if (failure) {
-        this.errors.set(key, failure);
-        scoped.set(key, failure);
-      } else {
-        this.errors.delete(key);
+    for (const requested of typeof keys === 'string' ? [keys] : keys) {
+      const record = this.resolution.records.get(requested);
+      if (!record) continue; // inactive — nothing to judge
+      // A LIST key expands to every element record (nested lists included —
+      // their records share the path prefix): validate('runs') judges the
+      // whole list, per the proposal's promise.
+      const targets = record.list
+        ? [
+            requested,
+            ...[...this.resolution.records.keys()].filter((k) =>
+              k.startsWith(requested + '[')
+            ),
+          ]
+        : [requested];
+      for (const key of targets) {
+        const failure = errors.get(key);
+        if (failure) {
+          this.errors.set(key, failure);
+          scoped.set(key, failure);
+        } else {
+          this.errors.delete(key);
+        }
+        const external = this.externalErrors.get(key);
+        if (external) scoped.set(key, external);
       }
-      const external = this.externalErrors.get(key);
-      if (external) scoped.set(key, external);
     }
     this.publish(diffSnapshot(this.snapshot, this.resolution, this.judgedErrors()));
 
@@ -358,6 +395,106 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
       );
     }
     return data as Data;
+  }
+
+  /**
+   * The ops handle for an active list (proposal-0.4.md §1). Bounds violations
+   * REFUSE — the store never holds an invalid membership — and every op is an
+   * ordinary write: membership lands in durable intent, rules can react, and
+   * storage saves with it.
+   */
+  list(key: FieldKeys<Codecs, State>): ListHandle {
+    const membership = () => {
+      const record = this.resolution.records.get(key);
+      if (!record?.list) throw new Error(`list("${key}"): no active list with that key.`);
+      return record.list;
+    };
+    membership(); // eager: a typo'd or inactive key fails here, not on first use
+    const elementPrefixOf = (id: string) => elementPrefix(key, id);
+    // The CURRENT bucket's scope, from the membership's own address. Ops must
+    // touch only this bucket's element entries: with a scoped host, sibling
+    // buckets share the deterministic seed ids, and a prefix-only sweep would
+    // destroy their per-scope memory. A member field that rootScope()'d out
+    // to global memory is deliberately shared and is left alone.
+    const scopeOfAddress = (address: string) => {
+      const at = address.indexOf('@'); // '@' is escaped inside ids, so the first one starts the scope
+      return at === -1 ? '' : address.slice(at + 1);
+    };
+    const bucket = () => scopeOfAddress(this.resolution.records.get(key)!.address);
+    const inBucket = (address: string) => {
+      const b = bucket();
+      if (b === '') return true; // unscoped host: the only bucket
+      const s = scopeOfAddress(address);
+      return s === b || s.startsWith(b + '/');
+    };
+    const mint = (taken: readonly string[]): string => {
+      for (;;) {
+        const id = Math.random().toString(36).slice(2, 8);
+        if (id.length >= 4 && !taken.includes(id)) return id;
+      }
+    };
+
+    return {
+      get ids() {
+        return membership().ids;
+      },
+      add: (seed?: Record<string, unknown>) => {
+        const { ids, max } = membership();
+        if (ids.length >= max) return { success: false as const, reason: 'max' as const };
+        const id = mint(ids);
+        const patch: Record<string, unknown> = { [key]: [...ids, id] };
+        if (seed) {
+          const prefix = elementPrefixOf(id);
+          for (const [k, v] of Object.entries(seed)) patch[prefix + k] = v;
+        }
+        this.set(patch);
+        return { success: true as const, id };
+      },
+      remove: (id: string) => {
+        const { ids, min } = membership();
+        if (!ids.includes(id)) return { success: false as const, reason: 'unknown_id' as const };
+        if (ids.length <= min) return { success: false as const, reason: 'min' as const };
+        // The element's subtree IN THIS BUCKET — nested lists included — dies
+        // with it, external judgments too. Sibling scope buckets keep their
+        // own element data (they still list the id in their own membership).
+        const prefix = elementPrefixOf(id);
+        for (const address of [...this.intent.keys()]) {
+          if (address.startsWith(prefix) && inBucket(address)) this.intent.delete(address);
+        }
+        for (const errorKey of [...this.externalErrors.keys()]) {
+          if (errorKey.startsWith(prefix)) this.externalErrors.delete(errorKey);
+        }
+        this.set({ [key]: ids.filter((existing) => existing !== id) });
+        return { success: true as const };
+      },
+      duplicate: (id: string) => {
+        const { ids, max } = membership();
+        if (!ids.includes(id)) return { success: false as const, reason: 'unknown_id' as const };
+        if (ids.length >= max) return { success: false as const, reason: 'max' as const };
+        const next = mint(ids);
+        // A duplicate is "the same CHOICES": user-written entries copy,
+        // adopted defaults re-derive in the new element. This bucket only —
+        // copying another bucket's entries would orphan them under an id its
+        // membership never receives.
+        const from = elementPrefixOf(id);
+        const to = elementPrefixOf(next);
+        for (const [address, entry] of [...this.intent]) {
+          if (!address.startsWith(from) || entry.ephemeral || !inBucket(address)) continue;
+          this.intent.set(to + address.slice(from.length), entry);
+        }
+        const at = ids.indexOf(id) + 1;
+        this.set({ [key]: [...ids.slice(0, at), next, ...ids.slice(at)] });
+        return { success: true as const, id: next };
+      },
+      move: (id: string, index: number) => {
+        const { ids } = membership();
+        if (!ids.includes(id)) return { success: false as const, reason: 'unknown_id' as const };
+        const without = ids.filter((existing) => existing !== id);
+        const at = Math.max(0, Math.min(index, without.length));
+        this.set({ [key]: [...without.slice(0, at), id, ...without.slice(at)] });
+        return { success: true as const };
+      },
+    };
   }
 
   /** Derived (computed) keys in the active branch. */

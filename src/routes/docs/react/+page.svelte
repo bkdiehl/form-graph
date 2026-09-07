@@ -104,6 +104,46 @@ function PromptInput() {
   render={({ values }) => <ResourceAlerts {...values} />}
 />`}</pre>
 
+<h2>Lists: <code>useList</code> and <code>&lt;ListElement&gt;</code></h2>
+<pre>{`function Runs() {
+  const runs = useList('runs');            // context store; or useList('runs', store)
+  if (!runs) return null;                  // list inactive in this branch
+  return (
+    <>
+      {runs.ids.map((id) => <Row key={id} id={id} />)}
+      <button onClick={() => runs.add()}>Add</button>
+    </>
+  );
+}
+
+const Row = memo(function Row({ id }: { id: string }) {
+  return (
+    <ListElement list="runs" id={id}>
+      {/* bare member names — the element path prefixes them */}
+      <Controller name="engine" render={...} />
+      <Controller name="epochs" render={...} />
+    </ListElement>
+  );
+});`}</pre>
+<p>
+  <code>useList</code> subscribes to the MEMBERSHIP entry only: add/remove/reorder re-render the
+  shell, an element edit never does. Inside <code>&lt;ListElement&gt;</code>, every existing
+  hook and control works unchanged with bare member names — <code>useField</code>,
+  <code>Controller</code> (reads AND writes), <code>MultiController</code>, nested
+  <code>useList</code> — each subscribing to its own element, so a <code>memo</code>'d row
+  bails on everything but its own data. That is the render-isolation contract (see
+  Collections), pinned by a render-count test. The ops mirror
+  <code>store.list()</code>'s, with one difference: a click landing after a branch switch
+  deactivated the list returns <code>&#123; success: false, reason: 'inactive' &#125;</code>
+  instead of throwing.
+</p>
+<p>
+  <code>useList</code> is context-first (<code>useList(key, store?)</code>) like
+  <code>Controller</code>; <code>useField(store, name)</code> predates the provider and stays
+  store-first. Element fields are shape-typed (the registry covers root fields only — see
+  Collections' limits).
+</p>
+
 <h2>Notes</h2>
 <ul>
   <li>

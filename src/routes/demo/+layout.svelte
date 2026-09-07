@@ -13,6 +13,8 @@
     { href: '/demo/vm', label: 'VM configurator' },
     { href: '/demo/checkout', label: 'Checkout' },
     { href: '/demo/publish', label: 'Publish' },
+    { href: '/demo/invoice', label: 'Invoice builder' },
+    { href: '/demo/wizard', label: 'Wizard' },
   ];
 
   // trailingSlash 'always' (GitHub Pages) means pathnames end in '/'.

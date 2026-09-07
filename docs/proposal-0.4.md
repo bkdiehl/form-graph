@@ -1,9 +1,9 @@
 # 0.4 proposal: collections, external errors, scoped validation
 
-Status: **decided — this is the 0.4 build plan.** The consumer is civitai's
-model-training form rewrite, which proceeds now; all three features land
-for it. Build order: §2 and §3 first (small, independently useful), then
-§1. The port method for the rewrite itself is §4.
+Status: **BUILT — all three features shipped (2026-09-04; see DEVLOG for
+the build and review trail, including per-feature deltas and the known
+limits list() ships with).** The consumer is civitai's model-training form
+rewrite; the port method for the rewrite itself is §4.
 
 Everything else the training form needs, 0.3 already covers — see
 "Already covered" at the end if you're evaluating form-graph for that
