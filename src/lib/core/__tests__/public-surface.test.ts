@@ -25,6 +25,7 @@ describe('public surface', () => {
       'enumerateBranches',
       'fieldKeys',
       'fieldMeta',
+      'focusFirstError',
       'hasField',
       'list',
       'optionsFor',

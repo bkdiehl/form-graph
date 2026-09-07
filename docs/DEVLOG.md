@@ -1345,3 +1345,48 @@ the svelte page gains syncExt, and the README gains the collections/
 wizard/async-validity bullets, the updated entry-points table, and
 current test counts. The definitions page's "may fold in 0.4.0"
 prediction (written before 0.4 existed) now says "a future minor."
+
+## 0.5 round 1: isDirty/dirtyFields + focusFirstError (2026-09-07)
+
+The first two of the react-hook-form-gap trio (working checklist:
+docs/proposal-0.5.md, deliberately uncommitted), built to the decided
+leans:
+
+- `store.isDirty()` / `store.dirtyFields()`: exposure, not machinery — a
+  non-ephemeral TRUSTED intent entry is precisely "the user wrote this,
+  this session". Scope-collapsed by addressKey (a field edited under two
+  buckets reports once); storage-loaded and seeded values are boundary
+  entries, i.e. the BASELINE, not dirt. Recorded divergence from RHF:
+  typing the default back STAYS dirty — the write exists; deep-comparing
+  re-derived defaults per read is the cost we declined. Store methods
+  only, no snapshot growth, no binding sugar until a consumer asks.
+- `focusFirstError(store, keys?)`: in CORE, not per binding — one
+  SSR-safe implementation (persistedStorage's web-API precedent), driven
+  by the `data-fg-field` attribute the bindings' new `fieldProps` render
+  prop carries (react Controller render props; svelte <Field>'s third
+  snippet arg). First errored key in DECLARATION order (`snapshot.keys`);
+  scoped form mirrors scoped validate (a list key covers its elements);
+  an errored key without a rendered element doesn't stop the search.
+  Consumer spreads `fieldProps` explicitly — not every render prop
+  targets a focusable element. The wizard demo's "Next" is the worked
+  example.
+
+Non-goals reaffirmed: isSubmitting/submitCount (submission is the
+consumer's async), uncontrolled inputs, blur-touched in the store. §3
+(revalidation mode) holds until a real consumer ratifies its semantics.
+
+Round-1 review addenda (correctness + minimalism passes, same day): the
+scope filter gained the pin its tests were missing (errors EVERYWHERE,
+scoped focus skips an earlier out-of-scope error — two mutations had
+survived); svelte <Field>'s fieldProps snippet arg gained a real mounted
+test (react-only coverage had left it green under any breakage);
+focusFirstError now returns true only when focus actually LANDED
+(activeElement check — a div carrying the attribute no longer counts, and
+the search continues past it); the CSS.escape/env-conditional collapsed to
+the always-sufficient quote-escape (inside a double-quoted attribute
+selector only " and \ need escaping — one branch, testable everywhere).
+One dirty-semantics nuance recorded rather than coded: list OPS write
+membership as trusted intent, so a pure add() (or add-then-remove) leaves
+the list key in dirtyFields — an op IS a user write, consistent with
+ops-as-ordinary-writes; an unsaved-changes prompt keyed on isDirty will
+count it.

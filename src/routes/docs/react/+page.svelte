@@ -144,6 +144,20 @@ const Row = memo(function Row({ id }: { id: string }) {
   Collections' limits).
 </p>
 
+<h2>Focus on error</h2>
+<pre>{`const result = store.validate(step.keys);
+if (!result.success) focusFirstError(store, step.keys);`}</pre>
+<p>
+  The render props carry <code>fieldProps</code> — spread it onto the control's focusable
+  element (<code>&lt;input &#123;...fieldProps&#125; /&gt;</code>; explicit by design, since not
+  every render prop targets an element) and <code>focusFirstError(store, keys?)</code> jumps
+  to the FIRST errored field in declaration order, scoped to a step's keys when given (a list
+  key covers its elements). Works unchanged inside <code>&lt;ListElement&gt;</code> — the
+  attribute carries the full element path. SSR-safe, never throws. A <code>useField</code>-based
+  control opts in by rendering <code>data-fg-field=&#123;name&#125;</code> itself — the attribute
+  is the whole contract.
+</p>
+
 <h2>Notes</h2>
 <ul>
   <li>

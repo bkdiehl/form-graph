@@ -195,6 +195,31 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
     return plain;
   }
 
+  /**
+   * Field keys the user has WRITTEN this session — non-ephemeral TRUSTED
+   * intent, scope-collapsed (a field edited under two branch buckets reports
+   * once, by `addressKey`; list element paths report as paths). Storage-loaded
+   * and seeded values are boundary entries and don't count: dirty means "the
+   * user did this here", which is what an unsaved-changes warning wants.
+   * Deliberate divergence from react-hook-form: writing the default value
+   * back STAYS dirty — the entry exists; we don't deep-compare defaults.
+   */
+  dirtyFields(): string[] {
+    const keys = new Set<string>();
+    for (const [address, entry] of this.intent) {
+      if (entry.trusted && !entry.ephemeral) keys.add(addressKey(address));
+    }
+    return [...keys];
+  }
+
+  /** `dirtyFields().length > 0`, with an early-out. */
+  isDirty(): boolean {
+    for (const entry of this.intent.values()) {
+      if (entry.trusted && !entry.ephemeral) return true;
+    }
+    return false;
+  }
+
   subscribe(callback: Listener): () => void;
   subscribe(key: string, callback: Listener): () => void;
   subscribe(keyOrCallback: string | Listener, maybeCallback?: Listener): () => void {

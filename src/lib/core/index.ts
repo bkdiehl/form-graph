@@ -44,6 +44,7 @@ export {
   type SliderDefMeta,
 } from './def-helpers.js';
 export { type InferDefs, type InferFieldValue } from './form.js';
+export { focusFirstError } from './focus.js';
 export { list, type ListOptions } from './list.js';
 export type { Intent, IntentEntry } from './intent.js';
 export {

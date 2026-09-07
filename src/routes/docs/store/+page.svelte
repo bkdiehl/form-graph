@@ -23,6 +23,13 @@
   <li><code>getNotes()</code> — this resolution's notes (corrections and advisories).</li>
   <li><code>getIntent()</code> — the raw intent record, scoped addresses included.</li>
   <li><code>getComputedKeys()</code> — the derived keys in the active branch.</li>
+  <li>
+    <code>isDirty()</code> / <code>dirtyFields()</code> — what the user has WRITTEN this
+    session (scope-collapsed field keys; list element paths as paths). Adopted defaults and
+    storage-loaded values are the baseline, not dirt. Deliberate divergence from
+    react-hook-form: typing the default back STAYS dirty — the write exists; we don't
+    deep-compare defaults.
+  </li>
 </ul>
 
 <h2>Subscribing</h2>
@@ -92,7 +99,9 @@ store.validate('runs');              // a whole list, every element`}</pre>
   <code>&#123; success &#125;</code> or <code>&#123; success: false, errors &#125;</code> —
   deliberately without <code>data</code>: a scoped success vouches only for the named fields.
   The graph itself stays step-agnostic; which keys form a step is your business, declared next
-  to the step's UI (see the <a href="/demo/wizard">wizard demo</a>).
+  to the step's UI (see the <a href="/demo/wizard">wizard demo</a>). After a failed step
+  validate, <code>focusFirstError(store, keys)</code> jumps to the first offender — see the
+  bindings' <code>fieldProps</code>.
 </p>
 
 <h2>Lists</h2>

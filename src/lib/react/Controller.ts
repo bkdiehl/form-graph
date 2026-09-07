@@ -28,6 +28,9 @@ export interface ControllerRenderProps<Value, Meta, In = Value> {
   isComputed: boolean;
   /** Set when `correct` replaced this value this pass — render "we adjusted this" inline. */
   note: ResolutionNote | undefined;
+  /** Spread onto the focusable element to opt into `focusFirstError` —
+   * explicit, since not every render prop targets an element. */
+  fieldProps: { 'data-fg-field': string };
 }
 
 export interface ControllerProps<Value, Meta> {
@@ -145,6 +148,7 @@ export function Controller<Value = unknown, Meta = unknown>({
     onChange,
     isComputed: field.isComputed,
     note: field.note,
+    fieldProps: { 'data-fg-field': fullName },
   });
 }
 

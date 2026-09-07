@@ -1,6 +1,6 @@
 <script lang="ts">
   import { elementPath, field, formState, list } from '$lib/svelte/index.js';
-  import type { EnumDefMeta, SliderDefMeta } from '$lib/core/index.js';
+  import { focusFirstError, type EnumDefMeta, type SliderDefMeta } from '$lib/core/index.js';
   import SourceCode from '../SourceCode.svelte';
   import formSource from './job-form.ts?shiki';
   import { jobForm, STEPS } from './job-form.js';
@@ -14,7 +14,10 @@
   // A failing field surfaces its error in place; later steps stay unscolded.
   function next() {
     const keys = STEPS[step].keys;
-    if (keys.length > 0 && !store.validate(keys).success) return;
+    if (keys.length > 0 && !store.validate(keys).success) {
+      focusFirstError(store, keys); // jump to the first offender, this step only
+      return;
+    }
     step += 1;
     submitted = null;
   }
@@ -48,6 +51,7 @@
     <span class="w-32 font-mono text-sm text-muted">{label}</span>
     <input
       type="text"
+      data-fg-field={key}
       class="max-w-64 flex-1 rounded border border-line bg-surface px-2 py-1 text-sm"
       value={String(handle.current?.value ?? '')}
       oninput={(e) => store.set({ [key]: e.currentTarget.value })}
@@ -159,6 +163,7 @@
           <input
             type="text"
             placeholder="Screening question"
+            data-fg-field={p('prompt')}
             class="max-w-80 flex-1 rounded border border-line bg-surface px-2 py-1 text-sm"
             value={prompt.current?.value ?? ''}
             oninput={(e) => store.set({ [p('prompt')]: e.currentTarget.value })}

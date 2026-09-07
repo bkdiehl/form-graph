@@ -133,6 +133,19 @@ ${'<'}/script>
   key-first only because its store can be omitted via <code>&lt;FormProvider&gt;</code>.
 </p>
 
+<h2>Focus on error</h2>
+<p>
+  <code>&lt;Field&gt;</code>'s snippet gains a third argument — spread it onto the focusable
+  element, and core's <code>focusFirstError(store, keys?)</code> jumps to the first offender in
+  declaration order (the <a href="{base}/demo/wizard">wizard demo</a>'s "Next" does exactly
+  this). Hand-rendered inputs opt in with <code>data-fg-field=&#123;key&#125;</code> directly.
+</p>
+<pre>{`<Field {store} name="title">
+  {#snippet children(snap, setValue, fieldProps)}
+    <input {...fieldProps} value={snap.value} oninput={(e) => setValue(e.currentTarget.value)} />
+  {/snippet}
+</Field>`}</pre>
+
 <h2>Testing gotcha</h2>
 <p>
   Svelte 5 ships separate client and server runtimes. Under vitest, add
