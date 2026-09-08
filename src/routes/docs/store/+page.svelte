@@ -1,3 +1,7 @@
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
 <h1>The store</h1>
 
 <p>
@@ -117,7 +121,7 @@ store.validate('runs');              // a whole list, every element`}</pre>
   <code>&#123; success &#125;</code> or <code>&#123; success: false, errors &#125;</code> —
   deliberately without <code>data</code>: a scoped success vouches only for the named fields.
   The graph itself stays step-agnostic; which keys form a step is your business, declared next
-  to the step's UI (see the <a href="/demo/wizard">wizard demo</a>). After a failed step
+  to the step's UI (see the <a href="{base}/demo/wizard">wizard demo</a>). After a failed step
   validate, <code>focusFirstError(store, keys)</code> jumps to the first offender — see the
   bindings' <code>fieldProps</code>.
 </p>

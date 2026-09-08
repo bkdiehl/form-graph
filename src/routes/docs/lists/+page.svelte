@@ -1,3 +1,7 @@
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
 <h1>Collections</h1>
 
 <p>
@@ -72,8 +76,8 @@ runs.move(id, index)`}</pre>
 <h2>Rendering: the isolation contract</h2>
 <p>
   The bindings subscribe to the MEMBERSHIP entry for the shell and per-element for rows — see
-  the <a href="/docs/react">React</a> (<code>useList</code> / <code>&lt;ListElement&gt;</code>)
-  and <a href="/docs/svelte">Svelte</a> (<code>list</code> / <code>elementPath</code>) pages.
+  the <a href="{base}/docs/react">React</a> (<code>useList</code> / <code>&lt;ListElement&gt;</code>)
+  and <a href="{base}/docs/svelte">Svelte</a> (<code>list</code> / <code>elementPath</code>) pages.
   The contract, pinned by render-count tests on both frameworks:
 </p>
 <ul>
@@ -82,8 +86,8 @@ runs.move(id, index)`}</pre>
   <li>reorder wakes the shell only.</li>
 </ul>
 <p>
-  Worked examples: the <a href="/demo/invoice">invoice builder</a> (ops, per-row branches,
-  cross-element totals, external errors) and the <a href="/demo/wizard">wizard</a> (a list as a
+  Worked examples: the <a href="{base}/demo/invoice">invoice builder</a> (ops, per-row branches,
+  cross-element totals, external errors) and the <a href="{base}/demo/wizard">wizard</a> (a list as a
   step gate).
 </p>
 
