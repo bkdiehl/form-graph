@@ -386,6 +386,28 @@ describe(`reset({ scope: 'active' })`, () => {
     expect(reloaded.getField('steps')?.value).toBe(25); // SD's default, not the cleared 20
   });
 
+  it('clears the discriminator too, so a branch switch must EXCLUDE it', () => {
+    // The other half of the ordering trap, and the one the first draft of the docblock missed:
+    // staging the discriminator makes the target active, which also makes the discriminator
+    // itself an active address — so the reset eats it and the branch falls back to its default.
+    // The full recipe is set, reset with the discriminators EXCLUDED, then patch.
+    const naive = scopedForm.createStore({ ext });
+    naive.set({ steps: 40 }); // Flux
+    naive.set({ ecosystem: 'SD' }); // stage the target
+    naive.reset({ scope: 'active' });
+    expect(naive.getField('ecosystem')?.value).toBe('Flux'); // the default, not the target
+
+    const correct = scopedForm.createStore({ ext });
+    correct.set({ steps: 40 }); // Flux, the bucket that must survive
+    correct.set({ ecosystem: 'SD' });
+    correct.set({ steps: 20 }); // SD has its own value, which a patch would overwrite
+    correct.reset({ exclude: ['ecosystem'], scope: 'active' });
+
+    expect(correct.getField('ecosystem')?.value).toBe('SD'); // discriminator kept
+    expect(correct.getField('steps')?.value).toBe(25); // SD cleared to its default
+    expect(correct.getIntent()).toMatchObject({ 'steps@Flux': 40 }); // Flux spared
+  });
+
   it('without the option, clears every bucket as before', () => {
     const store = scopedForm.createStore({ ext });
     store.set({ steps: 40 });

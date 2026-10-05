@@ -316,7 +316,9 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
    * inactive buckets alone: the form resets without forgetting what the user chose
    * under the other branches. It reads the resolution as it stands, so a caller that
    * means to reset the branch it is about to switch TO must set the discriminators
-   * first; the active scope is still the outgoing one otherwise.
+   * first; the active scope is still the outgoing one otherwise. Those discriminators then
+   * need EXCLUDING, or this clears them too and the branch falls back to its default — set,
+   * `reset({ exclude: [...discriminators], scope: 'active' })`, then patch.
    *
    * Under either form a field outside the active resolution keeps its intent: an
    * unmounted branch is not addressed, so it is not cleared.

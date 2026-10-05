@@ -70,7 +70,8 @@ const offOne = store.subscribe('steps', onSteps);      // one key only`}</pre>
     clear to the addresses the active resolution occupies, so the form resets without forgetting
     what the user chose under the OTHER branches — a remix that lands on one ecosystem leaves the
     rest of their per-scope memory alone. It reads the resolution as it stands, so if you are
-    switching branch, set the discriminators FIRST and reset second; the other order clears the
+    switching branch, set the discriminators FIRST and reset second — and <code>exclude</code> them, or
+    the reset clears them too and the branch falls back to its default. The other order clears the
     branch you are leaving and spares the one you are entering. A field outside the active
     resolution is addressed by nothing and survives either form.
     It is not a garbage collector: buckets that can never be reached again (a dropped option, an
