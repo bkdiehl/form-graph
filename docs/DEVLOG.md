@@ -1572,3 +1572,20 @@ buckets that can never be reached again (an ecosystem dropped from the options, 
 member); the scoped form keeps them by construction, and they persist through storage. `prune`
 exists for that and is the right tool. Worth knowing before reaching for the scoped form as
 general cleanup.
+
+**Durable deletion holds here because `save` REPLACES, and that is a property of the adapter, not
+of reset.** `persistedStorage` `setItem`s the whole record, so the post-reset write decides which
+buckets outlive the session: measured, a scoped reset takes disk from `{eco, steps@Flux, steps@SD}`
+to `{steps@Flux}`, and a fresh store on that disk reads Flux's 40 while SD is back to its default.
+Pinned by a round-trip test through a fake adapter, because the in-memory map alone does not
+prove the user-visible half.
+
+⚠ **An adapter that MERGES inverts that, and one is in flight.** 0.6's `partitionedStorage` saves
+`{ ...load(), ...mine }` per region, so a key removed from intent is never removed from disk and a
+cleared bucket returns on reload. That is the "durable deletion under merge-on-save" limitation
+0.6 lists as out of scope, and it is not specific to the scoped form — a plain `reset()` saves
+`{}`, merges nothing, and durably deletes nothing either. It reads WORSE here, because surviving a
+reload is the whole point of this feature: the user resets, reloads, sees the value come back, and
+the scoping looks like the culprit. Whoever merges the two decides the semantics then — that
+proposal parks the question until "a consumer needs reset-clears-the-record semantics", and this
+is that consumer.

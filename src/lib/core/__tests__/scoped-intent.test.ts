@@ -356,6 +356,36 @@ describe(`reset({ scope: 'active' })`, () => {
     expect(store.getField('steps')?.value).toBe(25); // Flux's default, as a plain reset gives
   });
 
+  it('durably deletes the cleared bucket and durably keeps the sibling', () => {
+    // The user-visible end of the feature is a page reload, and the in-memory map alone does
+    // not prove it: `save` REPLACES (persistedStorage setItem's the whole record), so the
+    // post-reset write is what decides which buckets outlive the session. A fresh store reading
+    // the same disk is the only honest check.
+    let disk: Record<string, unknown> | undefined;
+    const adapter: StorageAdapter = {
+      load: () => disk,
+      save: (intent) => {
+        disk = intent as Record<string, unknown>;
+      },
+    };
+
+    const first = scopedForm.createStore({ ext, storage: adapter });
+    first.set({ steps: 40 }); // Flux
+    first.set({ ecosystem: 'SD' });
+    first.set({ steps: 20 }); // SD, active
+
+    first.reset({ scope: 'active' });
+
+    expect(disk).toEqual({ 'steps@Flux': 40 });
+
+    // Reloaded: the discriminator was active too, so ecosystem is back to its default (Flux),
+    // and Flux's remembered value came back with it. SD's is gone for good.
+    const reloaded = scopedForm.createStore({ ext, storage: adapter });
+    expect(reloaded.getField('steps')?.value).toBe(40);
+    reloaded.set({ ecosystem: 'SD' });
+    expect(reloaded.getField('steps')?.value).toBe(25); // SD's default, not the cleared 20
+  });
+
   it('without the option, clears every bucket as before', () => {
     const store = scopedForm.createStore({ ext });
     store.set({ steps: 40 });
