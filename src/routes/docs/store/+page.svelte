@@ -65,8 +65,16 @@ const offOne = store.subscribe('steps', onSteps);      // one key only`}</pre>
     binding's <code>syncExt</code>).
   </li>
   <li>
-    <code>reset(&#123; exclude &#125;)</code> — clears intent, surfaced and external errors, and touched state. Excluded KEYS keep everything
-    they've accumulated, every scoped bucket included.
+    <code>reset(&#123; exclude, scope &#125;)</code> — clears intent, surfaced and external errors, and touched state. Excluded KEYS keep everything
+    they've accumulated, every scoped bucket included. <code>scope: 'active'</code> narrows the
+    clear to the addresses the active resolution occupies, so the form resets without forgetting
+    what the user chose under the OTHER branches — a remix that lands on one ecosystem leaves the
+    rest of their per-scope memory alone. It reads the resolution as it stands, so if you are
+    switching branch, set the discriminators FIRST and reset second; the other order clears the
+    branch you are leaving and spares the one you are entering. A field outside the active
+    resolution is addressed by nothing and survives either form.
+    It is not a garbage collector: buckets that can never be reached again (a dropped option, an
+    orphaned list member) are kept by construction — use <code>prune</code> for those.
   </li>
   <li><code>prune(predicate)</code> — delete intent entries by address, for targeted cleanup.</li>
 </ul>

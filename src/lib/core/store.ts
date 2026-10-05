@@ -308,20 +308,57 @@ export class FormStore<State, Ext, Codecs = unknown, Data = State> {
   }
 
   /**
-   * Clears intent. Excluded FIELD KEYS keep everything they've accumulated —
+   * Clears intent. Excluded FIELD KEYS keep everything they have accumulated -
    * every scoped bucket included, so an excluded `steps` survives with its
    * per-scope memory intact.
+   *
+   * `scope: 'active'` clears only what the active resolution ADDRESSES, leaving
+   * inactive buckets alone: the form resets without forgetting what the user chose
+   * under the other branches. It reads the resolution as it stands, so a caller that
+   * means to reset the branch it is about to switch TO must set the discriminators
+   * first; the active scope is still the outgoing one otherwise.
+   *
+   * Under either form a field outside the active resolution keeps its intent: an
+   * unmounted branch is not addressed, so it is not cleared.
    */
-  reset(options: { exclude?: readonly string[] } = {}): void {
+  reset(options: { exclude?: readonly string[]; scope?: 'active' } = {}): void {
     const exclude = new Set(options.exclude ?? []);
+    // Taking each address from its RECORD, rather than matching a scope value, is what
+    // lets one option cover every scoping dimension at once - and list members, whose
+    // dotted path keys carry their own addresses.
+    // The BARE key goes in beside each scoped address because a scoped read falls back to it:
+    // left behind, a pre-scope entry (v1-migrated storage, or a key committed while the field
+    // was inactive) either never clears or resurfaces the moment the scoped entry above it
+    // goes - so the field the caller asked to reset keeps its old value. A write already
+    // consumes the bare entry; a reset of the same field should too.
+    const active =
+      options.scope === 'active'
+        ? new Set(
+            [...this.resolution.records.values()].flatMap((record) => [
+              record.address,
+              addressKey(record.address),
+            ])
+          )
+        : undefined;
     const keep = new Map<string, IntentEntry>();
     for (const [address, entry] of this.intent) {
-      if (exclude.has(addressKey(address))) keep.set(address, entry);
+      if (exclude.has(addressKey(address)) || (active && !active.has(address)))
+        keep.set(address, entry);
     }
     this.intent = keep;
     this.errors.clear();
     this.externalErrors.clear();
-    this.touchedAddresses.clear();
+    // Touched state follows intent: an address whose value we kept must keep its written
+    // flag, or `revalidate: 'touched'` stops re-judging a value the user really did write and
+    // a preserved-but-now-invalid one surfaces nothing until it is written again. Scope-kept
+    // addresses only — an EXCLUDED field has always lost its touched flag here, and changing
+    // that would move ground under existing callers.
+    if (active) {
+      for (const address of [...this.touchedAddresses])
+        if (active.has(address)) this.touchedAddresses.delete(address);
+    } else {
+      this.touchedAddresses.clear();
+    }
     this.recompute();
     this.options.storage?.save(this.getIntent());
   }

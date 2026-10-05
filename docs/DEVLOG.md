@@ -1499,3 +1499,76 @@ three-way discriminant, and a token-keyed Set, which needs the same cap
 plus composite keys). Applied trims: isFirstResolve restructure, comment
 and docstring tightening, doc dedupes (wire-format restatement, repair
 rationale stated once).
+
+## `reset({ scope: 'active' })`: a form reset that does not forget the other branches (2026-10-05)
+
+Asked for by the generation form. The queue's "Hires Fix" / "Face Fix" actions ingest through
+the remix path, which calls `reset({ exclude })` and then patches. A user who had chosen OpenAI
+v2.5 Sunburst at medium quality, applied hires fix to an Illustrious image, and switched back to
+OpenAI found v2 at high quality: the reset had cleared `model@OpenAI` and `quality@OpenAI` along
+with everything else, and the defaults filled in. Per-scope memory worked exactly as designed;
+reset was simply blind to it.
+
+`exclude` could not fix it. It is field-keyed and keeps EVERY bucket of a named field, so the
+consumer would have had to enumerate every preference-like field in every family — the same
+deny-list that had already let `denoise` leak through on the same path. A list nobody can finish
+is not a fix.
+
+So `reset` takes `scope: 'active'`, and the implementation is four lines because the information
+was already there: `resolution.records` is field-keyed with an `address` on each record, so the
+active address set is a `map` over its values. Everything not in that set is kept.
+
+**Why the address and not the scope value.** The obvious reading of "reset the current
+ecosystem" is to match addresses whose scope equals the active ecosystem. That clears
+`model@OpenAI` and leaves a bare `prompt` and a workflow-scoped `images@img2img:hires-fix`
+behind — so a remix would blend the old prompt into the new form, which is the very thing
+reset exists to prevent. Fields are scoped on different dimensions; taking each address from
+its own record covers all of them at once, list members included, since their dotted path
+keys carry addresses too. The precedent is `list`'s element `remove`, which already sweeps one
+bucket and spares its siblings for the same reason.
+
+**The ordering constraint is load-bearing and is pinned by a test.** `'active'` reads the
+resolution as it stands. A consumer switching branch must set the discriminators FIRST and
+reset second; called the other way round it clears the branch being left and spares the one
+being entered — the precise inverse of the intent, and green-looking. That is the same
+before-the-patch asymmetry the `coerce` hook has, and the second place in this library where
+the fix is "stage the discriminators first".
+
+**Considered and rejected:** exposing a field's address publicly so the consumer could build
+the set and pass it to the existing `prune`. No public API exposes a record's address today,
+and adding one invites exactly the hand-parsing of intent addresses that `scopedAddress` /
+`readIntentBuckets` exist to prevent. The narrow option keeps the grammar inside the library.
+
+**Deliberately kept:** a field OUTSIDE the active resolution survives either form of reset. An
+unmounted branch is addressed by nothing, so it is not cleared. Across branches that is the
+whole point; within one it is a small leak, and it matches how the store already treats
+inactive fields (an external judgment against one binds nothing). Pinned by a test so the
+next reader sees it as a decision rather than an oversight.
+
+Additive: `scope` omitted is byte-for-byte the old behaviour, pinned by its own test.
+
+**A correctness review before publishing caught two bugs in the first cut, both of which would
+have shipped green.**
+
+1. **Touched state was still cleared wholesale.** Intent was narrowed, `touchedAddresses` was
+   not, so a preserved value was left marked never-written. Under `revalidate: 'touched'` the
+   bounded re-judge skips untouched addresses, so a kept value that LATER goes invalid (ext
+   moved, an option was delisted) surfaced no error until it was written again. `validate()`
+   still refused at submit, which is exactly why it would have been found late and from a
+   confused report. Touched state now follows intent. An EXCLUDED field still loses its flag —
+   that predates this and changing it would move ground under existing callers.
+
+2. **The bare-key fallback was not cleared.** A scoped read falls back to the bare key, so an
+   entry sitting there — v1-migrated storage, or a key `commitPending` filed while the field was
+   inactive — is what the active field reads. Narrowing to resolved addresses alone left it
+   untouched and `reset` returned the field to the value it already had: measured, a stored
+   `steps: 99` survived `reset({ scope: 'active' })` intact where a plain `reset` gave the default.
+   A SHADOWED bare entry is as bad, resurfacing the moment the scoped entry above it goes. The
+   active set now carries `addressKey(record.address)` beside each address — a write already
+   consumes the bare entry, so a reset of the same field should too.
+
+**Known and accepted: `scope: 'active'` is not a garbage collector.** A plain `reset` clears
+buckets that can never be reached again (an ecosystem dropped from the options, an orphaned list
+member); the scoped form keeps them by construction, and they persist through storage. `prune`
+exists for that and is the right tool. Worth knowing before reaching for the scoped form as
+general cleanup.
